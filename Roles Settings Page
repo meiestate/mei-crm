@@ -1,0 +1,8 @@
+RolesPage
+└─ SettingsLayout
+   └─ RolesContent
+      ├─ SettingsSidebar
+      ├─ SettingsMainPanel
+      │  ├─ PageHeader
+      │  ├─ RolesList
+      │  └─ PermissionMatrix
