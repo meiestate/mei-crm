@@ -1,0 +1,28 @@
+DealsPage
+└─ DashboardLayout
+   └─ DealsContent
+      ├─ PageHeader
+      │  ├─ Title
+      │  └─ HeaderActions
+      │     ├─ AddDealButton
+      │     ├─ FilterButton
+      │     └─ PipelineSettingsButton
+      │
+      ├─ DealsKanbanBoard
+      │  ├─ DealColumn(New)
+      │  │  └─ DealCard[]
+      │  ├─ DealColumn(Contacted)
+      │  │  └─ DealCard[]
+      │  ├─ DealColumn(Visit Planned)
+      │  │  └─ DealCard[]
+      │  ├─ DealColumn(Negotiation)
+      │  │  └─ DealCard[]
+      │  ├─ DealColumn(Token Paid)
+      │  │  └─ DealCard[]
+      │  ├─ DealColumn(Closed Won)
+      │  │  └─ DealCard[]
+      │  └─ DealColumn(Closed Lost)
+      │     └─ DealCard[]
+      │
+      ├─ DealFiltersDrawer
+      └─ AddDealModal
