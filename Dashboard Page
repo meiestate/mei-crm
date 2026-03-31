@@ -1,0 +1,23 @@
+DashboardPage
+└─ DashboardLayout
+   └─ DashboardContent
+      ├─ PageHeader
+      │  ├─ GreetingText
+      │  ├─ TodayDate
+      │  └─ QuickActionButtons
+      │
+      ├─ StatCardGrid
+      │  ├─ KPIStatCard(New Leads)
+      │  ├─ KPIStatCard(Follow-ups Due)
+      │  ├─ KPIStatCard(Active Deals)
+      │  └─ KPIStatCard(Closed This Month)
+      │
+      ├─ DashboardRow
+      │  ├─ PipelineSnapshotCard
+      │  └─ LeadSourceCard
+      │
+      ├─ DashboardRow
+      │  ├─ TodayTasksCard
+      │  └─ HotLeadsCard
+      │
+      └─ RecentActivityFeed
