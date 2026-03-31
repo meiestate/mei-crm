@@ -1,0 +1,25 @@
+DashboardLayout
+├─ Sidebar
+│  ├─ LogoBlock
+│  ├─ WorkspaceBadge
+│  ├─ SidebarNav
+│  │  ├─ SidebarItem(Dashboard)
+│  │  ├─ SidebarItem(Leads)
+│  │  ├─ SidebarItem(Contacts)
+│  │  ├─ SidebarItem(Deals)
+│  │  ├─ SidebarItem(Tasks)
+│  │  └─ SidebarItem(Settings)
+│  └─ SidebarFooter
+│     ├─ HelpLink
+│     └─ LogoutButton
+│
+└─ MainArea
+   ├─ Topbar
+   │  ├─ PageTitle
+   │  ├─ GlobalSearchInput
+   │  ├─ QuickAddDropdown
+   │  ├─ NotificationsButton
+   │  └─ UserMenu
+   │
+   └─ PageContent
+      └─ CurrentPage

@@ -1,0 +1,7 @@
+PipelinesPage
+└─ SettingsLayout
+   └─ PipelinesContent
+      ├─ SettingsSidebar
+      ├─ SettingsMainPanel
+      │  ├─ PageHeader
+      │  └─ PipelineStageEditor

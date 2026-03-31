@@ -1,0 +1,19 @@
+DealDetailPage
+└─ DashboardLayout
+   └─ DealDetailContent
+      ├─ DealHeaderCard
+      │  ├─ DealIdentityBlock
+      │  ├─ DealValueBlock
+      │  └─ HeaderActions
+      │
+      ├─ DetailGrid
+      │  ├─ MainColumn
+      │  │  ├─ DealOverviewCard
+      │  │  ├─ DealStageTracker
+      │  │  ├─ DealActivityTimeline
+      │  │  └─ DocumentsPlaceholderCard
+      │  │
+      │  └─ SideColumn
+      │     ├─ UpcomingTasksCard
+      │     ├─ DealRiskFlagsCard
+      │     └─ DealQuickActionsCard

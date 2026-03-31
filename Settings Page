@@ -1,0 +1,9 @@
+UsersPage
+└─ SettingsLayout
+   └─ UsersContent
+      ├─ SettingsSidebar
+      ├─ SettingsMainPanel
+      │  ├─ PageHeader
+      │  │  └─ InviteUserButton
+      │  ├─ UsersTable
+      │  └─ InviteUserModal

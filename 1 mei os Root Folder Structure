@@ -1,0 +1,272 @@
+ mei-core-crm/
+├─ public/
+│  ├─ favicon.ico
+│  ├─ logo.svg
+│  └─ images/
+│
+├─ src/
+│  ├─ app/
+│  │  ├─ router/
+│  │  │  ├─ index.tsx
+│  │  │  ├─ routePaths.ts
+│  │  │  ├─ ProtectedRoute.tsx
+│  │  │  └─ AppRouter.tsx
+│  │  ├─ providers/
+│  │  │  ├─ QueryProvider.tsx
+│  │  │  ├─ ThemeProvider.tsx
+│  │  │  └─ AppProviders.tsx
+│  │  ├─ store/
+│  │  │  ├─ authStore.ts
+│  │  │  ├─ uiStore.ts
+│  │  │  └─ workspaceStore.ts
+│  │  ├─ layouts/
+│  │  │  ├─ AuthLayout.tsx
+│  │  │  ├─ DashboardLayout.tsx
+│  │  │  └─ SettingsLayout.tsx
+│  │  └─ config/
+│  │     ├─ navigation.ts
+│  │     ├─ permissions.ts
+│  │     └─ constants.ts
+│  │
+│  ├─ pages/
+│  │  ├─ auth/
+│  │  │  ├─ LoginPage.tsx
+│  │  │  ├─ SignupPage.tsx
+│  │  │  └─ ForgotPasswordPage.tsx
+│  │  ├─ dashboard/
+│  │  │  └─ DashboardPage.tsx
+│  │  ├─ leads/
+│  │  │  ├─ LeadsPage.tsx
+│  │  │  └─ LeadDetailPage.tsx
+│  │  ├─ contacts/
+│  │  │  ├─ ContactsPage.tsx
+│  │  │  └─ ContactDetailPage.tsx
+│  │  ├─ deals/
+│  │  │  ├─ DealsPage.tsx
+│  │  │  └─ DealDetailPage.tsx
+│  │  ├─ tasks/
+│  │  │  └─ TasksPage.tsx
+│  │  ├─ settings/
+│  │  │  ├─ UsersPage.tsx
+│  │  │  ├─ RolesPage.tsx
+│  │  │  ├─ PipelinesPage.tsx
+│  │  │  └─ SourcesPage.tsx
+│  │  └─ not-found/
+│  │     └─ NotFoundPage.tsx
+│  │
+│  ├─ features/
+│  │  ├─ auth/
+│  │  │  ├─ api/
+│  │  │  │  └─ authApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ LoginForm.tsx
+│  │  │  │  ├─ SignupWizard.tsx
+│  │  │  │  └─ OtpLoginForm.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  ├─ useLogin.ts
+│  │  │  │  └─ useSignup.ts
+│  │  │  ├─ types/
+│  │  │  │  └─ auth.types.ts
+│  │  │  └─ utils/
+│  │  │     └─ authValidation.ts
+│  │  │
+│  │  ├─ dashboard/
+│  │  │  ├─ api/
+│  │  │  │  └─ dashboardApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ KPIStatCard.tsx
+│  │  │  │  ├─ PipelineSnapshotCard.tsx
+│  │  │  │  ├─ LeadSourceCard.tsx
+│  │  │  │  ├─ TodayTasksCard.tsx
+│  │  │  │  ├─ HotLeadsCard.tsx
+│  │  │  │  └─ RecentActivityFeed.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  └─ useDashboardData.ts
+│  │  │  └─ types/
+│  │  │     └─ dashboard.types.ts
+│  │  │
+│  │  ├─ leads/
+│  │  │  ├─ api/
+│  │  │  │  └─ leadsApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ LeadTable.tsx
+│  │  │  │  ├─ LeadFilters.tsx
+│  │  │  │  ├─ LeadStatusBadge.tsx
+│  │  │  │  ├─ AddLeadDrawer.tsx
+│  │  │  │  ├─ LeadHeaderCard.tsx
+│  │  │  │  ├─ LeadOverviewCard.tsx
+│  │  │  │  ├─ LeadTimeline.tsx
+│  │  │  │  ├─ LeadNotesPanel.tsx
+│  │  │  │  ├─ LeadTasksCard.tsx
+│  │  │  │  ├─ MatchingPropertiesCard.tsx
+│  │  │  │  └─ LeadQuickActionsCard.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  ├─ useLeads.ts
+│  │  │  │  ├─ useLeadDetail.ts
+│  │  │  │  ├─ useCreateLead.ts
+│  │  │  │  └─ useUpdateLeadStatus.ts
+│  │  │  ├─ types/
+│  │  │  │  └─ leads.types.ts
+│  │  │  └─ utils/
+│  │  │     ├─ leadHelpers.ts
+│  │  │     └─ leadValidation.ts
+│  │  │
+│  │  ├─ contacts/
+│  │  │  ├─ api/
+│  │  │  │  └─ contactsApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ ContactsTable.tsx
+│  │  │  │  ├─ ContactFilters.tsx
+│  │  │  │  ├─ AddContactModal.tsx
+│  │  │  │  ├─ ContactHeaderCard.tsx
+│  │  │  │  ├─ ContactOverviewCard.tsx
+│  │  │  │  ├─ RelatedDealsCard.tsx
+│  │  │  │  ├─ RelatedLeadsCard.tsx
+│  │  │  │  └─ ContactActivityTimeline.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  ├─ useContacts.ts
+│  │  │  │  └─ useContactDetail.ts
+│  │  │  └─ types/
+│  │  │     └─ contacts.types.ts
+│  │  │
+│  │  ├─ deals/
+│  │  │  ├─ api/
+│  │  │  │  └─ dealsApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ DealsKanbanBoard.tsx
+│  │  │  │  ├─ DealColumn.tsx
+│  │  │  │  ├─ DealCard.tsx
+│  │  │  │  ├─ DealFiltersDrawer.tsx
+│  │  │  │  ├─ AddDealModal.tsx
+│  │  │  │  ├─ DealHeaderCard.tsx
+│  │  │  │  ├─ DealOverviewCard.tsx
+│  │  │  │  ├─ DealStageTracker.tsx
+│  │  │  │  ├─ DealActivityTimeline.tsx
+│  │  │  │  ├─ DealQuickActionsCard.tsx
+│  │  │  │  └─ DealRiskFlagsCard.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  ├─ useDeals.ts
+│  │  │  │  ├─ useDealDetail.ts
+│  │  │  │  └─ useMoveDealStage.ts
+│  │  │  └─ types/
+│  │  │     └─ deals.types.ts
+│  │  │
+│  │  ├─ tasks/
+│  │  │  ├─ api/
+│  │  │  │  └─ tasksApi.ts
+│  │  │  ├─ components/
+│  │  │  │  ├─ TasksTable.tsx
+│  │  │  │  ├─ TaskFilters.tsx
+│  │  │  │  ├─ AddTaskModal.tsx
+│  │  │  │  ├─ TaskStatusBadge.tsx
+│  │  │  │  └─ TaskPriorityBadge.tsx
+│  │  │  ├─ hooks/
+│  │  │  │  ├─ useTasks.ts
+│  │  │  │  ├─ useCreateTask.ts
+│  │  │  │  └─ useCompleteTask.ts
+│  │  │  └─ types/
+│  │  │     └─ tasks.types.ts
+│  │  │
+│  │  └─ settings/
+│  │     ├─ api/
+│  │     │  └─ settingsApi.ts
+│  │     ├─ components/
+│  │     │  ├─ UsersTable.tsx
+│  │     │  ├─ InviteUserModal.tsx
+│  │     │  ├─ RolesList.tsx
+│  │     │  ├─ PermissionMatrix.tsx
+│  │     │  ├─ PipelineStageEditor.tsx
+│  │     │  └─ SourceListEditor.tsx
+│  │     ├─ hooks/
+│  │     │  ├─ useUsers.ts
+│  │     │  ├─ useRoles.ts
+│  │     │  ├─ usePipelines.ts
+│  │     │  └─ useSources.ts
+│  │     └─ types/
+│  │        └─ settings.types.ts
+│  │
+│  ├─ components/
+│  │  ├─ ui/
+│  │  │  ├─ Button.tsx
+│  │  │  ├─ Input.tsx
+│  │  │  ├─ Select.tsx
+│  │  │  ├─ Textarea.tsx
+│  │  │  ├─ Checkbox.tsx
+│  │  │  ├─ Badge.tsx
+│  │  │  ├─ Avatar.tsx
+│  │  │  ├─ Card.tsx
+│  │  │  ├─ Modal.tsx
+│  │  │  ├─ Drawer.tsx
+│  │  │  ├─ Table.tsx
+│  │  │  ├─ Tabs.tsx
+│  │  │  ├─ Dropdown.tsx
+│  │  │  ├─ Tooltip.tsx
+│  │  │  ├─ EmptyState.tsx
+│  │  │  ├─ Spinner.tsx
+│  │  │  ├─ Toast.tsx
+│  │  │  └─ ConfirmDialog.tsx
+│  │  │
+│  │  ├─ layout/
+│  │  │  ├─ Sidebar.tsx
+│  │  │  ├─ SidebarItem.tsx
+│  │  │  ├─ Topbar.tsx
+│  │  │  ├─ PageHeader.tsx
+│  │  │  └─ SettingsSidebar.tsx
+│  │  │
+│  │  ├─ shared/
+│  │  │  ├─ SearchInput.tsx
+│  │  │  ├─ FilterBar.tsx
+│  │  │  ├─ ActivityTimeline.tsx
+│  │  │  ├─ NotesEditor.tsx
+│  │  │  ├─ QuickActionMenu.tsx
+│  │  │  ├─ StatCardGrid.tsx
+│  │  │  ├─ OverdueIndicator.tsx
+│  │  │  ├─ PhoneLink.tsx
+│  │  │  ├─ CurrencyText.tsx
+│  │  │  └─ DateTimeText.tsx
+│  │  │
+│  │  └─ feedback/
+│  │     ├─ ErrorState.tsx
+│  │     ├─ LoadingState.tsx
+│  │     └─ NoDataState.tsx
+│  │
+│  ├─ services/
+│  │  ├─ apiClient.ts
+│  │  ├─ queryKeys.ts
+│  │  ├─ storage.ts
+│  │  └─ mockServer.ts
+│  │
+│  ├─ lib/
+│  │  ├─ utils.ts
+│  │  ├─ formatters.ts
+│  │  ├─ date.ts
+│  │  ├─ currency.ts
+│  │  └─ cn.ts
+│  │
+│  ├─ types/
+│  │  ├─ api.ts
+│  │  ├─ common.ts
+│  │  ├─ user.ts
+│  │  ├─ workspace.ts
+│  │  └─ permissions.ts
+│  │
+│  ├─ mocks/
+│  │  ├─ leads.mock.ts
+│  │  ├─ contacts.mock.ts
+│  │  ├─ deals.mock.ts
+│  │  ├─ tasks.mock.ts
+│  │  └─ dashboard.mock.ts
+│  │
+│  ├─ styles/
+│  │  ├─ globals.css
+│  │  └─ tokens.css
+│  │
+│  ├─ main.tsx
+│  ├─ App.tsx
+│  └─ vite-env.d.ts
+│
+├─ .env
+├─ package.json
+├─ tsconfig.json
+├─ tailwind.config.ts
+└─ vite.config.ts

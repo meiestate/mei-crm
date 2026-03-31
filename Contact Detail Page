@@ -1,0 +1,14 @@
+ContactDetailPage
+└─ DashboardLayout
+   └─ ContactDetailContent
+      ├─ ContactHeaderCard
+      ├─ DetailGrid
+      │  ├─ MainColumn
+      │  │  ├─ ContactOverviewCard
+      │  │  ├─ RelatedLeadsCard
+      │  │  ├─ RelatedDealsCard
+      │  │  └─ ContactActivityTimeline
+      │  └─ SideColumn
+      │     ├─ TagsCard
+      │     ├─ QuickActionsCard
+      │     └─ CommunicationSummaryCard

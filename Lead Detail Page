@@ -1,0 +1,27 @@
+LeadDetailPage
+└─ DashboardLayout
+   └─ LeadDetailContent
+      ├─ LeadHeaderCard
+      │  ├─ LeadIdentityBlock
+      │  ├─ RequirementSummaryBlock
+      │  └─ HeaderActions
+      │     ├─ CallButton
+      │     ├─ WhatsAppButton
+      │     ├─ EditButton
+      │     ├─ ConvertToContactButton
+      │     └─ CreateDealButton
+      │
+      ├─ DetailGrid
+      │  ├─ MainColumn
+      │  │  ├─ LeadOverviewCard
+      │  │  ├─ LeadTimeline
+      │  │  ├─ LeadNotesPanel
+      │  │  └─ LeadTasksCard
+      │  │
+      │  └─ SideColumn
+      │     ├─ SmartSummaryCard
+      │     ├─ MatchingPropertiesCard
+      │     └─ LeadQuickActionsCard
+      │
+      ├─ AddTaskModal
+      └─ EditLeadDrawer

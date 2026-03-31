@@ -1,0 +1,25 @@
+ContactsPage
+└─ DashboardLayout
+   └─ ContactsContent
+      ├─ PageHeader
+      │  └─ AddContactButton
+      │
+      ├─ ContactTabs
+      │  ├─ All
+      │  ├─ Buyers
+      │  ├─ Sellers
+      │  ├─ Tenants
+      │  ├─ Owners
+      │  └─ Companies
+      │
+      ├─ ContactFilters
+      │  ├─ SearchInput
+      │  ├─ TypeSelect
+      │  ├─ ManagerSelect
+      │  ├─ TagSelect
+      │  └─ LocationInput
+      │
+      ├─ ContactsTable
+      │  └─ ContactRow[]
+      │
+      └─ AddContactModal
