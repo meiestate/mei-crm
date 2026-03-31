@@ -1,0 +1,31 @@
+TasksPage
+└─ DashboardLayout
+   └─ TasksContent
+      ├─ PageHeader
+      │  └─ AddTaskButton
+      │
+      ├─ TaskTabs
+      │  ├─ All
+      │  ├─ My Tasks
+      │  ├─ Due Today
+      │  ├─ Overdue
+      │  └─ Completed
+      │
+      ├─ TaskFilters
+      │  ├─ SearchInput
+      │  ├─ PrioritySelect
+      │  ├─ AssignedUserSelect
+      │  ├─ RelatedTypeSelect
+      │  └─ DueDateFilter
+      │
+      ├─ TasksTable
+      │  └─ TaskRow[]
+      │     ├─ TaskTitleCell
+      │     ├─ RelatedEntityCell
+      │     ├─ AssignedUserCell
+      │     ├─ DueDateCell
+      │     ├─ TaskPriorityBadge
+      │     ├─ TaskStatusBadge
+      │     └─ TaskRowActions
+      │
+      └─ AddTaskModal
