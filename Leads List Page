@@ -1,0 +1,41 @@
+LeadsPage
+└─ DashboardLayout
+   └─ LeadsContent
+      ├─ PageHeader
+      │  ├─ Title
+      │  ├─ Subtitle
+      │  └─ AddLeadButton
+      │
+      ├─ LeadFilters
+      │  ├─ SearchInput
+      │  ├─ StatusSelect
+      │  ├─ AssignedUserSelect
+      │  ├─ SourceSelect
+      │  ├─ DateRangePicker
+      │  ├─ TemperatureSelect
+      │  └─ QuickFilterChips
+      │
+      ├─ LeadToolbar
+      │  ├─ ImportButton
+      │  ├─ BulkAssignButton
+      │  └─ BulkStatusButton
+      │
+      ├─ LeadTable
+      │  ├─ TableHeader
+      │  └─ LeadTableRow[]
+      │     ├─ LeadNameCell
+      │     ├─ PhoneCell
+      │     ├─ RequirementCell
+      │     ├─ SourceCell
+      │     ├─ AssignedUserCell
+      │     ├─ LeadStatusBadge
+      │     ├─ FollowupCell
+      │     ├─ TemperatureBadge
+      │     └─ RowActionsMenu
+      │
+      └─ AddLeadDrawer
+         └─ AddLeadForm
+            ├─ BasicInfoSection
+            ├─ RequirementSection
+            ├─ MetadataSection
+            └─ FormActions
