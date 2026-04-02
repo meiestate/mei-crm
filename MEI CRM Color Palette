@@ -1,0 +1,285 @@
+MEI CRM Color Palette
+1. Brand Core Colors
+Primary Brand Blue
+Primary 500: #2563EB
+Primary 600: #1D4ED8
+Primary 700: #1E40AF
+
+Use for:
+
+primary buttons
+active sidebar item
+links
+selected filters
+focus states
+Accent Blue Glow
+Accent 400: #60A5FA
+Accent 300: #93C5FD
+
+Use for:
+
+hover highlights
+charts
+subtle premium touch
+dark mode accents
+2. Light Mode Palette
+Backgrounds
+Page Background: #F3F4F6
+Section Background: #F9FAFB
+Card Background: #FFFFFF
+Soft Highlight Background: #EFF6FF
+Text
+Primary Text: #111827
+Secondary Text: #6B7280
+Muted Text: #9CA3AF
+Inverse Text: #FFFFFF
+Borders / Lines
+Primary Border: #E5E7EB
+Soft Border: #EEF2F7
+Strong Border: #D1D5DB
+Inputs / Forms
+Input Background: #FFFFFF
+Input Border: #D1D5DB
+Input Placeholder: #9CA3AF
+Input Focus Border: #2563EB
+Input Disabled Background: #F3F4F6
+Navigation
+Sidebar Background: #FFFFFF
+Topbar Background: #FFFFFF
+Active Nav Background: #111827
+Active Nav Text: #FFFFFF
+Inactive Nav Text: #374151
+3. Dark Navy Mode Palette
+Backgrounds
+Page Background: #020617
+Sidebar Background: #0F172A
+Topbar Background: #111827
+Card Background: #111827
+Secondary Card Background: #1E293B
+Input Background: #0F172A
+Soft Highlight Background: #172554
+Text
+Primary Text: #F8FAFC
+Secondary Text: #94A3B8
+Muted Text: #64748B
+Inverse Text: #111827
+Borders / Lines
+Primary Border: #334155
+Soft Border: #263244
+Strong Border: #475569
+Navigation
+Active Nav Background: #2563EB
+Active Nav Text: #FFFFFF
+Inactive Nav Text: #CBD5E1
+4. Status Colors
+Success
+Success BG / Badge: #16A34A
+Success Light BG: #DCFCE7
+Success Dark Soft BG: #052E16
+
+Use for:
+
+closed deals
+completed tasks
+paid invoices
+successful actions
+Warning
+Warning BG / Badge: #F59E0B
+Warning Light BG: #FEF3C7
+Warning Dark Soft BG: #3F2D0A
+
+Use for:
+
+contacted leads
+pending follow-ups
+due soon reminders
+Danger / Error
+Danger BG / Badge: #DC2626
+Danger Light BG: #FEE2E2
+Danger Dark Soft BG: #450A0A
+
+Use for:
+
+overdue tasks
+failed payment
+delete buttons
+validation errors
+Info
+Info BG / Badge: #2563EB
+Info Light BG: #DBEAFE
+Info Dark Soft BG: #172554
+
+Use for:
+
+new leads
+notifications
+info banners
+selected tabs
+Purple / Premium
+Premium BG / Badge: #7C3AED
+Premium Light BG: #EDE9FE
+Premium Dark Soft BG: #2E1065
+
+Use for:
+
+qualified leads
+premium features
+AI suggestions
+analytics highlights
+5. Button Palette
+Primary Button
+BG: #2563EB
+Hover: #1D4ED8
+Text: #FFFFFF
+Secondary Button
+Light mode
+BG: #111827
+Hover: #1F2937
+Text: #FFFFFF
+Dark mode
+BG: #F8FAFC
+Hover: #E2E8F0
+Text: #111827
+Ghost Button
+Light mode
+BG: transparent
+Text: #374151
+Border: #D1D5DB
+Dark mode
+BG: transparent
+Text: #CBD5E1
+Border: #334155
+Danger Button
+BG: #DC2626
+Hover: #B91C1C
+Text: #FFFFFF
+6. Table Palette
+Light Mode Table
+Header Background: #F9FAFB
+Row Background: #FFFFFF
+Row Hover: #F3F4F6
+Border: #E5E7EB
+Header Text: #6B7280
+Cell Text: #111827
+Dark Mode Table
+Header Background: #1E293B
+Row Background: #111827
+Row Hover: #172033
+Border: #334155
+Header Text: #94A3B8
+Cell Text: #F8FAFC
+7. Form Palette
+Labels
+Light: #374151
+Dark: #CBD5E1
+Placeholder
+Light: #9CA3AF
+Dark: #64748B
+Focus Ring
+Focus Blue: #2563EB
+Disabled
+Light Disabled BG: #F3F4F6
+Dark Disabled BG: #1E293B
+8. Chart Palette
+
+Use this set for dashboard charts:
+
+Blue: #2563EB
+Green: #16A34A
+Amber: #F59E0B
+Red: #DC2626
+Purple: #7C3AED
+Cyan: #06B6D4
+9. Shadow Palette
+Light Mode Shadows
+Soft Shadow: 0 4px 12px rgba(0, 0, 0, 0.06)
+Card Shadow: 0 10px 30px rgba(0, 0, 0, 0.08)
+Dark Mode Shadows
+Soft Shadow: 0 6px 16px rgba(0, 0, 0, 0.25)
+Card Shadow: 0 10px 30px rgba(0, 0, 0, 0.35)
+10. Recommended Usage Mapping for MEI CRM
+Sidebar
+Light
+BG: #FFFFFF
+Border: #E5E7EB
+Text: #374151
+Active BG: #111827
+Dark
+BG: #0F172A
+Border: #334155
+Text: #CBD5E1
+Active BG: #2563EB
+Topbar
+Light
+BG: #FFFFFF
+Border: #E5E7EB
+Title: #111827
+Dark
+BG: #111827
+Border: #334155
+Title: #F8FAFC
+Main Content Area
+Light
+BG: #F3F4F6
+Dark
+BG: #020617
+Cards
+Light
+BG: #FFFFFF
+Border: #E5E7EB
+Title: #111827
+Subtitle: #6B7280
+Dark
+BG: #111827
+Border: #334155
+Title: #F8FAFC
+Subtitle: #94A3B8
+11. Best Palette Roles for Lead Status
+New → #2563EB
+Contacted → #F59E0B
+Qualified → #7C3AED
+Closed → #16A34A
+
+12. Optional Theme Object for Code
+export const theme = {
+  light: {
+    pageBg: "#F3F4F6",
+    sectionBg: "#F9FAFB",
+    cardBg: "#FFFFFF",
+    text: "#111827",
+    subText: "#6B7280",
+    mutedText: "#9CA3AF",
+    border: "#E5E7EB",
+    borderStrong: "#D1D5DB",
+    primary: "#2563EB",
+    primaryHover: "#1D4ED8",
+    sidebarBg: "#FFFFFF",
+    topbarBg: "#FFFFFF",
+    inputBg: "#FFFFFF",
+    tableHeadBg: "#F9FAFB",
+    rowHover: "#F3F4F6",
+  },
+  dark: {
+    pageBg: "#020617",
+    sectionBg: "#0F172A",
+    cardBg: "#111827",
+    cardBg2: "#1E293B",
+    text: "#F8FAFC",
+    subText: "#94A3B8",
+    mutedText: "#64748B",
+    border: "#334155",
+    borderStrong: "#475569",
+    primary: "#2563EB",
+    primaryHover: "#1D4ED8",
+    sidebarBg: "#0F172A",
+    topbarBg: "#111827",
+    inputBg: "#0F172A",
+    tableHeadBg: "#1E293B",
+    rowHover: "#172033",
+  },
+};
+
+
+
+
+Dropped / Lost → #DC2626
