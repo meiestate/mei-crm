@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
-import { getTheme, ThemeMode } from "../../theme";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
 
 type LeadsPageProps = {
   mode: ThemeMode;
@@ -248,7 +249,7 @@ export default function LeadsPage({
               style={{
                 border: "none",
                 background: colors.primary,
-                color: colors.inverseText === "#111827" ? "#ffffff" : "#ffffff",
+                color: "#ffffff",
                 padding: "12px 18px",
                 borderRadius: 12,
                 fontWeight: 700,

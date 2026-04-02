@@ -1,6 +1,7 @@
 import React from "react";
 import AppLayout from "../../components/layout/AppLayout";
-import { ThemeMode, getTheme } from "../../theme";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
 
 type TasksPageProps = {
   mode: ThemeMode;
