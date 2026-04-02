@@ -1,4 +1,5 @@
-import { getTheme, ThemeMode } from "../../theme";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
 
 type TopbarProps = {
   title: string;
@@ -23,17 +24,7 @@ export default function Topbar({ title, mode, onToggleTheme }: TopbarProps) {
         boxSizing: "border-box",
       }}
     >
-      <div>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 26,
-            color: colors.text,
-          }}
-        >
-          {title}
-        </h1>
-      </div>
+      <h1 style={{ margin: 0, fontSize: 26, color: colors.text }}>{title}</h1>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button

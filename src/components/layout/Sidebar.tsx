@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { getTheme, ThemeMode } from "../../theme";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
 
 type SidebarProps = {
   mode: ThemeMode;
@@ -56,7 +57,6 @@ export default function Sidebar({ mode }: SidebarProps) {
                 background: active ? colors.navActiveBg : "transparent",
                 color: active ? colors.navActiveText : colors.navText,
                 transition: "0.2s ease",
-                border: active ? "none" : `1px solid transparent`,
               }}
             >
               {item.label}

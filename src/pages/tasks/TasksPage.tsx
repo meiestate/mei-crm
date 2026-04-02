@@ -1,3 +1,4 @@
+import React from "react";
 import AppLayout from "../../components/layout/AppLayout";
 import { ThemeMode, getTheme } from "../../theme";
 
@@ -7,34 +8,10 @@ type TasksPageProps = {
 };
 
 const tasks = [
-  {
-    id: 1,
-    title: "Call Arun Kumar",
-    priority: "High",
-    dueDate: "2026-04-03",
-    status: "Pending",
-  },
-  {
-    id: 2,
-    title: "Send project brochure",
-    priority: "Medium",
-    dueDate: "2026-04-04",
-    status: "In Progress",
-  },
-  {
-    id: 3,
-    title: "Follow up with Priya",
-    priority: "High",
-    dueDate: "2026-04-05",
-    status: "Pending",
-  },
-  {
-    id: 4,
-    title: "Close deal documentation",
-    priority: "Low",
-    dueDate: "2026-04-06",
-    status: "Completed",
-  },
+  { id: 1, title: "Call Arun Kumar", priority: "High", dueDate: "2026-04-03", status: "Pending" },
+  { id: 2, title: "Send project brochure", priority: "Medium", dueDate: "2026-04-04", status: "In Progress" },
+  { id: 3, title: "Follow up with Priya", priority: "High", dueDate: "2026-04-05", status: "Pending" },
+  { id: 4, title: "Close deal documentation", priority: "Low", dueDate: "2026-04-06", status: "Completed" },
 ];
 
 function getPriorityColor(priority: string) {
@@ -70,9 +47,7 @@ export default function TasksPage({ mode, onToggleTheme }: TasksPageProps) {
     <AppLayout title="Tasks" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 30, color: colors.text }}>
-            Task Management
-          </h2>
+          <h2 style={{ margin: 0, fontSize: 30, color: colors.text }}>Task Management</h2>
           <p style={{ margin: "8px 0 0", color: colors.subText }}>
             Track pending, in-progress, and completed work items.
           </p>
@@ -85,65 +60,10 @@ export default function TasksPage({ mode, onToggleTheme }: TasksPageProps) {
             gap: 16,
           }}
         >
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 20,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 14, color: colors.subText }}>Total Tasks</div>
-            <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: colors.text }}>
-              {tasks.length}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 20,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 14, color: colors.subText }}>Pending</div>
-            <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: colors.text }}>
-              {tasks.filter((task) => task.status === "Pending").length}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 20,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 14, color: colors.subText }}>In Progress</div>
-            <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: colors.text }}>
-              {tasks.filter((task) => task.status === "In Progress").length}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 20,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 14, color: colors.subText }}>Completed</div>
-            <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: colors.text }}>
-              {tasks.filter((task) => task.status === "Completed").length}
-            </div>
-          </div>
+          <Card label="Total Tasks" value={tasks.length} colors={colors} />
+          <Card label="Pending" value={tasks.filter((t) => t.status === "Pending").length} colors={colors} />
+          <Card label="In Progress" value={tasks.filter((t) => t.status === "In Progress").length} colors={colors} />
+          <Card label="Completed" value={tasks.filter((t) => t.status === "Completed").length} colors={colors} />
         </div>
 
         <div
@@ -155,28 +75,15 @@ export default function TasksPage({ mode, onToggleTheme }: TasksPageProps) {
             boxShadow: colors.shadowSoft,
           }}
         >
-          <div
-            style={{
-              padding: 20,
-              borderBottom: `1px solid ${colors.border}`,
-            }}
-          >
-            <div style={{ fontSize: 24, fontWeight: 800, color: colors.text }}>
-              Tasks Table
-            </div>
+          <div style={{ padding: 20, borderBottom: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: colors.text }}>Tasks Table</div>
             <div style={{ fontSize: 14, color: colors.subText, marginTop: 4 }}>
               All task records are listed below.
             </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: 760,
-              }}
-            >
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
               <thead>
                 <tr style={{ background: colors.tableHeadBg, textAlign: "left" }}>
                   <th style={thStyle(colors.subText)}>ID</th>
@@ -236,6 +143,31 @@ export default function TasksPage({ mode, onToggleTheme }: TasksPageProps) {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function Card({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: number;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 18,
+        padding: 20,
+        boxShadow: colors.shadowSoft,
+      }}
+    >
+      <div style={{ fontSize: 14, color: colors.subText }}>{label}</div>
+      <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: colors.text }}>{value}</div>
+    </div>
   );
 }
 

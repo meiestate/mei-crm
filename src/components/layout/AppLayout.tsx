@@ -1,7 +1,8 @@
-import { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import { getTheme, ThemeMode } from "../../theme";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
+import type { ReactNode } from "react";
 
 type AppLayoutProps = {
   title: string;
