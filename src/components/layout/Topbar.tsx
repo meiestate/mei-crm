@@ -1,18 +1,21 @@
+import { getTheme, ThemeMode } from "../../theme";
+
 type TopbarProps = {
   title: string;
-  mode: "light" | "dark";
+  mode: ThemeMode;
   onToggleTheme: () => void;
 };
 
 export default function Topbar({ title, mode, onToggleTheme }: TopbarProps) {
+  const colors = getTheme(mode);
   const isDark = mode === "dark";
 
   return (
     <header
       style={{
         height: 72,
-        background: isDark ? "#111827" : "#ffffff",
-        borderBottom: `1px solid ${isDark ? "#334155" : "#e5e7eb"}`,
+        background: colors.topbarBg,
+        borderBottom: `1px solid ${colors.border}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -25,7 +28,7 @@ export default function Topbar({ title, mode, onToggleTheme }: TopbarProps) {
           style={{
             margin: 0,
             fontSize: 26,
-            color: isDark ? "#f8fafc" : "#111827",
+            color: colors.text,
           }}
         >
           {title}
@@ -41,8 +44,8 @@ export default function Topbar({ title, mode, onToggleTheme }: TopbarProps) {
             padding: "10px 14px",
             fontWeight: 700,
             cursor: "pointer",
-            background: isDark ? "#f8fafc" : "#111827",
-            color: isDark ? "#111827" : "#ffffff",
+            background: isDark ? colors.inverseText : colors.text,
+            color: isDark ? colors.text : colors.inverseText,
           }}
         >
           {isDark ? "Light Mode" : "Dark Navy Mode"}
@@ -53,11 +56,12 @@ export default function Topbar({ title, mode, onToggleTheme }: TopbarProps) {
             width: 40,
             height: 40,
             borderRadius: "50%",
-            background: isDark ? "#2563eb" : "#111827",
+            background: colors.primary,
             color: "#fff",
             display: "grid",
             placeItems: "center",
             fontWeight: 700,
+            boxShadow: colors.shadowSoft,
           }}
         >
           M

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
+import { getTheme, ThemeMode } from "../../theme";
 
 type LeadsPageProps = {
-  mode: "light" | "dark";
+  mode: ThemeMode;
   onToggleTheme: () => void;
 };
 
@@ -19,29 +20,62 @@ type Lead = {
 };
 
 const initialLeads: Lead[] = [
-  { id: 1, name: "Arun Kumar", phone: "9876543210", source: "WhatsApp", city: "Chennai", status: "New" },
-  { id: 2, name: "Priya", phone: "9123456780", source: "Facebook", city: "Bangalore", status: "Contacted" },
-  { id: 3, name: "Rahul", phone: "9000012345", source: "Website", city: "Coimbatore", status: "Qualified" },
-  { id: 4, name: "Meena", phone: "9090909090", source: "Reference", city: "Madurai", status: "Closed" },
+  {
+    id: 1,
+    name: "Arun Kumar",
+    phone: "9876543210",
+    source: "WhatsApp",
+    city: "Chennai",
+    status: "New",
+  },
+  {
+    id: 2,
+    name: "Priya",
+    phone: "9123456780",
+    source: "Facebook",
+    city: "Bangalore",
+    status: "Contacted",
+  },
+  {
+    id: 3,
+    name: "Rahul",
+    phone: "9000012345",
+    source: "Website",
+    city: "Coimbatore",
+    status: "Qualified",
+  },
+  {
+    id: 4,
+    name: "Meena",
+    phone: "9090909090",
+    source: "Reference",
+    city: "Madurai",
+    status: "Closed",
+  },
 ];
 
-function getStatusColor(status: LeadStatus) {
+function getStatusColor(status: LeadStatus, mode: ThemeMode) {
+  const colors = getTheme(mode);
+
   switch (status) {
     case "New":
-      return "#2563eb";
+      return colors.info;
     case "Contacted":
-      return "#f59e0b";
+      return colors.warning;
     case "Qualified":
-      return "#7c3aed";
+      return colors.premium;
     case "Closed":
-      return "#16a34a";
+      return colors.success;
     default:
-      return "#6b7280";
+      return colors.subText;
   }
 }
 
-export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
-  const isDark = mode === "dark";
+export default function LeadsPage({
+  mode,
+  onToggleTheme,
+}: LeadsPageProps) {
+  const colors = getTheme(mode);
 
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,17 +90,10 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
     status: "New" as LeadStatus,
   });
 
-  const cardBg = isDark ? "#111827" : "#ffffff";
-  const border = isDark ? "#334155" : "#e5e7eb";
-  const text = isDark ? "#f8fafc" : "#111827";
-  const subText = isDark ? "#94a3b8" : "#6b7280";
-  const softBg = isDark ? "#1e293b" : "#f9fafb";
-  const inputBg = isDark ? "#0f172a" : "#ffffff";
-  const overlayBg = "rgba(0,0,0,0.55)";
-
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
-      const matchesFilter = activeFilter === "All" ? true : lead.status === activeFilter;
+      const matchesFilter =
+        activeFilter === "All" ? true : lead.status === activeFilter;
 
       const q = searchTerm.trim().toLowerCase();
       const matchesSearch =
@@ -117,8 +144,21 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
     <AppLayout title="Leads" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 30, color: text }}>Lead Management</h2>
-          <p style={{ margin: "8px 0 0", color: subText }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 30,
+              color: colors.text,
+            }}
+          >
+            Lead Management
+          </h2>
+          <p
+            style={{
+              margin: "8px 0 0",
+              color: colors.subText,
+            }}
+          >
             Track every lead, follow-up, and conversion in one place.
           </p>
         </div>
@@ -139,14 +179,29 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
             <div
               key={item.label}
               style={{
-                background: cardBg,
-                border: `1px solid ${border}`,
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
                 borderRadius: 18,
                 padding: 20,
+                boxShadow: colors.shadowSoft,
               }}
             >
-              <div style={{ fontSize: 14, color: subText }}>{item.label}</div>
-              <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: text }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: colors.subText,
+                }}
+              >
+                {item.label}
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 32,
+                  fontWeight: 800,
+                  color: colors.text,
+                }}
+              >
                 {item.value}
               </div>
             </div>
@@ -155,10 +210,11 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
 
         <div
           style={{
-            background: cardBg,
-            border: `1px solid ${border}`,
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
             borderRadius: 18,
             padding: 20,
+            boxShadow: colors.shadowSoft,
           }}
         >
           <div
@@ -178,11 +234,12 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
                 width: "100%",
                 padding: "14px 16px",
                 borderRadius: 12,
-                border: `1px solid ${border}`,
-                background: inputBg,
-                color: text,
+                border: `1px solid ${colors.border}`,
+                background: colors.inputBg,
+                color: colors.text,
                 outline: "none",
                 fontSize: 14,
+                boxSizing: "border-box",
               }}
             />
 
@@ -190,13 +247,14 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
               onClick={() => setIsModalOpen(true)}
               style={{
                 border: "none",
-                background: "#2563eb",
-                color: "#ffffff",
+                background: colors.primary,
+                color: colors.inverseText === "#111827" ? "#ffffff" : "#ffffff",
                 padding: "12px 18px",
                 borderRadius: 12,
                 fontWeight: 700,
                 cursor: "pointer",
                 whiteSpace: "nowrap",
+                boxShadow: colors.shadowSoft,
               }}
             >
               + Add Lead
@@ -211,27 +269,31 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
               flexWrap: "wrap",
             }}
           >
-            {(["All", "New", "Contacted", "Qualified", "Closed"] as FilterType[]).map((item) => {
-              const active = activeFilter === item;
+            {(["All", "New", "Contacted", "Qualified", "Closed"] as FilterType[]).map(
+              (item) => {
+                const active = activeFilter === item;
 
-              return (
-                <button
-                  key={item}
-                  onClick={() => setActiveFilter(item)}
-                  style={{
-                    border: `1px solid ${active ? "#2563eb" : border}`,
-                    background: active ? "#2563eb" : softBg,
-                    color: active ? "#ffffff" : text,
-                    padding: "10px 14px",
-                    borderRadius: 999,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  {item}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={item}
+                    onClick={() => setActiveFilter(item)}
+                    style={{
+                      border: `1px solid ${
+                        active ? colors.primary : colors.border
+                      }`,
+                      background: active ? colors.primary : colors.cardBgSoft,
+                      color: active ? "#ffffff" : colors.text,
+                      padding: "10px 14px",
+                      borderRadius: 999,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {item}
+                  </button>
+                );
+              }
+            )}
 
             <button
               onClick={() => {
@@ -239,9 +301,9 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
                 setSearchTerm("");
               }}
               style={{
-                border: `1px solid ${border}`,
+                border: `1px solid ${colors.border}`,
                 background: "transparent",
-                color: subText,
+                color: colors.subText,
                 padding: "10px 14px",
                 borderRadius: 999,
                 fontWeight: 600,
@@ -255,16 +317,17 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
 
         <div
           style={{
-            background: cardBg,
-            border: `1px solid ${border}`,
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
             borderRadius: 18,
             overflow: "hidden",
+            boxShadow: colors.shadowSoft,
           }}
         >
           <div
             style={{
               padding: 20,
-              borderBottom: `1px solid ${border}`,
+              borderBottom: `1px solid ${colors.border}`,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -273,39 +336,71 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
             }}
           >
             <div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: text }}>Leads Table</div>
-              <div style={{ fontSize: 14, color: subText, marginTop: 4 }}>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: colors.text,
+                }}
+              >
+                Leads Table
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: colors.subText,
+                  marginTop: 4,
+                }}
+              >
                 Showing {filteredLeads.length} lead(s)
               </div>
             </div>
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: 760,
+              }}
+            >
               <thead>
-                <tr style={{ background: softBg, textAlign: "left" }}>
-                  <th style={thStyle(subText)}>ID</th>
-                  <th style={thStyle(subText)}>Name</th>
-                  <th style={thStyle(subText)}>Phone</th>
-                  <th style={thStyle(subText)}>Source</th>
-                  <th style={thStyle(subText)}>City</th>
-                  <th style={thStyle(subText)}>Status</th>
+                <tr
+                  style={{
+                    background: colors.tableHeadBg,
+                    textAlign: "left",
+                  }}
+                >
+                  <th style={thStyle(colors.subText)}>ID</th>
+                  <th style={thStyle(colors.subText)}>Name</th>
+                  <th style={thStyle(colors.subText)}>Phone</th>
+                  <th style={thStyle(colors.subText)}>Source</th>
+                  <th style={thStyle(colors.subText)}>City</th>
+                  <th style={thStyle(colors.subText)}>Status</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredLeads.length > 0 ? (
                   filteredLeads.map((lead) => (
-                    <tr key={lead.id} style={{ borderTop: `1px solid ${border}` }}>
-                      <td style={tdStyle(text)}>{lead.id}</td>
-                      <td style={tdStyle(text)}>{lead.name}</td>
-                      <td style={tdStyle(text)}>{lead.phone}</td>
-                      <td style={tdStyle(text)}>{lead.source}</td>
-                      <td style={tdStyle(text)}>{lead.city}</td>
-                      <td style={tdStyle(text)}>
+                    <tr
+                      key={lead.id}
+                      style={{
+                        borderTop: `1px solid ${colors.border}`,
+                        background: colors.rowBg,
+                      }}
+                    >
+                      <td style={tdStyle(colors.text)}>{lead.id}</td>
+                      <td style={tdStyle(colors.text)}>{lead.name}</td>
+                      <td style={tdStyle(colors.text)}>{lead.phone}</td>
+                      <td style={tdStyle(colors.text)}>{lead.source}</td>
+                      <td style={tdStyle(colors.text)}>{lead.city}</td>
+                      <td style={tdStyle(colors.text)}>
                         <span
                           style={{
                             display: "inline-block",
-                            background: getStatusColor(lead.status),
+                            background: getStatusColor(lead.status, mode),
                             color: "#ffffff",
                             padding: "6px 12px",
                             borderRadius: 999,
@@ -320,7 +415,15 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} style={{ padding: 24, color: subText, textAlign: "center" }}>
+                    <td
+                      colSpan={6}
+                      style={{
+                        padding: 24,
+                        color: colors.subText,
+                        textAlign: "center",
+                        background: colors.rowBg,
+                      }}
+                    >
                       No leads found.
                     </td>
                   </tr>
@@ -337,7 +440,7 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
           style={{
             position: "fixed",
             inset: 0,
-            background: overlayBg,
+            background: "rgba(0,0,0,0.55)",
             display: "grid",
             placeItems: "center",
             padding: 16,
@@ -349,16 +452,30 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
             style={{
               width: "100%",
               maxWidth: 560,
-              background: cardBg,
-              border: `1px solid ${border}`,
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
               borderRadius: 20,
               padding: 24,
               boxSizing: "border-box",
+              boxShadow: colors.shadowCard,
             }}
           >
             <div style={{ marginBottom: 18 }}>
-              <h3 style={{ margin: 0, color: text, fontSize: 26 }}>Add New Lead</h3>
-              <p style={{ margin: "8px 0 0", color: subText }}>
+              <h3
+                style={{
+                  margin: 0,
+                  color: colors.text,
+                  fontSize: 26,
+                }}
+              >
+                Add New Lead
+              </h3>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: colors.subText,
+                }}
+              >
                 Fill the details and create a new lead.
               </p>
             </div>
@@ -373,57 +490,65 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
               <InputField
                 label="Name"
                 value={formData.name}
-                onChange={(value) => setFormData((prev) => ({ ...prev, name: value }))}
-                bg={inputBg}
-                text={text}
-                subText={subText}
-                border={border}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, name: value }))
+                }
+                colors={colors}
               />
 
               <InputField
                 label="Phone"
                 value={formData.phone}
-                onChange={(value) => setFormData((prev) => ({ ...prev, phone: value }))}
-                bg={inputBg}
-                text={text}
-                subText={subText}
-                border={border}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, phone: value }))
+                }
+                colors={colors}
               />
 
               <InputField
                 label="Source"
                 value={formData.source}
-                onChange={(value) => setFormData((prev) => ({ ...prev, source: value }))}
-                bg={inputBg}
-                text={text}
-                subText={subText}
-                border={border}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, source: value }))
+                }
+                colors={colors}
               />
 
               <InputField
                 label="City"
                 value={formData.city}
-                onChange={(value) => setFormData((prev) => ({ ...prev, city: value }))}
-                bg={inputBg}
-                text={text}
-                subText={subText}
-                border={border}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, city: value }))
+                }
+                colors={colors}
               />
 
               <div style={{ display: "grid", gap: 8 }}>
-                <label style={{ color: subText, fontSize: 14, fontWeight: 600 }}>Status</label>
+                <label
+                  style={{
+                    color: colors.subText,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  Status
+                </label>
+
                 <select
                   value={formData.status}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, status: e.target.value as LeadStatus }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      status: e.target.value as LeadStatus,
+                    }))
                   }
                   style={{
                     width: "100%",
                     padding: "14px 16px",
                     borderRadius: 12,
-                    border: `1px solid ${border}`,
-                    background: inputBg,
-                    color: text,
+                    border: `1px solid ${colors.border}`,
+                    background: colors.inputBg,
+                    color: colors.text,
                     outline: "none",
                     fontSize: 14,
                   }}
@@ -448,9 +573,9 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
               <button
                 onClick={() => setIsModalOpen(false)}
                 style={{
-                  border: `1px solid ${border}`,
+                  border: `1px solid ${colors.border}`,
                   background: "transparent",
-                  color: text,
+                  color: colors.text,
                   padding: "12px 16px",
                   borderRadius: 12,
                   fontWeight: 700,
@@ -464,7 +589,7 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
                 onClick={handleAddLead}
                 style={{
                   border: "none",
-                  background: "#2563eb",
+                  background: colors.primary,
                   color: "#ffffff",
                   padding: "12px 16px",
                   borderRadius: 12,
@@ -486,22 +611,25 @@ function InputField({
   label,
   value,
   onChange,
-  bg,
-  text,
-  subText,
-  border,
+  colors,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  bg: string;
-  text: string;
-  subText: string;
-  border: string;
+  colors: ReturnType<typeof getTheme>;
 }) {
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <label style={{ color: subText, fontSize: 14, fontWeight: 600 }}>{label}</label>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
       <input
         type="text"
         value={value}
@@ -510,9 +638,9 @@ function InputField({
           width: "100%",
           padding: "14px 16px",
           borderRadius: 12,
-          border: `1px solid ${border}`,
-          background: bg,
-          color: text,
+          border: `1px solid ${colors.border}`,
+          background: colors.inputBg,
+          color: colors.text,
           outline: "none",
           fontSize: 14,
           boxSizing: "border-box",

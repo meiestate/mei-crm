@@ -1,10 +1,11 @@
 import { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import { getTheme, ThemeMode } from "../../theme";
 
 type AppLayoutProps = {
   title: string;
-  mode: "light" | "dark";
+  mode: ThemeMode;
   onToggleTheme: () => void;
   children: ReactNode;
 };
@@ -15,24 +16,18 @@ export default function AppLayout({
   onToggleTheme,
   children,
 }: AppLayoutProps) {
-  const isDark = mode === "dark";
-
-  const pageBackground = isDark ? "#020617" : "#f3f4f6";
-  const contentBackground = isDark ? "#020617" : "#f3f4f6";
-  const textColor = isDark ? "#f8fafc" : "#111827";
+  const colors = getTheme(mode);
 
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: pageBackground,
+        background: colors.pageBg,
       }}
     >
-      {/* Sidebar */}
       <Sidebar mode={mode} />
 
-      {/* Right Side */}
       <div
         style={{
           flex: 1,
@@ -41,16 +36,14 @@ export default function AppLayout({
           minWidth: 0,
         }}
       >
-        {/* Topbar */}
         <Topbar title={title} mode={mode} onToggleTheme={onToggleTheme} />
 
-        {/* Main Content Area */}
         <main
           style={{
             flex: 1,
             padding: 24,
-            background: contentBackground,
-            color: textColor,
+            background: colors.pageBg,
+            color: colors.text,
             overflowY: "auto",
             boxSizing: "border-box",
           }}

@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
+import { getTheme, ThemeMode } from "../../theme";
 
 type SidebarProps = {
-  mode: "light" | "dark";
+  mode: ThemeMode;
 };
 
 const menuItems = [
@@ -15,16 +16,15 @@ const menuItems = [
 
 export default function Sidebar({ mode }: SidebarProps) {
   const location = useLocation();
-
-  const isDark = mode === "dark";
+  const colors = getTheme(mode);
 
   return (
     <aside
       style={{
         width: 250,
         minHeight: "100vh",
-        background: isDark ? "#0f172a" : "#ffffff",
-        borderRight: `1px solid ${isDark ? "#334155" : "#e5e7eb"}`,
+        background: colors.sidebarBg,
+        borderRight: `1px solid ${colors.border}`,
         padding: 20,
         boxSizing: "border-box",
       }}
@@ -34,7 +34,7 @@ export default function Sidebar({ mode }: SidebarProps) {
           fontSize: 26,
           fontWeight: 800,
           marginBottom: 24,
-          color: isDark ? "#f8fafc" : "#111827",
+          color: colors.text,
         }}
       >
         MEI CRM
@@ -53,17 +53,10 @@ export default function Sidebar({ mode }: SidebarProps) {
                 padding: "12px 14px",
                 borderRadius: 12,
                 fontWeight: 600,
-                background: active
-                  ? isDark
-                    ? "#2563eb"
-                    : "#111827"
-                  : "transparent",
-                color: active
-                  ? "#ffffff"
-                  : isDark
-                  ? "#cbd5e1"
-                  : "#374151",
+                background: active ? colors.navActiveBg : "transparent",
+                color: active ? colors.navActiveText : colors.navText,
                 transition: "0.2s ease",
+                border: active ? "none" : `1px solid transparent`,
               }}
             >
               {item.label}
