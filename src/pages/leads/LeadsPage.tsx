@@ -1,5 +1,4 @@
 import AppLayout from "../../components/layout/AppLayout";
-import { useNavigate } from "react-router-dom";
 
 type LeadsPageProps = {
   mode: "light" | "dark";
@@ -38,7 +37,6 @@ function getStatusColor(status: Lead["status"]) {
 }
 
 export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
-  const navigate = useNavigate();
   const isDark = mode === "dark";
 
   const cardBg = isDark ? "#111827" : "#ffffff";
@@ -46,10 +44,18 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
   const text = isDark ? "#f8fafc" : "#111827";
   const subText = isDark ? "#94a3b8" : "#6b7280";
   const softBg = isDark ? "#1e293b" : "#f9fafb";
+  const inputBg = isDark ? "#0f172a" : "#ffffff";
 
   return (
     <AppLayout title="Leads" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 30, color: text }}>Lead Management</h2>
+          <p style={{ margin: "8px 0 0", color: subText }}>
+            Track every lead, follow-up, and conversion in one place.
+          </p>
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -68,12 +74,12 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
               style={{
                 background: cardBg,
                 border: `1px solid ${border}`,
-                borderRadius: 16,
+                borderRadius: 18,
                 padding: 20,
               }}
             >
-              <div style={{ color: subText, fontSize: 14 }}>{item.label}</div>
-              <div style={{ color: text, fontSize: 32, fontWeight: 800, marginTop: 8 }}>
+              <div style={{ fontSize: 14, color: subText }}>{item.label}</div>
+              <div style={{ marginTop: 8, fontSize: 32, fontWeight: 800, color: text }}>
                 {item.value}
               </div>
             </div>
@@ -84,7 +90,83 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
           style={{
             background: cardBg,
             border: `1px solid ${border}`,
-            borderRadius: 16,
+            borderRadius: 18,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <input
+                type="text"
+                placeholder="Search lead name, phone, city..."
+                style={{
+                  width: "100%",
+                  padding: "14px 16px",
+                  borderRadius: 12,
+                  border: `1px solid ${border}`,
+                  background: inputBg,
+                  color: text,
+                  outline: "none",
+                  fontSize: 14,
+                }}
+              />
+            </div>
+
+            <button
+              style={{
+                border: "none",
+                background: "#2563eb",
+                color: "#ffffff",
+                padding: "12px 18px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              + Add Lead
+            </button>
+          </div>
+
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {["All", "New", "Contacted", "Qualified", "Closed"].map((item, index) => (
+              <button
+                key={item}
+                style={{
+                  border: `1px solid ${border}`,
+                  background: index === 0 ? "#2563eb" : softBg,
+                  color: index === 0 ? "#ffffff" : text,
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: cardBg,
+            border: `1px solid ${border}`,
+            borderRadius: 18,
             overflow: "hidden",
           }}
         >
@@ -102,96 +184,50 @@ export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
             <div>
               <div style={{ fontSize: 24, fontWeight: 800, color: text }}>Leads Table</div>
               <div style={{ fontSize: 14, color: subText, marginTop: 4 }}>
-                View and manage all incoming leads.
+                All lead records are listed below.
               </div>
             </div>
-
-            <button
-              style={{
-                border: "none",
-                background: "#2563eb",
-                color: "#ffffff",
-                padding: "12px 16px",
-                borderRadius: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              + Add Lead
-            </button>
           </div>
 
-          <div style={{ padding: 20 }}>
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 14,
-                borderRadius: 12,
-                background: softBg,
-                color: subText,
-                border: `1px solid ${border}`,
-              }}
-            >
-              Search / Filters section வரும் next step ல.
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ textAlign: "left" }}>
-                    <th style={thStyle(subText)}>ID</th>
-                    <th style={thStyle(subText)}>Name</th>
-                    <th style={thStyle(subText)}>Phone</th>
-                    <th style={thStyle(subText)}>Source</th>
-                    <th style={thStyle(subText)}>City</th>
-                    <th style={thStyle(subText)}>Status</th>
-                    <th style={thStyle(subText)}>Action</th>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: softBg, textAlign: "left" }}>
+                  <th style={thStyle(subText)}>ID</th>
+                  <th style={thStyle(subText)}>Name</th>
+                  <th style={thStyle(subText)}>Phone</th>
+                  <th style={thStyle(subText)}>Source</th>
+                  <th style={thStyle(subText)}>City</th>
+                  <th style={thStyle(subText)}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((lead) => (
+                  <tr key={lead.id} style={{ borderTop: `1px solid ${border}` }}>
+                    <td style={tdStyle(text)}>{lead.id}</td>
+                    <td style={tdStyle(text)}>{lead.name}</td>
+                    <td style={tdStyle(text)}>{lead.phone}</td>
+                    <td style={tdStyle(text)}>{lead.source}</td>
+                    <td style={tdStyle(text)}>{lead.city}</td>
+                    <td style={tdStyle(text)}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          background: getStatusColor(lead.status),
+                          color: "#ffffff",
+                          padding: "6px 12px",
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {lead.status}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {leads.map((lead) => (
-                    <tr key={lead.id} style={{ borderTop: `1px solid ${border}` }}>
-                      <td style={tdStyle(text)}>{lead.id}</td>
-                      <td style={tdStyle(text)}>{lead.name}</td>
-                      <td style={tdStyle(text)}>{lead.phone}</td>
-                      <td style={tdStyle(text)}>{lead.source}</td>
-                      <td style={tdStyle(text)}>{lead.city}</td>
-                      <td style={tdStyle(text)}>
-                        <span
-                          style={{
-                            background: getStatusColor(lead.status),
-                            color: "#ffffff",
-                            padding: "6px 10px",
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 700,
-                            display: "inline-block",
-                          }}
-                        >
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td style={tdStyle(text)}>
-                        <button
-                          onClick={() => navigate(`/leads/${lead.id}`)}
-                          style={{
-                            border: "none",
-                            background: "#111827",
-                            color: "#ffffff",
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                          }}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
