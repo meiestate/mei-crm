@@ -17,25 +17,42 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const isDark = mode === "dark";
 
+  const pageBackground = isDark ? "#020617" : "#f3f4f6";
+  const contentBackground = isDark ? "#020617" : "#f3f4f6";
+  const textColor = isDark ? "#f8fafc" : "#111827";
+
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: isDark ? "#020617" : "#f3f4f6",
+        background: pageBackground,
       }}
     >
+      {/* Sidebar */}
       <Sidebar mode={mode} />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {/* Right Side */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        {/* Topbar */}
         <Topbar title={title} mode={mode} onToggleTheme={onToggleTheme} />
 
+        {/* Main Content Area */}
         <main
           style={{
             flex: 1,
             padding: 24,
-            background: isDark ? "#020617" : "#f3f4f6",
-            color: isDark ? "#f8fafc" : "#111827",
+            background: contentBackground,
+            color: textColor,
+            overflowY: "auto",
+            boxSizing: "border-box",
           }}
         >
           {children}
