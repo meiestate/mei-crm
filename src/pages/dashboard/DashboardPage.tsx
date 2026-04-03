@@ -8,6 +8,11 @@ type DashboardPageProps = {
   onToggleTheme: () => void;
 };
 
+type ChartPoint = {
+  label: string;
+  value: number;
+};
+
 const kpiData = [
   {
     label: "Total Leads",
@@ -33,6 +38,24 @@ const kpiData = [
     note: "4 due today",
     colorKey: "warning",
   },
+];
+
+const revenueData: ChartPoint[] = [
+  { label: "Jan", value: 220000 },
+  { label: "Feb", value: 310000 },
+  { label: "Mar", value: 420000 },
+  { label: "Apr", value: 480000 },
+  { label: "May", value: 530000 },
+  { label: "Jun", value: 610000 },
+];
+
+const leadsData: ChartPoint[] = [
+  { label: "Mon", value: 12 },
+  { label: "Tue", value: 18 },
+  { label: "Wed", value: 14 },
+  { label: "Thu", value: 22 },
+  { label: "Fri", value: 19 },
+  { label: "Sat", value: 25 },
 ];
 
 const recentActivities = [
@@ -233,6 +256,134 @@ export default function DashboardPage({
               </div>
             </div>
           ))}
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr)",
+            gap: 20,
+          }}
+        >
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 20,
+              padding: 24,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+                alignItems: "center",
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: colors.text,
+                  }}
+                >
+                  Revenue Overview
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: colors.subText,
+                    fontSize: 14,
+                  }}
+                >
+                  Monthly revenue trend and growth movement
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 12,
+                  background: colors.cardBgSoft,
+                  border: `1px solid ${colors.border}`,
+                  color: colors.text,
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                ₹6.1L Peak
+              </div>
+            </div>
+
+            <LineChartCard
+              data={revenueData}
+              colors={colors}
+              formatValue={(value) => `₹${formatCompactCurrency(value)}`}
+            />
+          </div>
+
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 20,
+              padding: 24,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+                alignItems: "center",
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: colors.text,
+                  }}
+                >
+                  Lead Trend
+                </div>
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: colors.subText,
+                    fontSize: 14,
+                  }}
+                >
+                  Weekly incoming leads performance
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 12,
+                  background: colors.cardBgSoft,
+                  border: `1px solid ${colors.border}`,
+                  color: colors.text,
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                25 Best Day
+              </div>
+            </div>
+
+            <BarChartCard data={leadsData} colors={colors} />
+          </div>
         </section>
 
         <section
@@ -455,6 +606,255 @@ export default function DashboardPage({
   );
 }
 
+function LineChartCard({
+  data,
+  colors,
+  formatValue,
+}: {
+  data: ChartPoint[];
+  colors: ReturnType<typeof getTheme>;
+  formatValue: (value: number) => string;
+}) {
+  const width = 640;
+  const height = 260;
+  const padding = 28;
+
+  const max = Math.max(...data.map((item) => item.value));
+  const min = Math.min(...data.map((item) => item.value));
+  const range = Math.max(max - min, 1);
+
+  const points = data
+    .map((item, index) => {
+      const x =
+        padding +
+        (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
+      const y =
+        height -
+        padding -
+        ((item.value - min) / range) * (height - padding * 2);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  const lastItem = data[data.length - 1];
+
+  return (
+    <div>
+      <div
+        style={{
+          height: 260,
+          width: "100%",
+          borderRadius: 16,
+          background: colors.cardBgSoft,
+          border: `1px solid ${colors.border}`,
+          padding: 12,
+        }}
+      >
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          style={{ width: "100%", height: "100%", overflow: "visible" }}
+        >
+          {[0, 1, 2, 3].map((line) => {
+            const y = padding + (line * (height - padding * 2)) / 3;
+            return (
+              <line
+                key={line}
+                x1={padding}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                stroke={colors.border}
+                strokeWidth="1"
+                strokeDasharray="4 4"
+              />
+            );
+          })}
+
+          <polyline
+            fill="none"
+            stroke={colors.primary}
+            strokeWidth="4"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            points={points}
+          />
+
+          {data.map((item, index) => {
+            const x =
+              padding +
+              (index * (width - padding * 2)) / Math.max(data.length - 1, 1);
+            const y =
+              height -
+              padding -
+              ((item.value - min) / range) * (height - padding * 2);
+
+            return (
+              <g key={item.label}>
+                <circle cx={x} cy={y} r="5" fill={colors.primary} />
+                <text
+                  x={x}
+                  y={height - 6}
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill={colors.subText}
+                >
+                  {item.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ color: colors.subText, fontSize: 14 }}>
+          Latest revenue:
+          <span
+            style={{
+              marginLeft: 8,
+              color: colors.text,
+              fontWeight: 800,
+            }}
+          >
+            {formatValue(lastItem.value)}
+          </span>
+        </div>
+
+        <div
+          style={{
+            color: colors.subText,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Highest month: {data.reduce((a, b) => (a.value > b.value ? a : b)).label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BarChartCard({
+  data,
+  colors,
+}: {
+  data: ChartPoint[];
+  colors: ReturnType<typeof getTheme>;
+}) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+
+  return (
+    <div>
+      <div
+        style={{
+          height: 260,
+          borderRadius: 16,
+          background: colors.cardBgSoft,
+          border: `1px solid ${colors.border}`,
+          padding: 18,
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 14,
+        }}
+      >
+        {data.map((item) => {
+          const barHeight = `${(item.value / max) * 100}%`;
+
+          return (
+            <div
+              key={item.label}
+              style={{
+                flex: 1,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  color: colors.text,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {item.value}
+              </div>
+
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 42,
+                  height: barHeight,
+                  minHeight: 16,
+                  borderRadius: 12,
+                  background: colors.info,
+                  boxShadow: colors.shadowSoft,
+                }}
+              />
+
+              <div
+                style={{
+                  color: colors.subText,
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {item.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div
+        style={{
+          marginTop: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ color: colors.subText, fontSize: 14 }}>
+          Weekly total:
+          <span
+            style={{
+              marginLeft: 8,
+              color: colors.text,
+              fontWeight: 800,
+            }}
+          >
+            {data.reduce((sum, item) => sum + item.value, 0)} leads
+          </span>
+        </div>
+
+        <div
+          style={{
+            color: colors.subText,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Best day: {data.reduce((a, b) => (a.value > b.value ? a : b)).label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SummaryRow({
   label,
   value,
@@ -516,6 +916,14 @@ function getBadgeColor(
     default:
       return colors.primary;
   }
+}
+
+function formatCompactCurrency(value: number) {
+  if (value >= 100000) {
+    return `${(value / 100000).toFixed(1)}L`;
+  }
+
+  return value.toLocaleString("en-IN");
 }
 
 function primaryButtonStyle(
