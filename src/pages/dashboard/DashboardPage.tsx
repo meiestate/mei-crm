@@ -1,6 +1,7 @@
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
+import type { CSSProperties } from "react";
 
 type DashboardPageProps = {
   mode: ThemeMode;
@@ -8,10 +9,30 @@ type DashboardPageProps = {
 };
 
 const kpiData = [
-  { label: "Total Leads", value: "128", colorKey: "info" },
-  { label: "Qualified Leads", value: "42", colorKey: "premium" },
-  { label: "Closed Deals", value: "18", colorKey: "success" },
-  { label: "Pending Tasks", value: "11", colorKey: "warning" },
+  {
+    label: "Total Leads",
+    value: "128",
+    note: "+12 this week",
+    colorKey: "info",
+  },
+  {
+    label: "Qualified Leads",
+    value: "42",
+    note: "+6 this week",
+    colorKey: "premium",
+  },
+  {
+    label: "Closed Deals",
+    value: "18",
+    note: "+3 this month",
+    colorKey: "success",
+  },
+  {
+    label: "Pending Tasks",
+    value: "11",
+    note: "4 due today",
+    colorKey: "warning",
+  },
 ];
 
 const recentActivities = [
@@ -71,45 +92,68 @@ export default function DashboardPage({
           style={{
             background: colors.cardBg,
             border: `1px solid ${colors.border}`,
-            borderRadius: 20,
+            borderRadius: 22,
             padding: 24,
             boxShadow: colors.shadowSoft,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 30,
-                  color: colors.text,
-                }}
-              >
-                Welcome back to MEI CRM
-              </h2>
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: colors.subText,
-                  fontSize: 15,
-                }}
-              >
-                Here is your business snapshot for today.
-              </p>
+          <div>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 12px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                background: colors.cardBgSoft,
+                color: colors.subText,
+                border: `1px solid ${colors.border}`,
+                marginBottom: 14,
+              }}
+            >
+              MEI CRM Overview
             </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button style={primaryButtonStyle(colors)}>+ Add Lead</button>
-              <button style={secondaryButtonStyle(colors)}>Create Task</button>
-            </div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 30,
+                fontWeight: 800,
+                color: colors.text,
+                letterSpacing: -0.5,
+              }}
+            >
+              Dashboard
+            </h1>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: colors.subText,
+                fontSize: 15,
+                lineHeight: 1.6,
+              }}
+            >
+              Welcome back, here’s your business snapshot today.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button style={primaryButtonStyle(colors)}>+ Add Lead</button>
+            <button style={secondaryButtonStyle(colors)}>Create Task</button>
+            <button
+              style={secondaryButtonStyle(colors)}
+              onClick={onToggleTheme}
+            >
+              Toggle Theme
+            </button>
           </div>
         </section>
 
@@ -131,7 +175,13 @@ export default function DashboardPage({
                 boxShadow: colors.shadowSoft,
               }}
             >
-              <div style={{ color: colors.subText, fontSize: 14 }}>
+              <div
+                style={{
+                  color: colors.subText,
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
                 {item.label}
               </div>
 
@@ -141,12 +191,32 @@ export default function DashboardPage({
                   fontSize: 34,
                   fontWeight: 800,
                   color: colors.text,
+                  lineHeight: 1,
                 }}
               >
                 {item.value}
               </div>
 
-              <div style={{ marginTop: 14 }}>
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span
+                  style={{
+                    color: colors.mutedText,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {item.note}
+                </span>
+
                 <span
                   style={{
                     display: "inline-block",
@@ -158,7 +228,7 @@ export default function DashboardPage({
                     background: getBadgeColor(item.colorKey, colors),
                   }}
                 >
-                  Active Metric
+                  Active
                 </span>
               </div>
             </div>
@@ -212,6 +282,7 @@ export default function DashboardPage({
                   >
                     {activity.title}
                   </div>
+
                   <div
                     style={{
                       marginTop: 6,
@@ -222,6 +293,7 @@ export default function DashboardPage({
                   >
                     {activity.description}
                   </div>
+
                   <div
                     style={{
                       marginTop: 10,
@@ -278,6 +350,7 @@ export default function DashboardPage({
                     >
                       {item.name}
                     </div>
+
                     <div
                       style={{
                         marginTop: 6,
@@ -287,6 +360,7 @@ export default function DashboardPage({
                     >
                       {item.type}
                     </div>
+
                     <div
                       style={{
                         marginTop: 8,
@@ -306,6 +380,7 @@ export default function DashboardPage({
                       >
                         {item.date}
                       </span>
+
                       <span
                         style={{
                           display: "inline-block",
@@ -443,7 +518,9 @@ function getBadgeColor(
   }
 }
 
-function primaryButtonStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+function primaryButtonStyle(
+  colors: ReturnType<typeof getTheme>
+): CSSProperties {
   return {
     border: "none",
     background: colors.primary,
@@ -452,10 +529,13 @@ function primaryButtonStyle(colors: ReturnType<typeof getTheme>): React.CSSPrope
     borderRadius: 12,
     fontWeight: 700,
     cursor: "pointer",
+    boxShadow: colors.shadowSoft,
   };
 }
 
-function secondaryButtonStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+function secondaryButtonStyle(
+  colors: ReturnType<typeof getTheme>
+): CSSProperties {
   return {
     border: `1px solid ${colors.border}`,
     background: colors.cardBg,
