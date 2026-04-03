@@ -13,6 +13,12 @@ type ChartPoint = {
   value: number;
 };
 
+type PipelineStage = {
+  label: string;
+  value: number;
+  color: string;
+};
+
 const kpiData = [
   {
     label: "Total Leads",
@@ -107,6 +113,14 @@ export default function DashboardPage({
   onToggleTheme,
 }: DashboardPageProps) {
   const colors = getTheme(mode);
+
+  const pipelineData: PipelineStage[] = [
+    { label: "New Leads", value: 128, color: colors.info },
+    { label: "Contacted", value: 96, color: colors.primary },
+    { label: "Qualified", value: 42, color: colors.premium },
+    { label: "Negotiation", value: 24, color: colors.warning },
+    { label: "Closed", value: 18, color: colors.success },
+  ];
 
   return (
     <AppLayout title="Dashboard" mode={mode} onToggleTheme={onToggleTheme}>
@@ -384,6 +398,64 @@ export default function DashboardPage({
 
             <BarChartCard data={leadsData} colors={colors} />
           </div>
+        </section>
+
+        <section
+          style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 24,
+            boxShadow: colors.shadowSoft,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: colors.text,
+                }}
+              >
+                Pipeline Performance
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: colors.subText,
+                  fontSize: 14,
+                }}
+              >
+                Track how leads move from enquiry to closed deal
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: colors.cardBgSoft,
+                border: `1px solid ${colors.border}`,
+                color: colors.text,
+                fontWeight: 700,
+                fontSize: 14,
+              }}
+            >
+              14.1% Close Rate
+            </div>
+          </div>
+
+          <PipelineFunnelCard data={pipelineData} colors={colors} />
         </section>
 
         <section
@@ -855,6 +927,175 @@ function BarChartCard({
   );
 }
 
+function PipelineFunnelCard({
+  data,
+  colors,
+}: {
+  data: PipelineStage[];
+  colors: ReturnType<typeof getTheme>;
+}) {
+  const max = Math.max(...data.map((item) => item.value), 1);
+  const firstValue = data[0]?.value ?? 1;
+  const lastValue = data[data.length - 1]?.value ?? 0;
+  const closeRate = ((lastValue / firstValue) * 100).toFixed(1);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(320px, 1fr) 320px",
+        gap: 20,
+      }}
+    >
+      <div
+        style={{
+          borderRadius: 18,
+          background: colors.cardBgSoft,
+          border: `1px solid ${colors.border}`,
+          padding: 20,
+        }}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          {data.map((stage, index) => {
+            const widthPercent = Math.max((stage.value / max) * 100, 24);
+
+            return (
+              <div key={stage.label}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                    marginBottom: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: colors.text,
+                      fontSize: 14,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {index + 1}. {stage.label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: colors.subText,
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {stage.value} records
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    height: 44,
+                    width: `${widthPercent}%`,
+                    minWidth: 140,
+                    borderRadius: 14,
+                    background: stage.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0 14px",
+                    color: "#ffffff",
+                    fontWeight: 800,
+                    boxShadow: colors.shadowSoft,
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <span>{stage.label}</span>
+                  <span>{stage.value}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          borderRadius: 18,
+          background: colors.cardBgSoft,
+          border: `1px solid ${colors.border}`,
+          padding: 20,
+          display: "grid",
+          gap: 12,
+          alignContent: "start",
+        }}
+      >
+        <PipelineStatCard
+          label="Pipeline Close Rate"
+          value={`${closeRate}%`}
+          colors={colors}
+        />
+        <PipelineStatCard
+          label="Top Funnel Volume"
+          value={`${firstValue}`}
+          colors={colors}
+        />
+        <PipelineStatCard
+          label="Bottom Funnel Wins"
+          value={`${lastValue}`}
+          colors={colors}
+        />
+        <PipelineStatCard
+          label="Biggest Drop Stage"
+          value={getBiggestDropStage(data)}
+          colors={colors}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PipelineStatCard({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${colors.border}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        background: colors.cardBg,
+      }}
+    >
+      <div
+        style={{
+          color: colors.subText,
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: colors.text,
+          fontSize: 22,
+          fontWeight: 800,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function SummaryRow({
   label,
   value,
@@ -898,6 +1139,26 @@ function SummaryRow({
       </span>
     </div>
   );
+}
+
+function getBiggestDropStage(data: PipelineStage[]) {
+  if (data.length < 2) return "-";
+
+  let biggestDrop = -Infinity;
+  let biggestDropLabel = data[0].label;
+
+  for (let index = 0; index < data.length - 1; index += 1) {
+    const current = data[index];
+    const next = data[index + 1];
+    const drop = current.value - next.value;
+
+    if (drop > biggestDrop) {
+      biggestDrop = drop;
+      biggestDropLabel = `${current.label} → ${next.label}`;
+    }
+  }
+
+  return biggestDropLabel;
 }
 
 function getBadgeColor(
