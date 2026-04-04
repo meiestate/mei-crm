@@ -1,3 +1,4 @@
+import React, { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
@@ -54,7 +55,8 @@ const leads: Lead[] = [
     email: "arun@example.com",
     company: "AK Traders",
     budget: "₹15,00,000",
-    notes: "Interested in premium CRM setup and automation. Wants a quick overview before scheduling a product demo.",
+    notes:
+      "Interested in premium CRM setup and automation. Wants a quick overview before scheduling a product demo.",
     owner: "Madhan",
     priority: "High",
     followUpDate: "2026-04-05",
@@ -100,7 +102,8 @@ const leads: Lead[] = [
     email: "priya@example.com",
     company: "Priya Ventures",
     budget: "₹8,00,000",
-    notes: "Asked for product demo and pricing details. Wants multi-user access and sales reporting.",
+    notes:
+      "Asked for product demo and pricing details. Wants multi-user access and sales reporting.",
     owner: "Madhan",
     priority: "Medium",
     followUpDate: "2026-04-06",
@@ -136,7 +139,8 @@ const leads: Lead[] = [
     email: "rahul@example.com",
     company: "Rahul Infra",
     budget: "₹25,00,000",
-    notes: "Looking for multi-user CRM with reports, task assignment, and lead tracking for field sales team.",
+    notes:
+      "Looking for multi-user CRM with reports, task assignment, and lead tracking for field sales team.",
     owner: "Arun",
     priority: "High",
     followUpDate: "2026-04-07",
@@ -172,7 +176,8 @@ const leads: Lead[] = [
     email: "meena@example.com",
     company: "Meena Corp",
     budget: "₹12,00,000",
-    notes: "Pricing negotiation ongoing. Lead is interested but requesting phased onboarding.",
+    notes:
+      "Pricing negotiation ongoing. Lead is interested but requesting phased onboarding.",
     owner: "Priya",
     priority: "Medium",
     followUpDate: "2026-04-04",
@@ -208,7 +213,8 @@ const leads: Lead[] = [
     email: "suresh@example.com",
     company: "Suresh Properties",
     budget: "₹32,00,000",
-    notes: "Deal closed successfully. Client confirmed onboarding plan and user setup.",
+    notes:
+      "Deal closed successfully. Client confirmed onboarding plan and user setup.",
     owner: "Madhan",
     priority: "Low",
     followUpDate: "2026-04-02",
@@ -277,9 +283,17 @@ export default function LeadDetailPage({
   const { id } = useParams();
   const colors = getTheme(mode);
 
-  const lead = leads.find((item) => item.id === Number(id));
+  const initialLead = useMemo(
+    () => leads.find((item) => item.id === Number(id)),
+    [id]
+  );
 
-  if (!lead) {
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [leadState, setLeadState] = useState<Lead | null>(initialLead ?? null);
+
+  const [formData, setFormData] = useState<Lead | null>(initialLead ?? null);
+
+  if (!leadState || !formData) {
     return (
       <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
         <div
@@ -319,6 +333,57 @@ export default function LeadDetailPage({
       </AppLayout>
     );
   }
+
+  const lead = leadState;
+
+  const updateStatus = (nextStatus: LeadStatus) => {
+    setLeadState((prev) => {
+      if (!prev) return prev;
+
+      const statusTimeline: TimelineItem = {
+        title: "Status Updated",
+        description: `Lead status changed to ${nextStatus}.`,
+        time: "Just now",
+      };
+
+      return {
+        ...prev,
+        status: nextStatus,
+        lastContact: "Just now",
+        timeline: [statusTimeline, ...prev.timeline],
+      };
+    });
+  };
+
+  const saveLeadChanges = () => {
+    if (
+      !formData.name.trim() ||
+      !formData.phone.trim() ||
+      !formData.city.trim() ||
+      !formData.owner.trim()
+    ) {
+      alert("Name, phone, city, owner fill பண்ணணும்.");
+      return;
+    }
+
+    setLeadState((prev) => {
+      if (!prev) return prev;
+
+      const editTimeline: TimelineItem = {
+        title: "Lead Updated",
+        description: "Lead profile information was edited from the detail page.",
+        time: "Just now",
+      };
+
+      return {
+        ...formData,
+        lastContact: "Just now",
+        timeline: [editTimeline, ...prev.timeline],
+      };
+    });
+
+    setIsEditOpen(false);
+  };
 
   return (
     <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
@@ -417,6 +482,92 @@ export default function LeadDetailPage({
 
         <section
           style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 20,
+            boxShadow: colors.shadowSoft,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: colors.text,
+            }}
+          >
+            Quick Actions
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <select
+              value={lead.status}
+              onChange={(e) => updateStatus(e.target.value as LeadStatus)}
+              style={selectStyle(colors)}
+            >
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Negotiation">Negotiation</option>
+              <option value="Closed">Closed</option>
+            </select>
+
+            <button
+              onClick={() => {
+                setFormData(lead);
+                setIsEditOpen(true);
+              }}
+              style={{
+                border: `1px solid ${colors.border}`,
+                background: colors.cardBg,
+                color: colors.text,
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Edit Lead
+            </button>
+
+            <button
+              style={{
+                border: "none",
+                background: colors.danger,
+                color: "#ffffff",
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Delete
+            </button>
+
+            <Link
+              to="/leads"
+              style={{
+                display: "inline-block",
+                textDecoration: "none",
+                background: colors.primary,
+                color: "#ffffff",
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+              }}
+            >
+              Back to Leads
+            </Link>
+          </div>
+        </section>
+
+        <section
+          style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
@@ -441,12 +592,7 @@ export default function LeadDetailPage({
             gap: 20,
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-            }}
-          >
+          <div style={{ display: "grid", gap: 20 }}>
             <InfoPanel title="Requirement" colors={colors}>
               {lead.requirement}
             </InfoPanel>
@@ -685,27 +831,217 @@ export default function LeadDetailPage({
                 ))}
               </div>
             </div>
+          </div>
+        </section>
+      </div>
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link
-                to="/leads"
+      {isEditOpen && (
+        <div
+          onClick={() => setIsEditOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 999,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 860,
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 20,
+              padding: 24,
+              boxSizing: "border-box",
+              boxShadow: colors.shadowCard,
+            }}
+          >
+            <div style={{ marginBottom: 18 }}>
+              <h3
                 style={{
-                  display: "inline-block",
-                  textDecoration: "none",
-                  background: colors.primary,
-                  color: "#ffffff",
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  fontWeight: 700,
+                  margin: 0,
+                  color: colors.text,
+                  fontSize: 26,
                 }}
               >
-                Back to Leads
-              </Link>
+                Edit Lead
+              </h3>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: colors.subText,
+                }}
+              >
+                Update lead profile, priority, follow-up, and requirement details.
+              </p>
+            </div>
 
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 14,
+              }}
+            >
+              <InputField
+                label="Name"
+                value={formData.name}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, name: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Phone"
+                value={formData.phone}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, phone: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Email"
+                value={formData.email}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, email: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Company"
+                value={formData.company}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, company: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="City"
+                value={formData.city}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, city: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Source"
+                value={formData.source}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, source: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Owner"
+                value={formData.owner}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, owner: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Budget"
+                value={formData.budget}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, budget: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <SelectField
+                label="Status"
+                value={formData.status}
+                onChange={(value) =>
+                  setFormData((prev) =>
+                    prev ? { ...prev, status: value as LeadStatus } : prev
+                  )
+                }
+                options={["New", "Contacted", "Qualified", "Negotiation", "Closed"]}
+                colors={colors}
+              />
+
+              <SelectField
+                label="Priority"
+                value={formData.priority}
+                onChange={(value) =>
+                  setFormData((prev) =>
+                    prev ? { ...prev, priority: value as LeadPriority } : prev
+                  )
+                }
+                options={["Low", "Medium", "High"]}
+                colors={colors}
+              />
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <label
+                  style={{
+                    color: colors.subText,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  Follow-up Date
+                </label>
+
+                <input
+                  type="date"
+                  value={formData.followUpDate}
+                  onChange={(e) =>
+                    setFormData((prev) =>
+                      prev ? { ...prev, followUpDate: e.target.value } : prev
+                    )
+                  }
+                  style={inputStyle(colors)}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+              <TextAreaField
+                label="Requirement"
+                value={formData.requirement}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, requirement: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <TextAreaField
+                label="Notes"
+                value={formData.notes}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, notes: value } : prev))
+                }
+                colors={colors}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 22,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
               <button
+                onClick={() => setIsEditOpen(false)}
                 style={{
                   border: `1px solid ${colors.border}`,
-                  background: colors.cardBg,
+                  background: "transparent",
                   color: colors.text,
                   padding: "12px 16px",
                   borderRadius: 12,
@@ -713,13 +1049,14 @@ export default function LeadDetailPage({
                   cursor: "pointer",
                 }}
               >
-                Edit Lead
+                Cancel
               </button>
 
               <button
+                onClick={saveLeadChanges}
                 style={{
                   border: "none",
-                  background: colors.danger,
+                  background: colors.primary,
                   color: "#ffffff",
                   padding: "12px 16px",
                   borderRadius: 12,
@@ -727,12 +1064,12 @@ export default function LeadDetailPage({
                   cursor: "pointer",
                 }}
               >
-                Delete
+                Save Changes
               </button>
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
@@ -826,4 +1163,128 @@ function InfoPanel({
       </div>
     </div>
   );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle(colors)}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        style={{
+          ...inputStyle(colors),
+          resize: "vertical",
+          fontFamily: "inherit",
+        }}
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle(colors)}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function inputStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 12,
+    border: `1px solid ${colors.border}`,
+    background: colors.inputBg,
+    color: colors.text,
+    outline: "none",
+    fontSize: 14,
+    boxSizing: "border-box",
+  };
 }
