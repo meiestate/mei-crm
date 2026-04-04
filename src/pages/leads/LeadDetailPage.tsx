@@ -508,7 +508,7 @@ export default function LeadDetailPage({
             <select
               value={lead.status}
               onChange={(e) => updateStatus(e.target.value as LeadStatus)}
-              style={selectStyle(colors)}
+              style={inputStyle(colors)}
             >
               <option value="New">New</option>
               <option value="Contacted">Contacted</option>
