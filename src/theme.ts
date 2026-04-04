@@ -1,6 +1,219 @@
 export type ThemeMode = "light" | "dark";
 
-export const theme = {
+export type TypographyStyle = {
+  fontSize: string;
+  fontWeight: number;
+  lineHeight: number | string;
+  letterSpacing?: string;
+};
+
+export type ThemeTypography = {
+  fontFamily: string;
+  pageTitle: TypographyStyle;
+  sectionTitle: TypographyStyle;
+  cardTitle: TypographyStyle;
+  statNumber: TypographyStyle;
+  bodyLg: TypographyStyle;
+  bodyMd: TypographyStyle;
+  bodySm: TypographyStyle;
+  tableHeader: TypographyStyle;
+  label: TypographyStyle;
+  input: TypographyStyle;
+  button: TypographyStyle;
+  badge: TypographyStyle;
+  caption: TypographyStyle;
+};
+
+export type ThemeRadius = {
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  pill: string;
+};
+
+export type ThemeSpacing = {
+  xs: string;
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  xxl: string;
+};
+
+export type ThemeLayout = {
+  sidebarWidth: string;
+  topbarHeight: string;
+  contentMaxWidth: string;
+};
+
+export type AppTheme = {
+  pageBg: string;
+  sectionBg: string;
+  cardBg: string;
+  cardBgSoft: string;
+
+  text: string;
+  subText: string;
+  mutedText: string;
+  inverseText: string;
+
+  border: string;
+  borderSoft: string;
+  borderStrong: string;
+
+  primary: string;
+  primaryHover: string;
+  primaryActive: string;
+
+  sidebarBg: string;
+  topbarBg: string;
+  inputBg: string;
+
+  navText: string;
+  navActiveBg: string;
+  navActiveText: string;
+
+  tableHeadBg: string;
+  rowBg: string;
+  rowHover: string;
+
+  success: string;
+  warning: string;
+  danger: string;
+  info: string;
+  premium: string;
+
+  successBg: string;
+  warningBg: string;
+  dangerBg: string;
+  infoBg: string;
+  premiumBg: string;
+
+  overlay: string;
+  divider: string;
+
+  shadowSoft: string;
+  shadowCard: string;
+
+  typography: ThemeTypography;
+  radius: ThemeRadius;
+  spacing: ThemeSpacing;
+  layout: ThemeLayout;
+};
+
+const typography: ThemeTypography = {
+  fontFamily: `"Inter", "Poppins", "Segoe UI", Roboto, Helvetica, Arial, sans-serif`,
+
+  pageTitle: {
+    fontSize: "28px",
+    fontWeight: 700,
+    lineHeight: 1.2,
+    letterSpacing: "-0.02em",
+  },
+
+  sectionTitle: {
+    fontSize: "22px",
+    fontWeight: 600,
+    lineHeight: 1.3,
+    letterSpacing: "-0.01em",
+  },
+
+  cardTitle: {
+    fontSize: "18px",
+    fontWeight: 600,
+    lineHeight: 1.35,
+  },
+
+  statNumber: {
+    fontSize: "32px",
+    fontWeight: 700,
+    lineHeight: 1.1,
+    letterSpacing: "-0.03em",
+  },
+
+  bodyLg: {
+    fontSize: "16px",
+    fontWeight: 400,
+    lineHeight: 1.6,
+  },
+
+  bodyMd: {
+    fontSize: "14px",
+    fontWeight: 400,
+    lineHeight: 1.5,
+  },
+
+  bodySm: {
+    fontSize: "12px",
+    fontWeight: 400,
+    lineHeight: 1.4,
+  },
+
+  tableHeader: {
+    fontSize: "13px",
+    fontWeight: 600,
+    lineHeight: 1.4,
+    letterSpacing: "0.01em",
+  },
+
+  label: {
+    fontSize: "13px",
+    fontWeight: 600,
+    lineHeight: 1.3,
+  },
+
+  input: {
+    fontSize: "14px",
+    fontWeight: 400,
+    lineHeight: 1.4,
+  },
+
+  button: {
+    fontSize: "14px",
+    fontWeight: 600,
+    lineHeight: 1.2,
+  },
+
+  badge: {
+    fontSize: "12px",
+    fontWeight: 600,
+    lineHeight: 1.2,
+    letterSpacing: "0.01em",
+  },
+
+  caption: {
+    fontSize: "11px",
+    fontWeight: 500,
+    lineHeight: 1.3,
+    letterSpacing: "0.02em",
+  },
+};
+
+const radius: ThemeRadius = {
+  sm: "8px",
+  md: "12px",
+  lg: "16px",
+  xl: "20px",
+  pill: "999px",
+};
+
+const spacing: ThemeSpacing = {
+  xs: "4px",
+  sm: "8px",
+  md: "12px",
+  lg: "16px",
+  xl: "24px",
+  xxl: "32px",
+};
+
+const layout: ThemeLayout = {
+  sidebarWidth: "260px",
+  topbarHeight: "72px",
+  contentMaxWidth: "1600px",
+};
+
+export const theme: Record<ThemeMode, AppTheme> = {
   light: {
     pageBg: "#F3F4F6",
     sectionBg: "#F9FAFB",
@@ -38,8 +251,22 @@ export const theme = {
     info: "#2563EB",
     premium: "#7C3AED",
 
+    successBg: "rgba(22, 163, 74, 0.12)",
+    warningBg: "rgba(245, 158, 11, 0.14)",
+    dangerBg: "rgba(220, 38, 38, 0.12)",
+    infoBg: "rgba(37, 99, 235, 0.12)",
+    premiumBg: "rgba(124, 58, 237, 0.12)",
+
+    overlay: "rgba(15, 23, 42, 0.35)",
+    divider: "#E5E7EB",
+
     shadowSoft: "0 4px 12px rgba(0, 0, 0, 0.06)",
     shadowCard: "0 10px 30px rgba(0, 0, 0, 0.08)",
+
+    typography,
+    radius,
+    spacing,
+    layout,
   },
 
   dark: {
@@ -79,11 +306,62 @@ export const theme = {
     info: "#2563EB",
     premium: "#7C3AED",
 
+    successBg: "rgba(22, 163, 74, 0.16)",
+    warningBg: "rgba(245, 158, 11, 0.16)",
+    dangerBg: "rgba(220, 38, 38, 0.16)",
+    infoBg: "rgba(37, 99, 235, 0.16)",
+    premiumBg: "rgba(124, 58, 237, 0.16)",
+
+    overlay: "rgba(2, 6, 23, 0.6)",
+    divider: "#334155",
+
     shadowSoft: "0 6px 16px rgba(0, 0, 0, 0.25)",
     shadowCard: "0 10px 30px rgba(0, 0, 0, 0.35)",
+
+    typography,
+    radius,
+    spacing,
+    layout,
   },
 };
 
-export function getTheme(mode: ThemeMode) {
+export function getTheme(mode: ThemeMode): AppTheme {
   return theme[mode];
+}
+
+export function getStatusBadgeColors(mode: ThemeMode, status: string) {
+  const currentTheme = getTheme(mode);
+
+  switch (status.toLowerCase()) {
+    case "new":
+      return {
+        color: currentTheme.info,
+        background: currentTheme.infoBg,
+      };
+    case "contacted":
+      return {
+        color: currentTheme.primary,
+        background: currentTheme.infoBg,
+      };
+    case "qualified":
+      return {
+        color: currentTheme.premium,
+        background: currentTheme.premiumBg,
+      };
+    case "won":
+      return {
+        color: currentTheme.success,
+        background: currentTheme.successBg,
+      };
+    case "lost":
+      return {
+        color: currentTheme.danger,
+        background: currentTheme.dangerBg,
+      };
+    default:
+      return {
+        color: currentTheme.subText,
+        background: currentTheme.cardBgSoft,
+      };
+  }
 }
