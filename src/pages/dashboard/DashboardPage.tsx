@@ -19,31 +19,19 @@ type PipelineStage = {
   color: string;
 };
 
+type NotificationItem = {
+  title: string;
+  message: string;
+  time: string;
+  type: "info" | "warning" | "danger" | "success";
+  unread?: boolean;
+};
+
 const kpiData = [
-  {
-    label: "Total Leads",
-    value: "128",
-    note: "+12 this week",
-    colorKey: "info",
-  },
-  {
-    label: "Qualified Leads",
-    value: "42",
-    note: "+6 this week",
-    colorKey: "premium",
-  },
-  {
-    label: "Closed Deals",
-    value: "18",
-    note: "+3 this month",
-    colorKey: "success",
-  },
-  {
-    label: "Pending Tasks",
-    value: "11",
-    note: "4 due today",
-    colorKey: "warning",
-  },
+  { label: "Total Leads", value: "128", note: "+12 this week", colorKey: "info" },
+  { label: "Qualified Leads", value: "42", note: "+6 this week", colorKey: "premium" },
+  { label: "Closed Deals", value: "18", note: "+3 this month", colorKey: "success" },
+  { label: "Pending Tasks", value: "11", note: "4 due today", colorKey: "warning" },
 ];
 
 const revenueData: ChartPoint[] = [
@@ -108,6 +96,35 @@ const upcomingFollowUps = [
   },
 ];
 
+const notifications: NotificationItem[] = [
+  {
+    title: "Follow-up due today",
+    message: "Arun Kumar needs a call back before 5:00 PM.",
+    time: "5 mins ago",
+    type: "warning",
+    unread: true,
+  },
+  {
+    title: "New website lead",
+    message: "Sneha submitted a project inquiry from the landing page.",
+    time: "12 mins ago",
+    type: "info",
+    unread: true,
+  },
+  {
+    title: "Deal moved to negotiation",
+    message: "Meena Corp deal has advanced to the negotiation stage.",
+    time: "42 mins ago",
+    type: "success",
+  },
+  {
+    title: "Task overdue",
+    message: "Proposal document for Rahul has not been sent yet.",
+    time: "1 hour ago",
+    type: "danger",
+  },
+];
+
 export default function DashboardPage({
   mode,
   onToggleTheme,
@@ -121,6 +138,8 @@ export default function DashboardPage({
     { label: "Negotiation", value: 24, color: colors.warning },
     { label: "Closed", value: 18, color: colors.success },
   ];
+
+  const unreadCount = notifications.filter((item) => item.unread).length;
 
   return (
     <AppLayout title="Dashboard" mode={mode} onToggleTheme={onToggleTheme}>
@@ -460,6 +479,73 @@ export default function DashboardPage({
 
         <section
           style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 24,
+            boxShadow: colors.shadowSoft,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: colors.text,
+                }}
+              >
+                Notifications
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: colors.subText,
+                  fontSize: 14,
+                }}
+              >
+                Stay on top of alerts, reminders, and critical updates
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: colors.cardBgSoft,
+                border: `1px solid ${colors.border}`,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>🔔</span>
+              <span
+                style={{
+                  color: colors.text,
+                  fontWeight: 800,
+                  fontSize: 14,
+                }}
+              >
+                {unreadCount} Unread
+              </span>
+            </div>
+          </div>
+
+          <NotificationPanel notifications={notifications} colors={colors} />
+        </section>
+
+        <section
+          style={{
             display: "grid",
             gridTemplateColumns: "minmax(320px, 1.2fr) minmax(280px, 0.8fr)",
             gap: 20,
@@ -675,6 +761,212 @@ export default function DashboardPage({
         </section>
       </div>
     </AppLayout>
+  );
+}
+
+function NotificationPanel({
+  notifications,
+  colors,
+}: {
+  notifications: NotificationItem[];
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(320px, 1fr) 280px",
+        gap: 20,
+      }}
+    >
+      <div style={{ display: "grid", gap: 12 }}>
+        {notifications.map((item, index) => (
+          <div
+            key={`${item.title}-${index}`}
+            style={{
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              padding: 16,
+              background: item.unread ? colors.cardBgSoft : colors.cardBg,
+              boxShadow: colors.shadowSoft,
+              display: "flex",
+              gap: 14,
+              alignItems: "flex-start",
+            }}
+          >
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                marginTop: 6,
+                background: getNotificationColor(item.type, colors),
+                flexShrink: 0,
+              }}
+            />
+
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: colors.text,
+                  }}
+                >
+                  {item.title}
+                </div>
+
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#ffffff",
+                    background: getNotificationColor(item.type, colors),
+                  }}
+                >
+                  {item.type.toUpperCase()}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  color: colors.subText,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                }}
+              >
+                {item.message}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  style={{
+                    color: colors.mutedText,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.time}
+                </span>
+
+                {item.unread ? (
+                  <span
+                    style={{
+                      color: getNotificationColor(item.type, colors),
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    New alert
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      color: colors.mutedText,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Seen
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+        <NotificationMiniStat
+          label="Unread Alerts"
+          value={`${notifications.filter((item) => item.unread).length}`}
+          colors={colors}
+        />
+        <NotificationMiniStat
+          label="Critical Issues"
+          value={`${notifications.filter((item) => item.type === "danger").length}`}
+          colors={colors}
+        />
+        <NotificationMiniStat
+          label="Today Reminders"
+          value={`${
+            notifications.filter(
+              (item) => item.type === "warning" || item.type === "info"
+            ).length
+          }`}
+          colors={colors}
+        />
+        <NotificationMiniStat
+          label="Resolved Updates"
+          value={`${notifications.filter((item) => item.type === "success").length}`}
+          colors={colors}
+        />
+      </div>
+    </div>
+  );
+}
+
+function NotificationMiniStat({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${colors.border}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        background: colors.cardBgSoft,
+      }}
+    >
+      <div
+        style={{
+          color: colors.subText,
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: colors.text,
+          fontSize: 22,
+          fontWeight: 800,
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -1054,6 +1346,48 @@ function PipelineFunnelCard({
   );
 }
 
+function NotificationMiniStat({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${colors.border}`,
+        borderRadius: 14,
+        padding: "14px 16px",
+        background: colors.cardBgSoft,
+      }}
+    >
+      <div
+        style={{
+          color: colors.subText,
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: colors.text,
+          fontSize: 22,
+          fontWeight: 800,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function PipelineStatCard({
   label,
   value,
@@ -1174,6 +1508,24 @@ function getBadgeColor(
       return colors.success;
     case "warning":
       return colors.warning;
+    default:
+      return colors.primary;
+  }
+}
+
+function getNotificationColor(
+  type: NotificationItem["type"],
+  colors: ReturnType<typeof getTheme>
+) {
+  switch (type) {
+    case "info":
+      return colors.info;
+    case "warning":
+      return colors.warning;
+    case "danger":
+      return colors.danger;
+    case "success":
+      return colors.success;
     default:
       return colors.primary;
   }
