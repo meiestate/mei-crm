@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import LeadsPage from "./pages/leads/LeadsPage";
@@ -14,21 +14,41 @@ import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
 
 const THEME_STORAGE_KEY = "mei-crm-theme";
+const AUTH_STORAGE_KEY = "mei-crm-auth";
+
+function getInitialTheme(): ThemeMode {
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+
+    if (savedTheme === "light" || savedTheme === "dark") {
+      return savedTheme;
+    }
+  } catch (error) {
+    console.error("Failed to read theme from localStorage:", error);
+  }
+
+  return "light";
+}
+
+function isUserAuthenticated() {
+  try {
+    return (
+      localStorage.getItem(AUTH_STORAGE_KEY) === "true" ||
+      sessionStorage.getItem(AUTH_STORAGE_KEY) === "true"
+    );
+  } catch (error) {
+    console.error("Failed to read auth state:", error);
+    return false;
+  }
+}
 
 export default function App() {
-  const [mode, setMode] = useState<ThemeMode>(() => {
-    try {
-      const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+  const [mode, setMode] = useState<ThemeMode>(getInitialTheme);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() =>
+    isUserAuthenticated()
+  );
 
-      if (savedTheme === "light" || savedTheme === "dark") {
-        return savedTheme;
-      }
-    } catch (error) {
-      console.error("Failed to read theme from localStorage:", error);
-    }
-
-    return "light";
-  });
+  const theme = useMemo(() => getTheme(mode), [mode]);
 
   useEffect(() => {
     try {
@@ -48,102 +68,170 @@ export default function App() {
       document.body.classList.remove("dark");
     }
 
-    const theme = getTheme(mode);
     document.body.style.background = theme.pageBg;
     document.body.style.color = theme.text;
     document.body.style.fontFamily = theme.typography.fontFamily;
-  }, [mode]);
+  }, [mode, theme]);
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(isUserAuthenticated());
+    };
+
+    syncAuthState();
+    window.addEventListener("storage", syncAuthState);
+
+    return () => {
+      window.removeEventListener("storage", syncAuthState);
+    };
+  }, []);
 
   const toggleTheme = () => {
     setMode((prev) => (prev === "light" ? "dark" : "light"));
   };
 
+  const loginPageElement = (
+    <LoginPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const dashboardPageElement = (
+    <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const leadsPageElement = (
+    <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const leadDetailPageElement = (
+    <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const contactsPageElement = (
+    <ContactsPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const dealsPageElement = (
+    <DealsPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const tasksPageElement = (
+    <TasksPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const settingsPageElement = (
+    <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={
+            <Navigate
+              to={isAuthenticated ? "/dashboard" : "/login"}
+              replace
+            />
+          }
+        />
 
         <Route
           path="/login"
           element={
-            <LoginPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              loginPageElement
+            )
           }
         />
 
         <Route
           path="/dashboard"
           element={
-            <DashboardPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              dashboardPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/leads"
           element={
-            <LeadsPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              leadsPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/leads/:id"
           element={
-            <LeadDetailPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              leadDetailPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/contacts"
           element={
-            <ContactsPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              contactsPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/deals"
           element={
-            <DealsPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              dealsPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/tasks"
           element={
-            <TasksPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              tasksPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
         <Route
           path="/settings"
           element={
-            <SettingsPage
-              mode={mode}
-              onToggleTheme={toggleTheme}
-            />
+            isAuthenticated ? (
+              settingsPageElement
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to={isAuthenticated ? "/dashboard" : "/login"}
+              replace
+            />
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
