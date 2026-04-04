@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -10,7 +11,13 @@ type LeadsPageProps = {
 
 type LeadStatus = "New" | "Contacted" | "Qualified" | "Negotiation" | "Closed";
 type LeadPriority = "Low" | "Medium" | "High";
-type SourceType = "WhatsApp" | "Facebook" | "Website" | "Referral" | "Walk-in" | "Manual";
+type SourceType =
+  | "WhatsApp"
+  | "Facebook"
+  | "Website"
+  | "Referral"
+  | "Walk-in"
+  | "Manual";
 
 type FilterType = "All" | LeadStatus;
 
@@ -135,12 +142,14 @@ export default function LeadsPage({
   onToggleTheme,
 }: LeadsPageProps) {
   const colors = getTheme(mode);
+  const navigate = useNavigate();
 
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [cityFilter, setCityFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -227,6 +236,10 @@ export default function LeadsPage({
     setActiveFilter("All");
     setCityFilter("All");
     setSearchTerm("");
+  };
+
+  const openLeadDetail = (leadId: number) => {
+    navigate(`/leads/${leadId}`);
   };
 
   return (
@@ -551,58 +564,82 @@ export default function LeadsPage({
 
               <tbody>
                 {filteredLeads.length > 0 ? (
-                  filteredLeads.map((lead) => (
-                    <tr
-                      key={lead.id}
-                      style={{
-                        borderTop: `1px solid ${colors.border}`,
-                        background: colors.rowBg,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <td style={tdStyle(colors.text)}>{lead.id}</td>
-                      <td style={tdStyle(colors.text)}>
-                        <div style={{ fontWeight: 700 }}>{lead.name}</div>
-                      </td>
-                      <td style={tdStyle(colors.text)}>{lead.phone}</td>
-                      <td style={tdStyle(colors.text)}>{lead.source}</td>
-                      <td style={tdStyle(colors.text)}>{lead.city}</td>
-                      <td style={tdStyle(colors.text)}>{lead.owner}</td>
-                      <td style={tdStyle(colors.text)}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            background: getPriorityColor(lead.priority, mode),
-                            color: "#ffffff",
-                            padding: "6px 12px",
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {lead.priority}
-                        </span>
-                      </td>
-                      <td style={tdStyle(colors.text)}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            background: getStatusColor(lead.status, mode),
-                            color: "#ffffff",
-                            padding: "6px 12px",
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td style={tdStyle(colors.text)}>{lead.followUpDate}</td>
-                      <td style={tdStyle(colors.text)}>{lead.budget}</td>
-                      <td style={tdStyle(colors.text)}>{lead.lastContact}</td>
-                    </tr>
-                  ))
+                  filteredLeads.map((lead) => {
+                    const isHovered = hoveredRowId === lead.id;
+
+                    return (
+                      <tr
+                        key={lead.id}
+                        onClick={() => openLeadDetail(lead.id)}
+                        onMouseEnter={() => setHoveredRowId(lead.id)}
+                        onMouseLeave={() => setHoveredRowId(null)}
+                        style={{
+                          borderTop: `1px solid ${colors.border}`,
+                          background: isHovered ? colors.rowHover : colors.rowBg,
+                          cursor: "pointer",
+                          transition: "background 0.2s ease",
+                        }}
+                        title={`Open ${lead.name} details`}
+                      >
+                        <td style={tdStyle(colors.text)}>{lead.id}</td>
+
+                        <td style={tdStyle(colors.text)}>
+                          <div style={{ fontWeight: 700 }}>{lead.name}</div>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: isHovered ? colors.primary : colors.subText,
+                              fontWeight: 700,
+                            }}
+                          >
+                            View Details →
+                          </div>
+                        </td>
+
+                        <td style={tdStyle(colors.text)}>{lead.phone}</td>
+                        <td style={tdStyle(colors.text)}>{lead.source}</td>
+                        <td style={tdStyle(colors.text)}>{lead.city}</td>
+                        <td style={tdStyle(colors.text)}>{lead.owner}</td>
+
+                        <td style={tdStyle(colors.text)}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              background: getPriorityColor(lead.priority, mode),
+                              color: "#ffffff",
+                              padding: "6px 12px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {lead.priority}
+                          </span>
+                        </td>
+
+                        <td style={tdStyle(colors.text)}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              background: getStatusColor(lead.status, mode),
+                              color: "#ffffff",
+                              padding: "6px 12px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {lead.status}
+                          </span>
+                        </td>
+
+                        <td style={tdStyle(colors.text)}>{lead.followUpDate}</td>
+                        <td style={tdStyle(colors.text)}>{lead.budget}</td>
+                        <td style={tdStyle(colors.text)}>{lead.lastContact}</td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
@@ -702,7 +739,14 @@ export default function LeadsPage({
                 onChange={(value) =>
                   setFormData((prev) => ({ ...prev, source: value as SourceType }))
                 }
-                options={["Manual", "WhatsApp", "Facebook", "Website", "Referral", "Walk-in"]}
+                options={[
+                  "Manual",
+                  "WhatsApp",
+                  "Facebook",
+                  "Website",
+                  "Referral",
+                  "Walk-in",
+                ]}
                 colors={colors}
               />
 
@@ -950,5 +994,6 @@ function tdStyle(color: string): React.CSSProperties {
     fontSize: 15,
     color,
     whiteSpace: "nowrap",
+    verticalAlign: "middle",
   };
 }
