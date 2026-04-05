@@ -100,6 +100,11 @@ export type AppTheme = {
   radius: ThemeRadius;
   spacing: ThemeSpacing;
   layout: ThemeLayout;
+
+  // Alias properties for auth pages / legacy page code
+  background: string;
+  card: string;
+  textSecondary: string;
 };
 
 const typography: ThemeTypography = {
@@ -267,6 +272,11 @@ export const theme: Record<ThemeMode, AppTheme> = {
     radius,
     spacing,
     layout,
+
+    // Aliases
+    background: "#F3F4F6",
+    card: "#FFFFFF",
+    textSecondary: "#6B7280",
   },
 
   dark: {
@@ -322,6 +332,11 @@ export const theme: Record<ThemeMode, AppTheme> = {
     radius,
     spacing,
     layout,
+
+    // Aliases
+    background: "#020617",
+    card: "#111827",
+    textSecondary: "#94A3B8",
   },
 };
 

@@ -141,9 +141,39 @@ export default function App() {
             />
           }
         />
-        <Route path="/signup" element={<SignupPage mode={mode} />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage mode={mode} />} />
-        <Route path="/reset-password" element={<ResetPasswordPage mode={mode} />} />
+
+        <Route
+          path="/signup"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <SignupPage mode={mode} />
+            )
+          }
+        />
+
+        <Route
+          path="/forgot-password"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <ForgotPasswordPage mode={mode} />
+            )
+          }
+        />
+
+        <Route
+          path="/reset-password"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <ResetPasswordPage mode={mode} />
+            )
+          }
+        />
 
         <Route
           path="/login"
