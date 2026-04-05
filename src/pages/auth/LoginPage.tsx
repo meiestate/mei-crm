@@ -1,112 +1,157 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail, Moon, Sun } from "lucide-react";
-import { getTheme, type ThemeMode } from "../../theme";
+import { Link, useNavigate } from "react-router-dom";
+import { getTheme } from "../../theme";
+import type { ThemeMode } from "../../theme";
 
 type LoginPageProps = {
   mode: ThemeMode;
   onToggleTheme: () => void;
+  onLoginSuccess: () => void;
 };
 
-type LoginFormState = {
+type StoredUser = {
+  id: string;
+  fullName: string;
   email: string;
+  phone: string;
+  company: string;
   password: string;
-  rememberMe: boolean;
-};
-
-type LoginErrors = {
-  email?: string;
-  password?: string;
-  general?: string;
+  createdAt: string;
 };
 
 export default function LoginPage({
   mode,
   onToggleTheme,
+  onLoginSuccess,
 }: LoginPageProps) {
-  const navigate = useNavigate();
   const theme = useMemo(() => getTheme(mode), [mode]);
+  const navigate = useNavigate();
 
-  const [form, setForm] = useState<LoginFormState>({
-    email: "",
-    password: "",
-    rememberMe: true,
-  });
-
-  const [errors, setErrors] = useState<LoginErrors>({});
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (
-    field: keyof LoginFormState,
-    value: string | boolean
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      [field]: undefined,
-      general: undefined,
-    }));
+  const cardStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 480,
+    background: theme.card,
+    border: `1px solid ${theme.border}`,
+    borderRadius: 20,
+    boxShadow:
+      mode === "dark"
+        ? "0 18px 50px rgba(0,0,0,0.35)"
+        : "0 18px 40px rgba(15, 23, 42, 0.08)",
+    padding: 28,
   };
 
-  const validateForm = () => {
-    const nextErrors: LoginErrors = {};
-
-    if (!form.email.trim()) {
-      nextErrors.email = "Email address is required.";
-    } else if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      nextErrors.email = "Please enter a valid email address.";
-    }
-
-    if (!form.password.trim()) {
-      nextErrors.password = "Password is required.";
-    } else if (form.password.trim().length < 6) {
-      nextErrors.password = "Password must be at least 6 characters.";
-    }
-
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: `1px solid ${theme.border}`,
+    background: theme.inputBg ?? theme.card,
+    color: theme.text,
+    outline: "none",
+    fontSize: 14,
+    boxSizing: "border-box",
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 600,
+    color: theme.textSecondary,
+    marginBottom: 8,
+  };
 
-    if (!validateForm()) {
-      return;
+  const helperTextStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: theme.textSecondary,
+    lineHeight: 1.6,
+  };
+
+  const clearError = (field: "email" | "password" | "general") => {
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
+  };
+
+  const validate = () => {
+    const newErrors: {
+      email?: string;
+      password?: string;
+      general?: string;
+    } = {};
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      newErrors.email = "Enter a valid email address";
+    }
+
+    if (!password.trim()) {
+      newErrors.password = "Password is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) return;
 
     try {
       setIsSubmitting(true);
-      setErrors({});
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const rawUsers = localStorage.getItem("mei_crm_users");
+      const users: StoredUser[] = rawUsers ? JSON.parse(rawUsers) : [];
 
-      const demoEmail = "admin@mei.com";
-      const demoPassword = "123456";
+      const matchedUser = users.find(
+        (user) =>
+          user.email.toLowerCase() === email.trim().toLowerCase() &&
+          user.password === password
+      );
 
-      if (
-        form.email.trim().toLowerCase() === demoEmail &&
-        form.password === demoPassword
-      ) {
-        const storage = form.rememberMe ? localStorage : sessionStorage;
-
-        storage.setItem("mei-crm-auth", "true");
-        storage.setItem("mei-crm-user", form.email.trim().toLowerCase());
-
-        navigate("/dashboard");
+      if (!matchedUser) {
+        setErrors({
+          general: "Invalid email or password",
+        });
+        setIsSubmitting(false);
         return;
       }
 
-      setErrors({
-        general: "Invalid email or password.",
-      });
+      const currentUser = {
+        id: matchedUser.id,
+        fullName: matchedUser.fullName,
+        email: matchedUser.email,
+        company: matchedUser.company,
+        phone: matchedUser.phone,
+      };
+
+      localStorage.setItem("mei_crm_current_user", JSON.stringify(currentUser));
+      localStorage.setItem("mei_crm_is_authenticated", "true");
+
+      if (rememberMe) {
+        localStorage.setItem("mei_crm_remembered_email", matchedUser.email);
+      } else {
+        localStorage.removeItem("mei_crm_remembered_email");
+      }
+
+      onLoginSuccess();
+      navigate("/dashboard");
     } catch (error) {
+      console.error("Login failed:", error);
       setErrors({
-        general: "Unable to sign in right now. Please try again.",
+        general: "Something went wrong while logging in.",
       });
     } finally {
       setIsSubmitting(false);
@@ -117,462 +162,250 @@ export default function LoginPage({
     <div
       style={{
         minHeight: "100vh",
-        display: "grid",
-        gridTemplateColumns: "1.1fr 0.9fr",
-        background: theme.pageBg,
+        background: theme.background,
+        color: theme.text,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
       }}
     >
-      <div
-        style={{
-          padding: "48px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          borderRight: `1px solid ${theme.border}`,
-          background:
-            mode === "dark"
-              ? "linear-gradient(135deg, #020617 0%, #0F172A 50%, #111827 100%)"
-              : "linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 45%, #EEF2FF 100%)",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px 16px",
-              borderRadius: theme.radius.pill,
-              background: theme.cardBg,
-              border: `1px solid ${theme.border}`,
-              boxShadow: theme.shadowSoft,
-            }}
-          >
+      <div style={cardStyle}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 24,
+          }}
+        >
+          <div>
             <div
               style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "12px",
-                background: theme.primary,
-                color: "#FFFFFF",
-                display: "grid",
-                placeItems: "center",
-                fontSize: "16px",
-                fontWeight: 700,
-              }}
-            >
-              M
-            </div>
-
-            <div>
-              <div
-                style={{
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  color: theme.text,
-                }}
-              >
-                MEI CRM
-              </div>
-              <div
-                style={{
-                  fontSize: theme.typography.bodySm.fontSize,
-                  fontWeight: theme.typography.bodySm.fontWeight,
-                  lineHeight: theme.typography.bodySm.lineHeight,
-                  color: theme.subText,
-                }}
-              >
-                Real Estate Business OS
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: "56px", maxWidth: "560px" }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "44px",
-                lineHeight: 1.1,
+                fontSize: 30,
                 fontWeight: 800,
-                letterSpacing: "-0.03em",
                 color: theme.text,
-              }}
-            >
-              Welcome to a cleaner way to manage your real estate growth.
-            </h1>
-
-            <p
-              style={{
-                marginTop: "18px",
-                fontSize: theme.typography.bodyLg.fontSize,
-                fontWeight: theme.typography.bodyLg.fontWeight,
-                lineHeight: theme.typography.bodyLg.lineHeight,
-                color: theme.subText,
-              }}
-            >
-              Track leads, monitor deals, manage follow-ups, and keep your team
-              aligned from one powerful workspace.
-            </p>
-          </div>
-
-          <div
-            style={{
-              marginTop: "36px",
-              display: "grid",
-              gap: "14px",
-              maxWidth: "500px",
-            }}
-          >
-            {[
-              "Lead management built for fast-moving sales teams",
-              "Clean dashboards with action-first visibility",
-              "Structured pipeline flow for better deal closure",
-            ].map((item) => (
-              <div
-                key={item}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "14px 16px",
-                  borderRadius: theme.radius.lg,
-                  background: theme.cardBg,
-                  border: `1px solid ${theme.border}`,
-                  boxShadow: theme.shadowSoft,
-                }}
-              >
-                <div
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "999px",
-                    background: theme.primary,
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: theme.typography.bodyMd.fontSize,
-                    fontWeight: 500,
-                    lineHeight: theme.typography.bodyMd.lineHeight,
-                    color: theme.subText,
-                  }}
-                >
-                  {item}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div
-          style={{
-            fontSize: theme.typography.bodySm.fontSize,
-            color: theme.mutedText,
-          }}
-        >
-          © 2026 MEI CRM. Built for focused growth.
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "32px",
-          background: theme.pageBg,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          aria-label="Toggle theme"
-          style={{
-            position: "absolute",
-            top: "24px",
-            right: "24px",
-            width: "46px",
-            height: "46px",
-            borderRadius: "999px",
-            border: `1px solid ${theme.border}`,
-            background: theme.cardBg,
-            color: theme.text,
-            display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
-            boxShadow: theme.shadowSoft,
-          }}
-        >
-          {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "440px",
-            background: theme.cardBg,
-            border: `1px solid ${theme.border}`,
-            borderRadius: theme.radius.xl,
-            padding: "32px",
-            boxShadow: theme.shadowCard,
-          }}
-        >
-          <div style={{ marginBottom: "24px" }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: theme.typography.sectionTitle.fontSize,
-                fontWeight: theme.typography.sectionTitle.fontWeight,
-                lineHeight: theme.typography.sectionTitle.lineHeight,
-                color: theme.text,
+                marginBottom: 8,
+                letterSpacing: 0.3,
               }}
             >
               Welcome Back
-            </h2>
+            </div>
 
-            <p
+            <div
               style={{
-                margin: "8px 0 0",
-                fontSize: theme.typography.bodyMd.fontSize,
-                fontWeight: theme.typography.bodyMd.fontWeight,
-                lineHeight: theme.typography.bodyMd.lineHeight,
-                color: theme.subText,
+                color: theme.textSecondary,
+                fontSize: 14,
+                lineHeight: 1.7,
               }}
             >
-              Sign in to continue to your MEI CRM workspace.
-            </p>
+              Login to <strong>MEI CRM</strong> and continue managing your leads,
+              pipeline, tasks, and growth from one clean workspace.
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: "18px" }}>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            style={{
+              border: `1px solid ${theme.border}`,
+              background: theme.card,
+              color: theme.text,
+              borderRadius: 12,
+              padding: "10px 12px",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 12,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {mode === "dark" ? "Light" : "Dark"}
+          </button>
+        </div>
+
+        <form onSubmit={handleLogin}>
+          <div style={{ display: "grid", gap: 16 }}>
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: theme.typography.label.fontSize,
-                  fontWeight: theme.typography.label.fontWeight,
-                  lineHeight: theme.typography.label.lineHeight,
-                  color: theme.text,
+              <label style={labelStyle}>Email Address</label>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearError("email");
+                  clearError("general");
                 }}
-              >
-                Email Address
-              </label>
-
-              <div
-                style={{
-                  height: "48px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "0 14px",
-                  borderRadius: theme.radius.md,
-                  border: `1px solid ${errors.email ? theme.danger : theme.border}`,
-                  background: theme.inputBg,
-                }}
-              >
-                <Mail size={18} color={theme.subText} />
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="admin@mei.com"
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    outline: "none",
-                    background: "transparent",
-                    color: theme.text,
-                    fontSize: theme.typography.input.fontSize,
-                    fontWeight: theme.typography.input.fontWeight,
-                    lineHeight: theme.typography.input.lineHeight,
-                    fontFamily: theme.typography.fontFamily,
-                  }}
-                />
-              </div>
-
+                style={inputStyle}
+              />
               {errors.email && (
-                <p
+                <div
                   style={{
-                    margin: "6px 0 0",
-                    fontSize: theme.typography.bodySm.fontSize,
-                    color: theme.danger,
+                    color: "#ef4444",
+                    fontSize: 12,
+                    marginTop: 6,
                   }}
                 >
                   {errors.email}
-                </p>
+                </div>
               )}
             </div>
 
             <div>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontSize: theme.typography.label.fontSize,
-                  fontWeight: theme.typography.label.fontWeight,
-                  lineHeight: theme.typography.label.lineHeight,
-                  color: theme.text,
-                }}
-              >
-                Password
-              </label>
-
-              <div
-                style={{
-                  height: "48px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "0 14px",
-                  borderRadius: theme.radius.md,
-                  border: `1px solid ${errors.password ? theme.danger : theme.border}`,
-                  background: theme.inputBg,
-                }}
-              >
-                <Lock size={18} color={theme.subText} />
+              <label style={labelStyle}>Password</label>
+              <div style={{ position: "relative" }}>
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
                   placeholder="Enter your password"
-                  style={{
-                    width: "100%",
-                    border: "none",
-                    outline: "none",
-                    background: "transparent",
-                    color: theme.text,
-                    fontSize: theme.typography.input.fontSize,
-                    fontWeight: theme.typography.input.fontWeight,
-                    lineHeight: theme.typography.input.lineHeight,
-                    fontFamily: theme.typography.fontFamily,
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearError("password");
+                    clearError("general");
                   }}
+                  style={{ ...inputStyle, paddingRight: 90 }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
                   style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 10,
                     border: "none",
                     background: "transparent",
-                    color: theme.subText,
+                    color: theme.primary,
                     cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                    padding: 0,
+                    fontWeight: 700,
                   }}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
-
               {errors.password && (
-                <p
+                <div
                   style={{
-                    margin: "6px 0 0",
-                    fontSize: theme.typography.bodySm.fontSize,
-                    color: theme.danger,
+                    color: "#ef4444",
+                    fontSize: 12,
+                    marginTop: 6,
                   }}
                 >
                   {errors.password}
-                </p>
+                </div>
               )}
             </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontSize: theme.typography.bodySm.fontSize,
-                  color: theme.subText,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={form.rememberMe}
-                  onChange={(e) =>
-                    handleInputChange("rememberMe", e.target.checked)
-                  }
-                />
-                Remember me
-              </label>
-
-              <button
-                type="button"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: theme.primary,
-                  fontSize: theme.typography.bodySm.fontSize,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {errors.general && (
-              <div
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: theme.radius.md,
-                  background: theme.dangerBg,
-                  color: theme.danger,
-                  border: `1px solid ${theme.border}`,
-                  fontSize: theme.typography.bodySm.fontSize,
-                }}
-              >
-                {errors.general}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                height: "50px",
-                border: "none",
-                borderRadius: theme.radius.md,
-                background: theme.primary,
-                color: "#FFFFFF",
-                fontSize: theme.typography.button.fontSize,
-                fontWeight: theme.typography.button.fontWeight,
-                lineHeight: theme.typography.button.lineHeight,
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                opacity: isSubmitting ? 0.8 : 1,
-                boxShadow: theme.shadowSoft,
-              }}
-            >
-              {isSubmitting ? "Signing In..." : "Sign In"}
-            </button>
-          </form>
+          </div>
 
           <div
             style={{
-              marginTop: "18px",
-              paddingTop: "18px",
-              borderTop: `1px solid ${theme.borderSoft}`,
-              fontSize: theme.typography.bodySm.fontSize,
-              color: theme.mutedText,
+              marginTop: 14,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
             }}
           >
-            Demo login:{" "}
-            <strong style={{ color: theme.text }}>admin@mei.com</strong> /{" "}
-            <strong style={{ color: theme.text }}>123456</strong>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: theme.textSecondary,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={() => setRememberMe((prev) => !prev)}
+              />
+              Remember me
+            </label>
+
+            <Link
+              to="/forgot-password"
+              style={{
+                color: theme.primary,
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              Forgot Password?
+            </Link>
           </div>
+
+          {errors.general && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                color: "#ef4444",
+                fontSize: 13,
+                lineHeight: 1.6,
+              }}
+            >
+              {errors.general}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            style={{
+              width: "100%",
+              marginTop: 20,
+              padding: "13px 16px",
+              borderRadius: 12,
+              border: "none",
+              background: theme.primary,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: isSubmitting ? "not-allowed" : "pointer",
+              opacity: isSubmitting ? 0.7 : 1,
+            }}
+          >
+            {isSubmitting ? "Signing In..." : "Login"}
+          </button>
+        </form>
+
+        <div
+          style={{
+            marginTop: 18,
+            textAlign: "center",
+            fontSize: 13,
+            color: theme.textSecondary,
+          }}
+        >
+          Don&apos;t have an account?{" "}
+          <Link
+            to="/signup"
+            style={{
+              color: theme.primary,
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Create Account
+          </Link>
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            ...helperTextStyle,
+            textAlign: "center",
+          }}
+        >
+          Demo mode: login checks your account from localStorage. Later we can
+          connect secure authentication using Supabase or your backend API.
         </div>
       </div>
     </div>

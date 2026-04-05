@@ -9,6 +9,9 @@ import DealsPage from "./pages/deals/DealsPage";
 import TasksPage from "./pages/tasks/TasksPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import LoginPage from "./pages/auth/LoginPage";
+import SignupPage from "./pages/auth/SignupPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -91,7 +94,11 @@ export default function App() {
   };
 
   const loginPageElement = (
-    <LoginPage mode={mode} onToggleTheme={toggleTheme} />
+    <LoginPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLoginSuccess={() => setIsAuthenticated(true)}
+    />
   );
 
   const dashboardPageElement = (
@@ -134,6 +141,9 @@ export default function App() {
             />
           }
         />
+        <Route path="/signup" element={<SignupPage mode={mode} />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage mode={mode} />} />
+        <Route path="/reset-password" element={<ResetPasswordPage mode={mode} />} />
 
         <Route
           path="/login"
