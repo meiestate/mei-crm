@@ -4,7 +4,6 @@ import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
-
 type TasksPageProps = {
   mode: ThemeMode;
   onToggleTheme: () => void;
