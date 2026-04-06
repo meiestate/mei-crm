@@ -18,11 +18,13 @@ type CallLogItem = {
   outcome: string;
 };
 
+type TimelineTone = "info" | "success" | "warning" | "danger" | "primary";
+
 type TimelineItem = {
   title: string;
   description: string;
   time: string;
-  tone?: "info" | "success" | "warning" | "danger" | "primary";
+  tone?: TimelineTone;
 };
 
 type Lead = {
@@ -146,7 +148,7 @@ function mapUnknownLead(item: any, index: number): Lead | null {
         title: String(entry?.title || "Activity"),
         description: String(entry?.description || "Lead activity recorded."),
         time: String(entry?.time || "Recent"),
-        tone: entry?.tone,
+        tone: entry?.tone as TimelineTone | undefined,
       }))
     : [];
 
@@ -211,7 +213,7 @@ function isOverdue(dateValue: string, status: LeadStatus) {
 }
 
 function getTimelineToneColor(
-  tone: TimelineItem["tone"],
+  tone: TimelineTone | undefined,
   colors: ReturnType<typeof getTheme>
 ) {
   switch (tone) {
@@ -228,6 +230,39 @@ function getTimelineToneColor(
   }
 }
 
+function getLeadHealthScore(lead: Lead) {
+  let score = 40;
+
+  if (lead.priority === "High") score += 20;
+  if (lead.status === "Qualified") score += 18;
+  if (lead.status === "Negotiation") score += 25;
+  if (lead.status === "Closed") score = 100;
+  if (lead.callLogs.length >= 2) score += 8;
+  if (lead.notes && lead.notes !== "No notes added yet.") score += 5;
+  if (lead.requirement && lead.requirement !== "Requirement details not added yet.")
+    score += 4;
+  if (isOverdue(lead.followUpDate, lead.status)) score -= 15;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function getStageProbability(status: LeadStatus) {
+  switch (status) {
+    case "New":
+      return "12%";
+    case "Contacted":
+      return "28%";
+    case "Qualified":
+      return "55%";
+    case "Negotiation":
+      return "78%";
+    case "Closed":
+      return "100%";
+    default:
+      return "0%";
+  }
+}
+
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
@@ -239,12 +274,12 @@ export default function LeadDetailPage({
   const leadId = Number(id);
 
   const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
-
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [noteInput, setNoteInput] = useState("");
   const [callNote, setCallNote] = useState("");
   const [callOutcome, setCallOutcome] = useState("Connected");
   const [followUpInput, setFollowUpInput] = useState("");
+  const [ownerInput, setOwnerInput] = useState("");
 
   useEffect(() => {
     const syncLeads = () => {
@@ -266,7 +301,12 @@ export default function LeadDetailPage({
   useEffect(() => {
     setLeadState(initialLead);
     setFormData(initialLead);
-    setFollowUpInput(initialLead?.followUpDate && initialLead.followUpDate !== "-" ? initialLead.followUpDate : "");
+    setFollowUpInput(
+      initialLead?.followUpDate && initialLead.followUpDate !== "-"
+        ? initialLead.followUpDate
+        : ""
+    );
+    setOwnerInput(initialLead?.owner || "");
   }, [initialLead]);
 
   const currentIndex = useMemo(
@@ -337,6 +377,7 @@ export default function LeadDetailPage({
 
   const lead = leadState;
   const overdue = isOverdue(lead.followUpDate, lead.status);
+  const leadHealth = getLeadHealthScore(lead);
 
   const updateStatus = (nextStatus: LeadStatus) => {
     persistLeadUpdate((prev) => {
@@ -491,6 +532,26 @@ export default function LeadDetailPage({
     });
   };
 
+  const handleReassignOwner = () => {
+    if (!ownerInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Owner Reassigned",
+        description: `Lead owner changed to ${ownerInput.trim()}.`,
+        time: getNowLabel(),
+        tone: "primary",
+      };
+
+      return {
+        ...prev,
+        owner: ownerInput.trim(),
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+  };
+
   return (
     <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
@@ -609,7 +670,8 @@ export default function LeadDetailPage({
             gap: 16,
           }}
         >
-          <MiniStatCard label="Lead Score" value={lead.priority === "High" ? "88" : lead.priority === "Medium" ? "71" : "56"} colors={colors} />
+          <MiniStatCard label="Lead Health" value={`${leadHealth}/100`} colors={colors} />
+          <MiniStatCard label="Stage Probability" value={getStageProbability(lead.status)} colors={colors} />
           <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
           <MiniStatCard label="Timeline Events" value={String(lead.timeline.length)} colors={colors} />
           <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
@@ -640,6 +702,27 @@ export default function LeadDetailPage({
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href={`tel:${lead.phone}`} style={primaryLinkButton(colors)}>
+              Call
+            </a>
+
+            {lead.phone && lead.phone !== "-" ? (
+              <a
+                href={`https://wa.me/91${lead.phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                style={secondaryLinkButton(colors)}
+              >
+                WhatsApp
+              </a>
+            ) : null}
+
+            {lead.email && lead.email !== "-" ? (
+              <a href={`mailto:${lead.email}`} style={secondaryLinkButton(colors)}>
+                Email
+              </a>
+            ) : null}
+
             <select
               value={lead.status}
               onChange={(e) => updateStatus(e.target.value as LeadStatus)}
@@ -694,7 +777,7 @@ export default function LeadDetailPage({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(320px, 1.1fr) minmax(280px, 0.9fr)",
+            gridTemplateColumns: "minmax(320px, 1.12fr) minmax(320px, 0.88fr)",
             gap: 20,
           }}
         >
@@ -870,13 +953,7 @@ export default function LeadDetailPage({
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-              alignContent: "start",
-            }}
-          >
+          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
             <div
               style={{
                 background: colors.cardBg,
@@ -907,6 +984,41 @@ export default function LeadDetailPage({
 
                 <button onClick={handleRescheduleFollowUp} style={primaryButton(colors)}>
                   Save Follow-up Date
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Reassign Owner
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <input
+                  type="text"
+                  value={ownerInput}
+                  onChange={(e) => setOwnerInput(e.target.value)}
+                  placeholder="Enter new owner name"
+                  style={inputStyle(colors)}
+                />
+
+                <button onClick={handleReassignOwner} style={primaryButton(colors)}>
+                  Save Owner
                 </button>
               </div>
             </div>
@@ -1673,6 +1785,19 @@ function primaryLinkButton(colors: ReturnType<typeof getTheme>): React.CSSProper
     textDecoration: "none",
     background: colors.primary,
     color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+  };
+}
+
+function secondaryLinkButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    display: "inline-block",
+    textDecoration: "none",
+    border: `1px solid ${colors.border}`,
+    background: colors.cardBg,
+    color: colors.text,
     padding: "12px 16px",
     borderRadius: 12,
     fontWeight: 700,
