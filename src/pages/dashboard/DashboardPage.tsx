@@ -47,6 +47,24 @@ type TaskRecord = {
   relatedTo?: string;
 };
 
+type DealRecord = {
+  id: string | number;
+  title?: string;
+  client?: string;
+  clientName?: string;
+  customerName?: string;
+  value?: string | number;
+  city?: string;
+  owner?: string;
+  stage?: string;
+  status?: string;
+  source?: string;
+  leadId?: string | number;
+  company?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 const FALLBACK_LEADS: LeadRecord[] = [
   {
     id: "LD-1001",
@@ -126,6 +144,49 @@ const FALLBACK_TASKS: TaskRecord[] = [
   },
 ];
 
+const FALLBACK_DEALS: DealRecord[] = [
+  {
+    id: "DL-201",
+    title: "CRM Setup Package",
+    client: "Arun Kumar",
+    value: "₹2,50,000",
+    city: "Chennai",
+    owner: "Balraj",
+    stage: "New",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "DL-202",
+    title: "Sales Automation System",
+    client: "Priya Ventures",
+    value: "₹4,80,000",
+    city: "Bangalore",
+    owner: "Balraj",
+    stage: "Negotiation",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "DL-203",
+    title: "Lead Funnel Dashboard",
+    client: "Rahul Infra",
+    value: "₹3,20,000",
+    city: "Coimbatore",
+    owner: "Arun",
+    stage: "Proposal",
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "DL-204",
+    title: "Business OS Deployment",
+    client: "Meena Corp",
+    value: "₹6,00,000",
+    city: "Madurai",
+    owner: "Priya",
+    stage: "Won",
+    createdAt: new Date().toISOString(),
+  },
+];
+
 const LEAD_STORAGE_KEYS = [
   "mei-crm-leads",
   "mei_crm_leads",
@@ -138,6 +199,13 @@ const TASK_STORAGE_KEYS = [
   "mei_crm_tasks",
   "tasks",
   "crm_tasks",
+];
+
+const DEAL_STORAGE_KEYS = [
+  "mei-crm-deals",
+  "mei_crm_deals",
+  "deals",
+  "crm_deals",
 ];
 
 export default function DashboardPage({
@@ -157,14 +225,15 @@ export default function DashboardPage({
     return stored.length ? stored : FALLBACK_TASKS;
   }, []);
 
+  const deals = useMemo<DealRecord[]>(() => {
+    const stored = readFirstArrayFromStorage<DealRecord>(DEAL_STORAGE_KEYS);
+    return stored.length ? stored : FALLBACK_DEALS;
+  }, []);
+
   const totalLeads = leads.length;
 
   const qualifiedLeads = leads.filter((lead) =>
     matchesStatus(lead.status, ["qualified"])
-  ).length;
-
-  const closedDeals = leads.filter((lead) =>
-    matchesStatus(lead.status, ["closed", "won", "booked"])
   ).length;
 
   const pendingTasks = tasks.filter(
@@ -172,8 +241,14 @@ export default function DashboardPage({
   ).length;
 
   const todayFollowUps = leads
-    .filter((lead) => isToday(parsePossibleDate(lead.followUpDate || lead.nextFollowUp)))
-    .sort(sortByDateAsc((lead) => parsePossibleDate(lead.followUpDate || lead.nextFollowUp)));
+    .filter((lead) =>
+      isToday(parsePossibleDate(lead.followUpDate || lead.nextFollowUp))
+    )
+    .sort(
+      sortByDateAsc((lead) =>
+        parsePossibleDate(lead.followUpDate || lead.nextFollowUp)
+      )
+    );
 
   const overdueFollowUps = leads.filter((lead) => {
     const date = parsePossibleDate(lead.followUpDate || lead.nextFollowUp);
@@ -181,43 +256,81 @@ export default function DashboardPage({
   }).length;
 
   const recentLeads = [...leads]
-    .sort(sortByDateDesc((lead) => parsePossibleDate(lead.updatedAt || lead.createdAt || lead.followUpDate)))
+    .sort(
+      sortByDateDesc((lead) =>
+        parsePossibleDate(lead.updatedAt || lead.createdAt || lead.followUpDate)
+      )
+    )
     .slice(0, 6);
 
-  const unreadCount = todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
+  const recentDeals = [...deals]
+    .sort(
+      sortByDateDesc((deal) =>
+        parsePossibleDate(deal.updatedAt || deal.createdAt)
+      )
+    )
+    .slice(0, 5);
+
+  const unreadCount =
+    todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
+
+  const newDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["new"])).length;
+  const negotiationDeals = deals.filter((deal) =>
+    matchesStatus(deal.stage || deal.status, ["negotiation"])
+  ).length;
+  const proposalDeals = deals.filter((deal) =>
+    matchesStatus(deal.stage || deal.status, ["proposal"])
+  ).length;
+  const wonDeals = deals.filter((deal) =>
+    matchesStatus(deal.stage || deal.status, ["won", "closed"])
+  ).length;
+  const lostDeals = deals.filter((deal) =>
+    matchesStatus(deal.stage || deal.status, ["lost"])
+  ).length;
+
+  const totalDealValue = deals.reduce((sum, deal) => {
+    const numeric = Number(String(deal.value || "").replace(/[^\d.]/g, ""));
+    return sum + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
 
   const notifications: NotificationItem[] = buildNotifications(
     colors,
     todayFollowUps,
     overdueFollowUps,
-    recentLeads
+    recentLeads,
+    wonDeals
   );
 
   const pipelineData = [
     {
-      label: "New Leads",
-      value: leads.filter((lead) => matchesStatus(lead.status, ["new"])).length,
+      label: "New Deals",
+      value: newDeals,
       color: colors.info,
-    },
-    {
-      label: "Contacted",
-      value: leads.filter((lead) => matchesStatus(lead.status, ["contacted"])).length,
-      color: colors.primary,
-    },
-    {
-      label: "Qualified",
-      value: qualifiedLeads,
-      color: colors.premium,
+      onClick: () => navigate("/deals?filter=new"),
     },
     {
       label: "Negotiation",
-      value: leads.filter((lead) => matchesStatus(lead.status, ["negotiation"])).length,
+      value: negotiationDeals,
       color: colors.warning,
+      onClick: () => navigate("/deals?filter=negotiation"),
     },
     {
-      label: "Closed",
-      value: closedDeals,
+      label: "Proposal",
+      value: proposalDeals,
+      color: colors.premium,
+      onClick: () => navigate("/deals?filter=proposal"),
+    },
+    {
+      label: "Won Deals",
+      value: wonDeals,
       color: colors.success,
+      onClick: () => navigate("/deals?filter=won"),
+    },
+    {
+      label: "Lost Deals",
+      value: lostDeals,
+      color: colors.danger,
+      onClick: () => navigate("/deals?filter=lost"),
     },
   ];
 
@@ -256,13 +369,13 @@ export default function DashboardPage({
       onClick: () => navigate("/leads?filter=qualified"),
     },
     {
-      label: "Closed Deals",
-      value: String(closedDeals),
-      note: "Won opportunities",
+      label: "Won Deals",
+      value: String(wonDeals),
+      note: "Closed commercial wins",
       color: colors.success,
       bg: colors.successBg,
       icon: "🤝",
-      onClick: () => navigate("/leads?filter=closed"),
+      onClick: () => navigate("/deals?filter=won"),
     },
     {
       label: "Pending Tasks",
@@ -272,6 +385,24 @@ export default function DashboardPage({
       bg: colors.warningBg,
       icon: "📝",
       onClick: () => navigate("/tasks"),
+    },
+    {
+      label: "Pipeline Value",
+      value: `₹${Math.round(totalDealValue).toLocaleString("en-IN")}`,
+      note: `${deals.length} total deals`,
+      color: colors.primary,
+      bg: colors.infoBg,
+      icon: "💰",
+      onClick: () => navigate("/deals"),
+    },
+    {
+      label: "Negotiation Deals",
+      value: String(negotiationDeals),
+      note: "Hot deals in motion",
+      color: colors.warning,
+      bg: colors.warningBg,
+      icon: "🔥",
+      onClick: () => navigate("/deals?filter=negotiation"),
     },
   ];
 
@@ -405,10 +536,11 @@ export default function DashboardPage({
 
               <div
                 style={{
-                  fontSize: 34,
+                  fontSize: item.label === "Pipeline Value" ? 26 : 34,
                   fontWeight: 800,
                   color: colors.text,
                   lineHeight: 1,
+                  wordBreak: "break-word",
                 }}
               >
                 {item.value}
@@ -466,9 +598,15 @@ export default function DashboardPage({
                   Monthly revenue trend and growth movement
                 </p>
               </div>
-              <div style={inlineBadge(colors, colors.success, colors.successBg)}>
-                Trending Up
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/deals")}
+                style={unstyledBadgeButton(
+                  inlineBadge(colors, colors.success, colors.successBg)
+                )}
+              >
+                Pipeline Value
+              </button>
             </div>
 
             <div style={chartContainer(colors)}>
@@ -647,14 +785,15 @@ export default function DashboardPage({
                           </div>
                         </td>
 
-                        <td style={tableCellStyle(colors)}>
-                          {lead.source || "—"}
-                        </td>
+                        <td style={tableCellStyle(colors)}>{lead.source || "—"}</td>
 
                         <td style={tableCellStyle(colors)}>
                           <span
                             style={{
-                              ...statusPillStyle(colors, getStatusColor(colors, lead.status)),
+                              ...statusPillStyle(
+                                colors,
+                                getLeadStatusColor(colors, lead.status)
+                              ),
                             }}
                           >
                             {lead.status || "New"}
@@ -666,7 +805,7 @@ export default function DashboardPage({
                         </td>
 
                         <td style={tableCellStyle(colors)}>
-                          {followUp ? formatDateShort(followUp) : "—"}
+                          {followUp ? formatDateShortLocal(followUp) : "—"}
                         </td>
 
                         <td style={tableCellStyle(colors)}>
@@ -759,7 +898,7 @@ export default function DashboardPage({
                           style={{
                             ...statusPillStyle(
                               colors,
-                              getStatusColor(colors, lead.status)
+                              getLeadStatusColor(colors, lead.status)
                             ),
                           }}
                         >
@@ -774,7 +913,8 @@ export default function DashboardPage({
                           lineHeight: 1.6,
                         }}
                       >
-                        Source: {lead.source || "—"} · Budget: {formatBudget(lead.budget)}
+                        Source: {lead.source || "—"} · Budget:{" "}
+                        {formatBudget(lead.budget)}
                       </div>
 
                       <div
@@ -817,8 +957,8 @@ export default function DashboardPage({
               <div style={{ display: "grid", gap: 12 }}>
                 <MiniStatCard
                   colors={colors}
-                  label="Pipeline Close Rate"
-                  value={`${totalLeads ? ((closedDeals / totalLeads) * 100).toFixed(1) : "0.0"}%`}
+                  label="Win Rate"
+                  value={`${deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"}%`}
                 />
                 <MiniStatCard
                   colors={colors}
@@ -851,9 +991,9 @@ export default function DashboardPage({
             }}
           >
             <div>
-              <h2 style={sectionTitle(colors)}>Pipeline Performance</h2>
+              <h2 style={sectionTitle(colors)}>Deal Pipeline Performance</h2>
               <p style={subTextStyle(colors)}>
-                Track how leads move from enquiry to closed deal
+                Track how deals move from entry to won stage
               </p>
             </div>
 
@@ -886,7 +1026,18 @@ export default function DashboardPage({
                   );
 
                   return (
-                    <div key={stage.label}>
+                    <button
+                      key={stage.label}
+                      type="button"
+                      onClick={stage.onClick}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        padding: 0,
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                    >
                       <div
                         style={{
                           display: "flex",
@@ -935,7 +1086,7 @@ export default function DashboardPage({
                         <span>{stage.label}</span>
                         <span>{stage.value}</span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -944,25 +1095,150 @@ export default function DashboardPage({
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
               <MiniStatCard
                 colors={colors}
-                label="Pipeline Close Rate"
-                value={`${totalLeads ? ((closedDeals / totalLeads) * 100).toFixed(1) : "0.0"}%`}
+                label="Won Deals"
+                value={String(wonDeals)}
               />
               <MiniStatCard
                 colors={colors}
-                label="Top Funnel Volume"
-                value={String(totalLeads)}
+                label="Negotiation"
+                value={String(negotiationDeals)}
               />
               <MiniStatCard
                 colors={colors}
-                label="Bottom Funnel Wins"
-                value={String(closedDeals)}
+                label="Proposal"
+                value={String(proposalDeals)}
               />
               <MiniStatCard
                 colors={colors}
-                label="Biggest Drop Stage"
-                value="Contacted → Qualified"
+                label="Pipeline Value"
+                value={`₹${Math.round(totalDealValue).toLocaleString("en-IN")}`}
               />
             </div>
+          </div>
+        </section>
+
+        <section style={cardStyle(colors)}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <h2 style={sectionTitle(colors)}>Recent Deals</h2>
+              <p style={subTextStyle(colors)}>
+                Latest commercial records from live deals data
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate("/deals")}
+              style={secondaryButtonStyle(colors)}
+            >
+              View All Deals
+            </button>
+          </div>
+
+          <div
+            style={{
+              overflowX: "auto",
+              border: `1px solid ${colors.border}`,
+              borderRadius: 16,
+              background: colors.cardBgSoft,
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: 860,
+              }}
+            >
+              <thead>
+                <tr>
+                  {["Deal", "Client", "Stage", "Value", "Owner", "Created"].map(
+                    (head) => (
+                      <th
+                        key={head}
+                        style={{
+                          textAlign: "left",
+                          padding: "14px 16px",
+                          fontSize: 13,
+                          color: colors.subText,
+                          borderBottom: `1px solid ${colors.border}`,
+                          fontWeight: 800,
+                          background: colors.cardBg,
+                        }}
+                      >
+                        {head}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+
+              <tbody>
+                {recentDeals.map((deal) => (
+                  <tr
+                    key={String(deal.id)}
+                    onClick={() => navigate(`/deals/${deal.id}`)}
+                    style={{
+                      cursor: "pointer",
+                      borderBottom: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    <td style={tableCellStyle(colors)}>
+                      <div style={{ fontWeight: 700, color: colors.text }}>
+                        {deal.title || "Untitled Deal"}
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 4,
+                          fontSize: 12,
+                          color: colors.mutedText,
+                        }}
+                      >
+                        #{deal.id}
+                      </div>
+                    </td>
+
+                    <td style={tableCellStyle(colors)}>
+                      {deal.client || deal.clientName || deal.customerName || "—"}
+                    </td>
+
+                    <td style={tableCellStyle(colors)}>
+                      <span
+                        style={{
+                          ...statusPillStyle(
+                            colors,
+                            getDealStageColor(colors, deal.stage || deal.status)
+                          ),
+                        }}
+                      >
+                        {deal.stage || deal.status || "New"}
+                      </span>
+                    </td>
+
+                    <td style={tableCellStyle(colors)}>
+                      {formatBudget(deal.value)}
+                    </td>
+
+                    <td style={tableCellStyle(colors)}>
+                      {deal.owner || "Unassigned"}
+                    </td>
+
+                    <td style={tableCellStyle(colors)}>
+                      {formatDateShortLocal(parsePossibleDate(deal.createdAt))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -1108,13 +1384,13 @@ export default function DashboardPage({
               />
               <MiniStatCard
                 colors={colors}
-                label="Today Reminders"
-                value={String(todayFollowUps.length)}
+                label="Won Deals"
+                value={String(wonDeals)}
               />
               <MiniStatCard
                 colors={colors}
-                label="Resolved Updates"
-                value={String(closedDeals > 0 ? 1 : 0)}
+                label="Negotiation"
+                value={String(negotiationDeals)}
               />
             </div>
           </div>
@@ -1158,6 +1434,7 @@ function MiniStatCard({
           color: colors.text,
           fontSize: 22,
           fontWeight: 800,
+          wordBreak: "break-word",
         }}
       >
         {value}
@@ -1194,7 +1471,9 @@ function subTextStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
   };
 }
 
-function primaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
+function primaryButtonStyle(
+  colors: ReturnType<typeof getTheme>
+): CSSProperties {
   return {
     border: "none",
     background: colors.primary,
@@ -1237,6 +1516,14 @@ function inlineBadge(
     fontWeight: 800,
     border: `1px solid ${colors.border}`,
     whiteSpace: "nowrap",
+  };
+}
+
+function unstyledBadgeButton(styleObj: CSSProperties): CSSProperties {
+  return {
+    ...styleObj,
+    border: styleObj.border,
+    cursor: "pointer",
   };
 }
 
@@ -1317,7 +1604,7 @@ function statusPillStyle(
   };
 }
 
-function getStatusColor(
+function getLeadStatusColor(
   colors: ReturnType<typeof getTheme>,
   status?: string
 ): { color: string; bg: string } {
@@ -1337,6 +1624,31 @@ function getStatusColor(
 
   if (normalized.includes("contacted")) {
     return { color: colors.primary, bg: colors.infoBg };
+  }
+
+  return { color: colors.info, bg: colors.infoBg };
+}
+
+function getDealStageColor(
+  colors: ReturnType<typeof getTheme>,
+  stage?: string
+): { color: string; bg: string } {
+  const normalized = (stage || "").toLowerCase();
+
+  if (normalized.includes("won") || normalized.includes("closed")) {
+    return { color: colors.success, bg: colors.successBg };
+  }
+
+  if (normalized.includes("proposal")) {
+    return { color: colors.premium, bg: colors.premiumBg };
+  }
+
+  if (normalized.includes("negotiation")) {
+    return { color: colors.warning, bg: colors.warningBg };
+  }
+
+  if (normalized.includes("lost")) {
+    return { color: colors.danger, bg: colors.dangerBg || colors.warningBg };
   }
 
   return { color: colors.info, bg: colors.infoBg };
@@ -1425,7 +1737,9 @@ function formatBudget(value?: string | number): string {
   return "—";
 }
 
-function formatDateShort(date: Date): string {
+function formatDateShortLocal(date: Date | null): string {
+  if (!date) return "—";
+
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
@@ -1448,7 +1762,8 @@ function buildNotifications(
   colors: ReturnType<typeof getTheme>,
   todayFollowUps: LeadRecord[],
   overdueFollowUps: number,
-  recentLeads: LeadRecord[]
+  recentLeads: LeadRecord[],
+  wonDeals: number
 ): NotificationItem[] {
   const items: NotificationItem[] = [];
 
@@ -1472,10 +1787,10 @@ function buildNotifications(
     });
   }
 
-  if (recentLeads.some((lead) => matchesStatus(lead.status, ["closed", "won"]))) {
+  if (wonDeals > 0) {
     items.push({
-      title: "Deal moved to closed",
-      message: "A lead has reached the closed stage in your live dashboard.",
+      title: "Won deals recorded",
+      message: `${wonDeals} deal(s) are currently in won stage.`,
       time: "Recent",
       badge: "SUCCESS",
       color: colors.success,

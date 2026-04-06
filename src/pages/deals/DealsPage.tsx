@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -131,7 +132,9 @@ function mapUnknownDeal(item: any, index: number): Deal | null {
   return {
     id: Number(item.id ?? Date.now() + index),
     title: String(item.title || item.dealTitle || item.name || `Deal ${index + 1}`),
-    client: String(item.client || item.clientName || item.customerName || item.company || "Unknown Client"),
+    client: String(
+      item.client || item.clientName || item.customerName || item.company || "Unknown Client"
+    ),
     value:
       typeof item.value === "number"
         ? `₹${item.value.toLocaleString("en-IN")}`
@@ -165,6 +168,7 @@ export default function DealsPage({
   onToggleTheme,
 }: DealsPageProps) {
   const colors = getTheme(mode);
+  const navigate = useNavigate();
 
   const [deals, setDeals] = useState<Deal[]>(() => {
     const stored = readStoredDeals();
@@ -174,6 +178,7 @@ export default function DealsPage({
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -273,6 +278,10 @@ export default function DealsPage({
 
   const handleKpiFilter = (filter: FilterType) => {
     setActiveFilter(filter);
+  };
+
+  const openDealDetail = (dealId: number) => {
+    navigate(`/deals/${dealId}`);
   };
 
   return (
@@ -568,57 +577,79 @@ export default function DealsPage({
 
               <tbody>
                 {filteredDeals.length > 0 ? (
-                  filteredDeals.map((deal) => (
-                    <tr
-                      key={deal.id}
-                      style={{
-                        borderTop: `1px solid ${colors.border}`,
-                        background: colors.rowBg,
-                      }}
-                    >
-                      <td style={tdStyle(colors.text)}>{deal.id}</td>
-                      <td style={tdStyle(colors.text)}>
-                        <div style={{ fontWeight: 700 }}>{deal.title}</div>
-                        {deal.company ? (
+                  filteredDeals.map((deal) => {
+                    const isHovered = hoveredRowId === deal.id;
+
+                    return (
+                      <tr
+                        key={deal.id}
+                        onClick={() => openDealDetail(deal.id)}
+                        onMouseEnter={() => setHoveredRowId(deal.id)}
+                        onMouseLeave={() => setHoveredRowId(null)}
+                        style={{
+                          borderTop: `1px solid ${colors.border}`,
+                          background: isHovered ? colors.rowHover : colors.rowBg,
+                          cursor: "pointer",
+                          transition: "background 0.2s ease",
+                        }}
+                        title={`Open ${deal.title} details`}
+                      >
+                        <td style={tdStyle(colors.text)}>{deal.id}</td>
+
+                        <td style={tdStyle(colors.text)}>
+                          <div style={{ fontWeight: 700 }}>{deal.title}</div>
                           <div
                             style={{
                               marginTop: 4,
                               fontSize: 12,
-                              color: colors.subText,
+                              color: isHovered ? colors.primary : colors.subText,
+                              fontWeight: 700,
                             }}
                           >
-                            {deal.company}
+                            View Deal →
                           </div>
-                        ) : null}
-                      </td>
-                      <td style={tdStyle(colors.text)}>{deal.client}</td>
-                      <td style={tdStyle(colors.text)}>{deal.value}</td>
-                      <td style={tdStyle(colors.text)}>{deal.city}</td>
-                      <td style={tdStyle(colors.text)}>{deal.owner}</td>
-                      <td style={tdStyle(colors.text)}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            background: getStageColor(deal.stage, mode),
-                            color: "#ffffff",
-                            padding: "6px 12px",
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {deal.stage}
-                        </span>
-                      </td>
-                      <td style={tdStyle(colors.text)}>{deal.source || "Manual"}</td>
-                      <td style={tdStyle(colors.text)}>
-                        {deal.leadId ? `#${deal.leadId}` : "—"}
-                      </td>
-                      <td style={tdStyle(colors.text)}>
-                        {formatDateShort(deal.createdAt)}
-                      </td>
-                    </tr>
-                  ))
+                          {deal.company ? (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 12,
+                                color: colors.subText,
+                              }}
+                            >
+                              {deal.company}
+                            </div>
+                          ) : null}
+                        </td>
+
+                        <td style={tdStyle(colors.text)}>{deal.client}</td>
+                        <td style={tdStyle(colors.text)}>{deal.value}</td>
+                        <td style={tdStyle(colors.text)}>{deal.city}</td>
+                        <td style={tdStyle(colors.text)}>{deal.owner}</td>
+                        <td style={tdStyle(colors.text)}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              background: getStageColor(deal.stage, mode),
+                              color: "#ffffff",
+                              padding: "6px 12px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {deal.stage}
+                          </span>
+                        </td>
+                        <td style={tdStyle(colors.text)}>{deal.source || "Manual"}</td>
+                        <td style={tdStyle(colors.text)}>
+                          {deal.leadId ? `#${deal.leadId}` : "—"}
+                        </td>
+                        <td style={tdStyle(colors.text)}>
+                          {formatDateShort(deal.createdAt)}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td
