@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -80,6 +80,20 @@ function normalizeStage(value: string | undefined): DealStage {
   if (normalized.includes("won") || normalized.includes("closed")) return "Won";
   if (normalized.includes("lost")) return "Lost";
   return "New";
+}
+
+function normalizeFilter(value: string | null): FilterType {
+  if (!value) return "All";
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "new") return "New";
+  if (normalized === "negotiation") return "Negotiation";
+  if (normalized === "proposal") return "Proposal";
+  if (normalized === "won" || normalized === "closed") return "Won";
+  if (normalized === "lost") return "Lost";
+
+  return "All";
 }
 
 function getStageColor(stage: DealStage, mode: ThemeMode) {
@@ -169,14 +183,17 @@ export default function DealsPage({
 }: DealsPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [deals, setDeals] = useState<Deal[]>(() => {
     const stored = readStoredDeals();
     return stored.length > 0 ? stored : fallbackDeals;
   });
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
+  const [activeFilter, setActiveFilter] = useState<FilterType>(() =>
+    normalizeFilter(searchParams.get("filter"))
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
 
@@ -206,6 +223,28 @@ export default function DealsPage({
       saveStoredDeals(deals);
     }
   }, [deals]);
+
+  useEffect(() => {
+    const queryFilter = normalizeFilter(searchParams.get("filter"));
+    const querySearch = searchParams.get("search") || "";
+
+    setActiveFilter(queryFilter);
+    setSearchTerm(querySearch);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (activeFilter !== "All") {
+      nextParams.set("filter", activeFilter.toLowerCase());
+    }
+
+    if (searchTerm.trim()) {
+      nextParams.set("search", searchTerm.trim());
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [activeFilter, searchTerm, setSearchParams]);
 
   const filteredDeals = useMemo(() => {
     return deals.filter((deal) => {

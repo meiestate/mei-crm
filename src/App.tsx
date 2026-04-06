@@ -8,6 +8,7 @@ import ContactsPage from "./pages/contacts/ContactsPage";
 import DealsPage from "./pages/deals/DealsPage";
 import DealDetailPage from "./pages/deals/DealDetailPage";
 import TasksPage from "./pages/tasks/TasksPage";
+import TaskDetailPage from "./pages/tasks/TaskDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
@@ -164,6 +165,10 @@ export default function App() {
 
   const tasksPageElement = (
     <TasksPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const taskDetailPageElement = (
+    <TaskDetailPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const settingsPageElement = (
@@ -356,6 +361,21 @@ export default function App() {
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 tasksPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/tasks/:id"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                taskDetailPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )

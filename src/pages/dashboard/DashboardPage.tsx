@@ -274,7 +274,9 @@ export default function DashboardPage({
   const unreadCount =
     todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
 
-  const newDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["new"])).length;
+  const newDeals = deals.filter((deal) =>
+    matchesStatus(deal.stage || deal.status, ["new"])
+  ).length;
   const negotiationDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["negotiation"])
   ).length;
@@ -384,7 +386,7 @@ export default function DashboardPage({
       color: colors.warning,
       bg: colors.warningBg,
       icon: "📝",
-      onClick: () => navigate("/tasks"),
+      onClick: () => navigate("/tasks?filter=pending"),
     },
     {
       label: "Pipeline Value",
@@ -403,6 +405,24 @@ export default function DashboardPage({
       bg: colors.warningBg,
       icon: "🔥",
       onClick: () => navigate("/deals?filter=negotiation"),
+    },
+    {
+      label: "Today Follow-ups",
+      value: String(todayFollowUps.length),
+      note: "Tasks due for today",
+      color: colors.info,
+      bg: colors.infoBg,
+      icon: "📅",
+      onClick: () => navigate("/tasks?filter=today"),
+    },
+    {
+      label: "Overdue Follow-ups",
+      value: String(overdueFollowUps),
+      note: "Immediate attention needed",
+      color: colors.danger,
+      bg: colors.dangerBg || colors.warningBg,
+      icon: "⏰",
+      onClick: () => navigate("/tasks?filter=overdue"),
     },
   ];
 
@@ -820,7 +840,15 @@ export default function DashboardPage({
           </div>
 
           <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
-            <div style={cardStyle(colors)}>
+            <button
+              type="button"
+              onClick={() => navigate("/tasks?filter=today")}
+              style={{
+                ...cardStyle(colors),
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
               <div
                 style={{
                   display: "flex",
@@ -864,7 +892,10 @@ export default function DashboardPage({
                   todayFollowUps.slice(0, 5).map((lead) => (
                     <div
                       key={`followup-${lead.id}`}
-                      onClick={() => navigate(`/leads/${lead.id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/leads/${lead.id}`);
+                      }}
                       style={{
                         border: `1px solid ${colors.border}`,
                         borderRadius: 16,
@@ -933,7 +964,7 @@ export default function DashboardPage({
                   ))
                 )}
               </div>
-            </div>
+            </button>
 
             <div style={cardStyle(colors)}>
               <div
@@ -960,21 +991,39 @@ export default function DashboardPage({
                   label="Win Rate"
                   value={`${deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"}%`}
                 />
-                <MiniStatCard
-                  colors={colors}
-                  label="Today Follow-ups"
-                  value={String(todayFollowUps.length)}
-                />
-                <MiniStatCard
-                  colors={colors}
-                  label="Overdue Follow-ups"
-                  value={String(overdueFollowUps)}
-                />
-                <MiniStatCard
-                  colors={colors}
-                  label="Pending Tasks"
-                  value={String(pendingTasks)}
-                />
+                <button
+                  type="button"
+                  onClick={() => navigate("/tasks?filter=today")}
+                  style={miniStatButtonStyle(colors)}
+                >
+                  <MiniStatCard
+                    colors={colors}
+                    label="Today Follow-ups"
+                    value={String(todayFollowUps.length)}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/tasks?filter=overdue")}
+                  style={miniStatButtonStyle(colors)}
+                >
+                  <MiniStatCard
+                    colors={colors}
+                    label="Overdue Follow-ups"
+                    value={String(overdueFollowUps)}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/tasks?filter=pending")}
+                  style={miniStatButtonStyle(colors)}
+                >
+                  <MiniStatCard
+                    colors={colors}
+                    label="Pending Tasks"
+                    value={String(pendingTasks)}
+                  />
+                </button>
               </div>
             </div>
           </div>
@@ -1441,6 +1490,18 @@ function MiniStatCard({
       </div>
     </div>
   );
+}
+
+function miniStatButtonStyle(
+  colors: ReturnType<typeof getTheme>
+): React.CSSProperties {
+  return {
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    textAlign: "left",
+    cursor: "pointer",
+  };
 }
 
 function cardStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
