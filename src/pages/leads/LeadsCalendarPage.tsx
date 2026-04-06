@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
@@ -199,6 +199,7 @@ export default function LeadsCalendarPage({
 }: LeadsCalendarPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
+  const agendaGroupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const todayDate = useMemo(() => new Date(), []);
   const [viewMode, setViewMode] = useState<CalendarViewMode>("Month");
@@ -211,6 +212,8 @@ export default function LeadsCalendarPage({
   const [selectedActivityType, setSelectedActivityType] = useState("All Activities");
   const [selectedDate, setSelectedDate] = useState(formatDateToIso(todayDate));
   const [storageEvents, setStorageEvents] = useState<LeadEvent[]>([]);
+  const [eventOverrides, setEventOverrides] = useState<Record<number, Partial<LeadEvent>>>({});
+  const [highlightedAgendaDate, setHighlightedAgendaDate] = useState<string | null>(null);
 
   useEffect(() => {
     const syncStoredLeadEvents = () => {
@@ -243,12 +246,17 @@ export default function LeadsCalendarPage({
       }
     }
 
-    return merged.sort((a, b) => {
+    const mergedWithOverrides = merged.map((event) => ({
+      ...event,
+      ...(eventOverrides[event.id] || {}),
+    }));
+
+    return mergedWithOverrides.sort((a, b) => {
       const aKey = `${a.date} ${to24HourTime(a.time)}`;
       const bKey = `${b.date} ${to24HourTime(b.time)}`;
       return aKey.localeCompare(bKey);
     });
-  }, [storageEvents]);
+  }, [storageEvents, eventOverrides]);
 
   const ownerOptions = useMemo(() => {
     const owners = Array.from(
@@ -297,6 +305,66 @@ export default function LeadsCalendarPage({
       year: "numeric",
     });
   }, [currentMonthDate]);
+
+  const monthEventCount = useMemo(() => {
+    const visibleYear = currentMonthDate.getFullYear();
+    const visibleMonth = currentMonthDate.getMonth();
+
+    return filteredEvents.filter((event) => {
+      const eventDate = parseIsoDate(event.date);
+      return (
+        eventDate.getFullYear() === visibleYear &&
+        eventDate.getMonth() === visibleMonth
+      );
+    }).length;
+  }, [filteredEvents, currentMonthDate]);
+
+  const agendaEvents = useMemo(() => {
+    const visibleYear = currentMonthDate.getFullYear();
+    const visibleMonth = currentMonthDate.getMonth();
+
+    return filteredEvents
+      .filter((event) => {
+        const eventDate = parseIsoDate(event.date);
+        return (
+          eventDate.getFullYear() === visibleYear &&
+          eventDate.getMonth() === visibleMonth
+        );
+      })
+      .sort((a, b) => {
+        const aKey = `${a.date} ${to24HourTime(a.time)}`;
+        const bKey = `${b.date} ${to24HourTime(b.time)}`;
+        return aKey.localeCompare(bKey);
+      });
+  }, [filteredEvents, currentMonthDate]);
+
+  const agendaGroups = useMemo(() => {
+    const grouped = new Map<string, LeadEvent[]>();
+
+    for (const event of agendaEvents) {
+      if (!grouped.has(event.date)) {
+        grouped.set(event.date, []);
+      }
+      grouped.get(event.date)!.push(event);
+    }
+
+    return Array.from(grouped.entries());
+  }, [agendaEvents]);
+
+  useEffect(() => {
+    if (viewMode !== "Agenda" || !highlightedAgendaDate) return;
+
+    const target = agendaGroupRefs.current[highlightedAgendaDate];
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    const timer = window.setTimeout(() => {
+      setHighlightedAgendaDate(null);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, [viewMode, highlightedAgendaDate]);
 
   const stats = useMemo(() => {
     const today = formatDateToIso(new Date());
@@ -373,10 +441,32 @@ export default function LeadsCalendarPage({
     return cells;
   }, [filteredEvents, selectedDate, currentMonthDate]);
 
+  const monthJumpOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    const startYear = todayDate.getFullYear() - 1;
+
+    for (let offset = 0; offset < 36; offset += 1) {
+      const date = new Date(startYear, offset, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const label = date.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+      options.push({ value, label });
+    }
+
+    return options;
+  }, [todayDate]);
+
+  const currentMonthValue = useMemo(() => {
+    return `${currentMonthDate.getFullYear()}-${String(currentMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  }, [currentMonthDate]);
+
   const goToToday = () => {
     const today = new Date();
     setCurrentMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDate(formatDateToIso(today));
+    setHighlightedAgendaDate(null);
   };
 
   const goToPreviousMonth = () => {
@@ -385,6 +475,7 @@ export default function LeadsCalendarPage({
       syncSelectedDateForVisibleMonth(nextDate, selectedDate, setSelectedDate);
       return nextDate;
     });
+    setHighlightedAgendaDate(null);
   };
 
   const goToNextMonth = () => {
@@ -393,6 +484,50 @@ export default function LeadsCalendarPage({
       syncSelectedDateForVisibleMonth(nextDate, selectedDate, setSelectedDate);
       return nextDate;
     });
+    setHighlightedAgendaDate(null);
+  };
+
+  const handleMonthJump = (value: string) => {
+    const [year, month] = value.split("-").map(Number);
+    const nextDate = new Date(year, month - 1, 1);
+    setCurrentMonthDate(nextDate);
+    syncSelectedDateForVisibleMonth(nextDate, selectedDate, setSelectedDate);
+    setHighlightedAgendaDate(null);
+  };
+
+  const handleMarkDone = (eventId: number) => {
+    setEventOverrides((prev) => ({
+      ...prev,
+      [eventId]: {
+        ...(prev[eventId] || {}),
+        activityStatus: "Completed",
+      },
+    }));
+  };
+
+  const handleReschedule = (event: LeadEvent) => {
+    const nextDate = addDaysToIso(event.date, 1);
+
+    setEventOverrides((prev) => ({
+      ...prev,
+      [event.id]: {
+        ...(prev[event.id] || {}),
+        date: nextDate,
+        activityStatus: "Rescheduled",
+      },
+    }));
+
+    const nextDateObj = parseIsoDate(nextDate);
+    setCurrentMonthDate(new Date(nextDateObj.getFullYear(), nextDateObj.getMonth(), 1));
+    setSelectedDate(nextDate);
+    setViewMode("Agenda");
+    setHighlightedAgendaDate(nextDate);
+  };
+
+  const handleMonthCellClick = (isoDate: string) => {
+    setSelectedDate(isoDate);
+    setViewMode("Agenda");
+    setHighlightedAgendaDate(isoDate);
   };
 
   return (
@@ -469,12 +604,7 @@ export default function LeadsCalendarPage({
               ← Back to Leads
             </button>
 
-            <HeaderButton
-              label="Today"
-              colors={colors}
-              onClick={goToToday}
-            />
-
+            <HeaderButton label="Today" colors={colors} onClick={goToToday} />
             <HeaderButton label="Export" colors={colors} />
 
             <button
@@ -536,27 +666,42 @@ export default function LeadsCalendarPage({
             }}
           >
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <ToolbarButton
-                label="←"
-                colors={colors}
-                onClick={goToPreviousMonth}
-              />
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: colors.text,
-                  minWidth: 180,
-                  textAlign: "center",
-                }}
-              >
-                {currentMonthLabel}
+              <ToolbarButton label="←" colors={colors} onClick={goToPreviousMonth} />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: colors.text,
+                    minWidth: 180,
+                    textAlign: "center",
+                  }}
+                >
+                  {currentMonthLabel}
+                </div>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 38,
+                    height: 32,
+                    padding: "0 10px",
+                    borderRadius: 999,
+                    background: colors.primary,
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                  title="Selected month event count"
+                >
+                  {monthEventCount}
+                </span>
               </div>
-              <ToolbarButton
-                label="→"
-                colors={colors}
-                onClick={goToNextMonth}
-              />
+
+              <ToolbarButton label="→" colors={colors} onClick={goToNextMonth} />
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -587,7 +732,7 @@ export default function LeadsCalendarPage({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(220px, 1fr) 180px 180px 200px",
+              gridTemplateColumns: "minmax(220px, 1fr) 180px 180px 200px 220px",
               gap: 12,
             }}
           >
@@ -635,6 +780,18 @@ export default function LeadsCalendarPage({
               <option>Site Visit</option>
               <option>Negotiation</option>
               <option>Closing</option>
+            </select>
+
+            <select
+              value={currentMonthValue}
+              onChange={(e) => handleMonthJump(e.target.value)}
+              style={inputStyle(colors)}
+            >
+              {monthJumpOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  Jump: {option.label}
+                </option>
+              ))}
             </select>
           </div>
         </section>
@@ -692,7 +849,7 @@ export default function LeadsCalendarPage({
                     cell.isoDate ? (
                       <button
                         key={cell.key}
-                        onClick={() => setSelectedDate(cell.isoDate!)}
+                        onClick={() => handleMonthCellClick(cell.isoDate!)}
                         style={{
                           minHeight: 150,
                           border: `1px solid ${colors.borderSoft || colors.border}`,
@@ -780,7 +937,272 @@ export default function LeadsCalendarPage({
               </>
             )}
 
-            {viewMode !== "Month" && (
+            {viewMode === "Agenda" && (
+              <div style={{ padding: 20, display: "grid", gap: 18 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: colors.text,
+                      }}
+                    >
+                      Agenda List
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 14,
+                        color: colors.subText,
+                      }}
+                    >
+                      {currentMonthLabel} • {agendaEvents.length} scheduled item
+                      {agendaEvents.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 38,
+                      height: 32,
+                      padding: "0 10px",
+                      borderRadius: 999,
+                      background: colors.primary,
+                      color: "#fff",
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {agendaEvents.length}
+                  </span>
+                </div>
+
+                {agendaGroups.length > 0 ? (
+                  <div style={{ display: "grid", gap: 18 }}>
+                    {agendaGroups.map(([date, events]) => {
+                      const isHighlighted = highlightedAgendaDate === date;
+                      const isSelectedDateGroup = selectedDate === date;
+
+                      return (
+                        <div
+                          key={date}
+                          ref={(node) => {
+                            agendaGroupRefs.current[date] = node;
+                          }}
+                          style={{
+                            display: "grid",
+                            gap: 12,
+                            borderRadius: 18,
+                            padding: isHighlighted || isSelectedDateGroup ? 10 : 0,
+                            background:
+                              isHighlighted || isSelectedDateGroup
+                                ? mode === "dark"
+                                  ? "rgba(59,130,246,0.08)"
+                                  : "rgba(59,130,246,0.06)"
+                                : "transparent",
+                            outline:
+                              isHighlighted || isSelectedDateGroup
+                                ? `2px solid ${colors.primary}`
+                                : "none",
+                            transition: "all 0.25s ease",
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "sticky",
+                              top: 0,
+                              zIndex: 1,
+                              background: colors.cardBg,
+                              paddingBottom: 4,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "8px 12px",
+                                borderRadius: 999,
+                                background:
+                                  isHighlighted || isSelectedDateGroup
+                                    ? colors.primary
+                                    : colors.cardBgSoft,
+                                border: `1px solid ${
+                                  isHighlighted || isSelectedDateGroup
+                                    ? colors.primary
+                                    : colors.border
+                                }`,
+                                color:
+                                  isHighlighted || isSelectedDateGroup ? "#fff" : colors.text,
+                                fontSize: 13,
+                                fontWeight: 800,
+                              }}
+                            >
+                              <span>{formatPrettyDate(date)}</span>
+                              <span
+                                style={{
+                                  padding: "2px 8px",
+                                  borderRadius: 999,
+                                  background:
+                                    isHighlighted || isSelectedDateGroup
+                                      ? "rgba(255,255,255,0.22)"
+                                      : colors.primary,
+                                  color: "#fff",
+                                  fontSize: 11,
+                                }}
+                              >
+                                {events.length}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "grid", gap: 12 }}>
+                            {events.map((event) => (
+                              <div
+                                key={`${event.id}-${event.date}-${event.time}-agenda`}
+                                style={{
+                                  border: `1px solid ${colors.border}`,
+                                  borderLeft: `5px solid ${getPriorityColor(event.priority, colors)}`,
+                                  borderRadius: 16,
+                                  padding: 16,
+                                  background: colors.cardBgSoft,
+                                  display: "grid",
+                                  gap: 10,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontSize: 16,
+                                        fontWeight: 800,
+                                        color: colors.text,
+                                      }}
+                                    >
+                                      {event.leadName}
+                                    </div>
+                                    <div
+                                      style={{
+                                        marginTop: 4,
+                                        fontSize: 13,
+                                        color: colors.subText,
+                                      }}
+                                    >
+                                      {event.time} • {event.owner} • {event.city}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 999,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        color: "#fff",
+                                        background: getActivityTypeColor(event.activityType, colors),
+                                      }}
+                                    >
+                                      {event.activityType}
+                                    </span>
+
+                                    <span
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 999,
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        color: "#fff",
+                                        background: getStatusPillColor(event.activityStatus, colors),
+                                      }}
+                                    >
+                                      {event.activityStatus}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    color: colors.text,
+                                    lineHeight: 1.7,
+                                  }}
+                                >
+                                  {event.note}
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                                    gap: 10,
+                                  }}
+                                >
+                                  <AgendaInfo label="Phone" value={event.phone} colors={colors} />
+                                  <AgendaInfo label="Budget" value={event.budget} colors={colors} />
+                                  <AgendaInfo label="Location" value={event.location} colors={colors} />
+                                  <AgendaInfo label="Status" value={event.leadStatus} colors={colors} />
+                                </div>
+
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  <QuickActionChip
+                                    label="Open Lead"
+                                    colors={colors}
+                                    onClick={() => {
+                                      if (event.leadId) {
+                                        navigate(`/leads/${event.leadId}`);
+                                      }
+                                    }}
+                                  />
+                                  <QuickActionChip
+                                    label="Mark Done"
+                                    colors={colors}
+                                    onClick={() => handleMarkDone(event.id)}
+                                  />
+                                  <QuickActionChip
+                                    label="Reschedule"
+                                    colors={colors}
+                                    onClick={() => handleReschedule(event)}
+                                  />
+                                  <QuickActionChip label="WhatsApp" colors={colors} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <EmptyText
+                    text="No agenda items available for the selected month and filters."
+                    colors={colors}
+                  />
+                )}
+              </div>
+            )}
+
+            {viewMode !== "Month" && viewMode !== "Agenda" && (
               <div
                 style={{
                   padding: 28,
@@ -824,6 +1246,7 @@ export default function LeadsCalendarPage({
                 )}
                 colors={colors}
               />
+              <DetailRow label="Month Events" value={String(monthEventCount)} colors={colors} />
             </SidebarCard>
 
             <SidebarCard title="Activities on Selected Date" colors={colors}>
@@ -891,8 +1314,16 @@ export default function LeadsCalendarPage({
                             }
                           }}
                         />
-                        <QuickActionChip label="Mark Done" colors={colors} />
-                        <QuickActionChip label="Reschedule" colors={colors} />
+                        <QuickActionChip
+                          label="Mark Done"
+                          colors={colors}
+                          onClick={() => handleMarkDone(event.id)}
+                        />
+                        <QuickActionChip
+                          label="Reschedule"
+                          colors={colors}
+                          onClick={() => handleReschedule(event)}
+                        />
                         <QuickActionChip label="WhatsApp" colors={colors} />
                       </div>
                     </div>
@@ -1134,6 +1565,27 @@ function isEvening(time: string) {
   return normalized >= "17:00" && normalized <= "23:59";
 }
 
+function getStatusPillColor(
+  status: LeadEventStatus,
+  colors: ReturnType<typeof getTheme>
+) {
+  switch (status) {
+    case "Completed":
+      return colors.success;
+    case "Missed":
+      return colors.danger;
+    case "Rescheduled":
+      return colors.warning;
+    default:
+      return colors.info;
+  }
+}
+
+function formatPrettyDate(date: string) {
+  const [year, month, day] = date.split("-");
+  return `${day}-${month}-${year}`;
+}
+
 function formatDateToIso(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate()
@@ -1142,6 +1594,17 @@ function formatDateToIso(date: Date) {
 
 function formatDatePartsToIso(year: number, monthIndex: number, day: number) {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseIsoDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDaysToIso(value: string, days: number) {
+  const next = parseIsoDate(value);
+  next.setDate(next.getDate() + days);
+  return formatDateToIso(next);
 }
 
 function syncSelectedDateForVisibleMonth(
@@ -1272,6 +1735,10 @@ function CalendarEventMiniCard({
             ? mode === "dark"
               ? "rgba(239,68,68,0.10)"
               : "rgba(239,68,68,0.08)"
+            : event.activityStatus === "Completed"
+            ? mode === "dark"
+              ? "rgba(34,197,94,0.12)"
+              : "rgba(34,197,94,0.10)"
             : colors.cardBgSoft,
         borderRadius: 10,
         padding: "8px 10px",
@@ -1364,6 +1831,47 @@ function DetailRow({
     >
       <span style={{ fontSize: 13, color: colors.subText }}>{label}</span>
       <span style={{ fontSize: 13, color: colors.text, fontWeight: 800 }}>{value}</span>
+    </div>
+  );
+}
+
+function AgendaInfo({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${colors.border}`,
+        borderRadius: 12,
+        padding: "10px 12px",
+        background: colors.cardBg,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: colors.subText,
+          fontWeight: 700,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          marginTop: 4,
+          fontSize: 13,
+          color: colors.text,
+          fontWeight: 800,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -1534,9 +2042,4 @@ function getPriorityColor(
     default:
       return colors.subText;
   }
-}
-
-function formatPrettyDate(date: string) {
-  const [year, month, day] = date.split("-");
-  return `${day}-${month}-${year}`;
 }
