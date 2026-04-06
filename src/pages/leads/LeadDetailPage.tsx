@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -402,9 +402,11 @@ export default function LeadDetailPage({
 }: LeadDetailPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const colors = getTheme(mode);
 
   const leadId = Number(id);
+  const leadsBackLink = `/leads${location.search || ""}`;
 
   const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -493,7 +495,7 @@ export default function LeadDetailPage({
 
           <div style={{ marginTop: 20 }}>
             <Link
-              to="/leads"
+              to={leadsBackLink}
               style={{
                 display: "inline-block",
                 textDecoration: "none",
@@ -586,7 +588,7 @@ export default function LeadDetailPage({
 
     saveStoredLeads(updatedLeads);
     setAllLeads(updatedLeads);
-    navigate("/leads");
+    navigate(leadsBackLink);
   };
 
   const handleAddQuickNote = () => {
@@ -961,7 +963,7 @@ export default function LeadDetailPage({
               Delete
             </button>
 
-            <Link to="/leads" style={secondaryLinkButton(colors)}>
+            <Link to={leadsBackLink} style={secondaryLinkButton(colors)}>
               Back to Leads
             </Link>
           </div>
@@ -1669,7 +1671,10 @@ export default function LeadDetailPage({
 
               <div style={{ display: "grid", gap: 10 }}>
                 <button
-                  onClick={() => previousLead && navigate(`/leads/${previousLead.id}`)}
+                  onClick={() =>
+                    previousLead &&
+                    navigate(`/leads/${previousLead.id}${location.search || ""}`)
+                  }
                   disabled={!previousLead}
                   style={{
                     ...secondaryButton(colors),
@@ -1681,7 +1686,10 @@ export default function LeadDetailPage({
                 </button>
 
                 <button
-                  onClick={() => nextLead && navigate(`/leads/${nextLead.id}`)}
+                  onClick={() =>
+                    nextLead &&
+                    navigate(`/leads/${nextLead.id}${location.search || ""}`)
+                  }
                   disabled={!nextLead}
                   style={{
                     ...secondaryButton(colors),
@@ -2176,7 +2184,7 @@ function TagWrap({
             alignItems: "center",
             padding: "8px 12px",
             borderRadius: 999,
-            background: danger ? colors.cardBgSoft : colors.cardBgSoft,
+            background: colors.cardBgSoft,
             border: `1px solid ${colors.border}`,
             color: danger ? colors.danger : colors.text,
             fontSize: 13,
