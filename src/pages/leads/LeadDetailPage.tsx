@@ -11,6 +11,8 @@ type LeadDetailPageProps = {
 
 type LeadStatus = "New" | "Contacted" | "Qualified" | "Negotiation" | "Closed";
 type LeadPriority = "Low" | "Medium" | "High";
+type TimelineTone = "info" | "success" | "warning" | "danger" | "primary";
+type ActivityFilter = "All" | "Info" | "Success" | "Warning" | "Danger" | "Primary";
 
 type CallLogItem = {
   time: string;
@@ -18,13 +20,19 @@ type CallLogItem = {
   outcome: string;
 };
 
-type TimelineTone = "info" | "success" | "warning" | "danger" | "primary";
-
 type TimelineItem = {
   title: string;
   description: string;
   time: string;
   tone?: TimelineTone;
+};
+
+type AttachmentItem = {
+  id: string;
+  name: string;
+  type: string;
+  uploadedAt: string;
+  sizeLabel: string;
 };
 
 type Lead = {
@@ -45,6 +53,10 @@ type Lead = {
   requirement: string;
   callLogs: CallLogItem[];
   timeline: TimelineItem[];
+  attachments?: AttachmentItem[];
+  isConvertedToDeal?: boolean;
+  convertedDealAt?: string;
+  convertedDealValue?: string;
   updatedAt?: string;
   createdAt?: string;
 };
@@ -54,6 +66,24 @@ const LEAD_STORAGE_KEYS = [
   "mei_crm_leads",
   "leads",
   "crm_leads",
+];
+
+const DEAL_STORAGE_KEY = "mei-crm-deals";
+
+const OWNER_OPTIONS = [
+  "Madhan",
+  "Arun",
+  "Priya",
+  "John Paul",
+  "Sales Desk",
+  "Unassigned",
+];
+
+const WHATSAPP_TEMPLATES = [
+  "Hi {name}, just checking in regarding your enquiry. Shall we connect today?",
+  "Hi {name}, your follow-up is due today. Please let me know a convenient time.",
+  "Hi {name}, I’ve shared the details. Happy to walk you through the next steps.",
+  "Hi {name}, we can move this to the next stage whenever you're ready.",
 ];
 
 function getStatusColor(status: LeadStatus, mode: ThemeMode) {
@@ -140,6 +170,26 @@ function saveStoredLeads(leads: Lead[]) {
   }
 }
 
+function readStoredDeals(): any[] {
+  try {
+    const raw = localStorage.getItem(DEAL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to read deals:", error);
+    return [];
+  }
+}
+
+function saveStoredDeals(deals: any[]) {
+  try {
+    localStorage.setItem(DEAL_STORAGE_KEY, JSON.stringify(deals));
+  } catch (error) {
+    console.error("Failed to save deals:", error);
+  }
+}
+
 function mapUnknownLead(item: any, index: number): Lead | null {
   if (!item || typeof item !== "object") return null;
 
@@ -157,6 +207,16 @@ function mapUnknownLead(item: any, index: number): Lead | null {
         time: String(entry?.time || "Recent"),
         note: String(entry?.note || "Call activity recorded."),
         outcome: String(entry?.outcome || "Connected"),
+      }))
+    : [];
+
+  const attachments = Array.isArray(item.attachments)
+    ? item.attachments.map((entry: any, i: number) => ({
+        id: String(entry?.id || `${Date.now()}-${i}`),
+        name: String(entry?.name || "Attachment"),
+        type: String(entry?.type || "file"),
+        uploadedAt: String(entry?.uploadedAt || "Recent"),
+        sizeLabel: String(entry?.sizeLabel || "—"),
       }))
     : [];
 
@@ -187,6 +247,10 @@ function mapUnknownLead(item: any, index: number): Lead | null {
     requirement: String(item.requirement || "Requirement details not added yet."),
     callLogs,
     timeline,
+    attachments,
+    isConvertedToDeal: Boolean(item.isConvertedToDeal),
+    convertedDealAt: item.convertedDealAt,
+    convertedDealValue: item.convertedDealValue,
     updatedAt: item.updatedAt,
     createdAt: item.createdAt,
   };
@@ -242,6 +306,7 @@ function getLeadHealthScore(lead: Lead) {
   if (lead.requirement && lead.requirement !== "Requirement details not added yet.")
     score += 4;
   if (isOverdue(lead.followUpDate, lead.status)) score -= 15;
+  if (lead.attachments && lead.attachments.length > 0) score += 5;
 
   return Math.max(0, Math.min(100, score));
 }
@@ -263,6 +328,16 @@ function getStageProbability(status: LeadStatus) {
   }
 }
 
+function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Info") return (tone || "info") === "info";
+  if (filter === "Success") return tone === "success";
+  if (filter === "Warning") return tone === "warning";
+  if (filter === "Danger") return tone === "danger";
+  if (filter === "Primary") return tone === "primary";
+  return true;
+}
+
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
@@ -280,6 +355,10 @@ export default function LeadDetailPage({
   const [callOutcome, setCallOutcome] = useState("Connected");
   const [followUpInput, setFollowUpInput] = useState("");
   const [ownerInput, setOwnerInput] = useState("");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("All");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentType, setAttachmentType] = useState("Proposal");
+  const [attachmentSize, setAttachmentSize] = useState("");
 
   useEffect(() => {
     const syncLeads = () => {
@@ -378,6 +457,9 @@ export default function LeadDetailPage({
   const lead = leadState;
   const overdue = isOverdue(lead.followUpDate, lead.status);
   const leadHealth = getLeadHealthScore(lead);
+  const filteredTimeline = lead.timeline.filter((item) =>
+    toneMatchesFilter(item.tone, activityFilter)
+  );
 
   const updateStatus = (nextStatus: LeadStatus) => {
     persistLeadUpdate((prev) => {
@@ -552,6 +634,93 @@ export default function LeadDetailPage({
     });
   };
 
+  const handleAddAttachment = () => {
+    if (!attachmentName.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const nextAttachment: AttachmentItem = {
+        id: `${Date.now()}`,
+        name: attachmentName.trim(),
+        type: attachmentType,
+        uploadedAt: getNowLabel(),
+        sizeLabel: attachmentSize.trim() || "—",
+      };
+
+      const timelineItem: TimelineItem = {
+        title: "Attachment Added",
+        description: `${nextAttachment.name} uploaded under ${nextAttachment.type}.`,
+        time: getNowLabel(),
+        tone: "info",
+      };
+
+      return {
+        ...prev,
+        attachments: [nextAttachment, ...(prev.attachments || [])],
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+
+    setAttachmentName("");
+    setAttachmentSize("");
+    setAttachmentType("Proposal");
+  };
+
+  const handleConvertToDeal = () => {
+    if (lead.isConvertedToDeal) {
+      alert("This lead is already converted to a deal.");
+      return;
+    }
+
+    const latestDeals = readStoredDeals();
+    const nextDeal = {
+      id: Date.now(),
+      leadId: lead.id,
+      title: `${lead.name} Deal`,
+      clientName: lead.name,
+      company: lead.company,
+      owner: lead.owner,
+      status: "Open",
+      stage: lead.status === "Negotiation" ? "Negotiation" : "Qualified",
+      value: lead.budget || "—",
+      city: lead.city,
+      source: lead.source,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveStoredDeals([nextDeal, ...latestDeals]);
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Converted to Deal",
+        description: `Lead converted into active deal with value ${prev.budget || "—"}.`,
+        time: getNowLabel(),
+        tone: "success",
+      };
+
+      return {
+        ...prev,
+        isConvertedToDeal: true,
+        convertedDealAt: new Date().toISOString(),
+        convertedDealValue: prev.budget,
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+
+    alert("Lead converted to deal successfully.");
+  };
+
+  const handleOpenWhatsAppTemplate = (template: string) => {
+    const text = template
+      .replace("{name}", lead.name)
+      .replace("{company}", lead.company || "");
+
+    const phone = lead.phone.replace(/\D/g, "");
+    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
@@ -632,6 +801,22 @@ export default function LeadDetailPage({
                 </span>
               )}
 
+              {lead.isConvertedToDeal && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    background: colors.success,
+                    color: "#ffffff",
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Deal Converted
+                </span>
+              )}
+
               <span
                 style={{
                   display: "inline-block",
@@ -673,6 +858,7 @@ export default function LeadDetailPage({
           <MiniStatCard label="Lead Health" value={`${leadHealth}/100`} colors={colors} />
           <MiniStatCard label="Stage Probability" value={getStageProbability(lead.status)} colors={colors} />
           <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
+          <MiniStatCard label="Attachments" value={String(lead.attachments?.length || 0)} colors={colors} />
           <MiniStatCard label="Timeline Events" value={String(lead.timeline.length)} colors={colors} />
           <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
         </section>
@@ -722,6 +908,18 @@ export default function LeadDetailPage({
                 Email
               </a>
             ) : null}
+
+            <button
+              onClick={handleConvertToDeal}
+              style={{
+                ...primaryButton(colors),
+                opacity: lead.isConvertedToDeal ? 0.65 : 1,
+                cursor: lead.isConvertedToDeal ? "not-allowed" : "pointer",
+              }}
+              disabled={lead.isConvertedToDeal}
+            >
+              Convert to Deal
+            </button>
 
             <select
               value={lead.status}
@@ -789,6 +987,42 @@ export default function LeadDetailPage({
             <InfoPanel title="Notes" colors={colors}>
               {lead.notes}
             </InfoPanel>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                WhatsApp Quick Templates
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {WHATSAPP_TEMPLATES.map((template, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleOpenWhatsAppTemplate(template)}
+                    style={{
+                      ...secondaryButton(colors),
+                      textAlign: "left",
+                    }}
+                  >
+                    {template.replace("{name}", lead.name)}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div
               style={{
@@ -1009,13 +1243,17 @@ export default function LeadDetailPage({
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                <input
-                  type="text"
+                <select
                   value={ownerInput}
                   onChange={(e) => setOwnerInput(e.target.value)}
-                  placeholder="Enter new owner name"
                   style={inputStyle(colors)}
-                />
+                >
+                  {OWNER_OPTIONS.map((owner) => (
+                    <option key={owner} value={owner}>
+                      {owner}
+                    </option>
+                  ))}
+                </select>
 
                 <button onClick={handleReassignOwner} style={primaryButton(colors)}>
                   Save Owner
@@ -1040,47 +1278,75 @@ export default function LeadDetailPage({
                   marginBottom: 14,
                 }}
               >
-                Next Follow-up
+                Attachments
               </div>
 
-              <div
-                style={{
-                  background: colors.cardBgSoft,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 14,
-                  padding: 16,
-                }}
-              >
-                <div
-                  style={{
-                    color: colors.subText,
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  Scheduled Date
-                </div>
-                <div
-                  style={{
-                    marginTop: 8,
-                    color: overdue ? colors.danger : colors.text,
-                    fontSize: 24,
-                    fontWeight: 800,
-                  }}
-                >
-                  {lead.followUpDate}
-                </div>
+              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                <input
+                  type="text"
+                  value={attachmentName}
+                  onChange={(e) => setAttachmentName(e.target.value)}
+                  placeholder="Document name"
+                  style={inputStyle(colors)}
+                />
 
-                <div
-                  style={{
-                    marginTop: 10,
-                    color: colors.subText,
-                    lineHeight: 1.6,
-                    fontSize: 14,
-                  }}
+                <select
+                  value={attachmentType}
+                  onChange={(e) => setAttachmentType(e.target.value)}
+                  style={inputStyle(colors)}
                 >
-                  Prepare the next update, confirm requirement clarity, and move the lead to the next stage.
-                </div>
+                  <option value="Proposal">Proposal</option>
+                  <option value="Quotation">Quotation</option>
+                  <option value="KYC">KYC</option>
+                  <option value="Agreement">Agreement</option>
+                  <option value="Other">Other</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={attachmentSize}
+                  onChange={(e) => setAttachmentSize(e.target.value)}
+                  placeholder="Size label (e.g. 1.2 MB)"
+                  style={inputStyle(colors)}
+                />
+
+                <button onClick={handleAddAttachment} style={primaryButton(colors)}>
+                  Add Attachment
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {(lead.attachments || []).length > 0 ? (
+                  (lead.attachments || []).map((file) => (
+                    <div
+                      key={file.id}
+                      style={{
+                        background: colors.cardBgSoft,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 14,
+                        padding: 14,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: colors.text }}>{file.name}</div>
+                      <div style={{ marginTop: 6, fontSize: 13, color: colors.subText }}>
+                        {file.type} · {file.sizeLabel} · {file.uploadedAt}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      background: colors.cardBgSoft,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 14,
+                      padding: 16,
+                      color: colors.subText,
+                      fontSize: 14,
+                    }}
+                  >
+                    No attachments yet.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1142,18 +1408,41 @@ export default function LeadDetailPage({
             >
               <div
                 style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: colors.text,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
                   marginBottom: 14,
                 }}
               >
-                Activity Timeline
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: colors.text,
+                  }}
+                >
+                  Activity Timeline
+                </div>
+
+                <select
+                  value={activityFilter}
+                  onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
+                  style={inputStyle(colors)}
+                >
+                  <option value="All">All</option>
+                  <option value="Info">Info</option>
+                  <option value="Success">Success</option>
+                  <option value="Warning">Warning</option>
+                  <option value="Danger">Danger</option>
+                  <option value="Primary">Primary</option>
+                </select>
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {lead.timeline.length > 0 ? (
-                  lead.timeline.map((item, index) => {
+                {filteredTimeline.length > 0 ? (
+                  filteredTimeline.map((item, index) => {
                     const dotColor = getTimelineToneColor(item.tone, colors);
 
                     return (
@@ -1254,7 +1543,7 @@ export default function LeadDetailPage({
                       fontSize: 14,
                     }}
                   >
-                    No timeline activity yet.
+                    No timeline activity for this filter.
                   </div>
                 )}
               </div>

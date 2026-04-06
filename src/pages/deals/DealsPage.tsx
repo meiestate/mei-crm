@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -19,9 +19,16 @@ type Deal = {
   city: string;
   owner: string;
   stage: DealStage;
+  leadId?: number;
+  company?: string;
+  source?: string;
+  status?: string;
+  createdAt?: string;
 };
 
-const initialDeals: Deal[] = [
+const DEAL_STORAGE_KEY = "mei-crm-deals";
+
+const fallbackDeals: Deal[] = [
   {
     id: 1,
     title: "CRM Setup Package",
@@ -30,6 +37,7 @@ const initialDeals: Deal[] = [
     city: "Chennai",
     owner: "Balraj",
     stage: "New",
+    createdAt: new Date().toISOString(),
   },
   {
     id: 2,
@@ -39,6 +47,7 @@ const initialDeals: Deal[] = [
     city: "Bangalore",
     owner: "Balraj",
     stage: "Negotiation",
+    createdAt: new Date().toISOString(),
   },
   {
     id: 3,
@@ -48,6 +57,7 @@ const initialDeals: Deal[] = [
     city: "Coimbatore",
     owner: "Arun",
     stage: "Proposal",
+    createdAt: new Date().toISOString(),
   },
   {
     id: 4,
@@ -57,8 +67,19 @@ const initialDeals: Deal[] = [
     city: "Madurai",
     owner: "Priya",
     stage: "Won",
+    createdAt: new Date().toISOString(),
   },
 ];
+
+function normalizeStage(value: string | undefined): DealStage {
+  const normalized = String(value || "New").toLowerCase();
+
+  if (normalized.includes("neg")) return "Negotiation";
+  if (normalized.includes("prop")) return "Proposal";
+  if (normalized.includes("won") || normalized.includes("closed")) return "Won";
+  if (normalized.includes("lost")) return "Lost";
+  return "New";
+}
 
 function getStageColor(stage: DealStage, mode: ThemeMode) {
   const colors = getTheme(mode);
@@ -79,13 +100,77 @@ function getStageColor(stage: DealStage, mode: ThemeMode) {
   }
 }
 
+function readStoredDeals(): Deal[] {
+  try {
+    const raw = localStorage.getItem(DEAL_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item: any, index: number) => mapUnknownDeal(item, index))
+      .filter(Boolean) as Deal[];
+  } catch (error) {
+    console.error("Failed to parse deals from localStorage:", error);
+    return [];
+  }
+}
+
+function saveStoredDeals(deals: Deal[]) {
+  try {
+    localStorage.setItem(DEAL_STORAGE_KEY, JSON.stringify(deals));
+  } catch (error) {
+    console.error("Failed to save deals to localStorage:", error);
+  }
+}
+
+function mapUnknownDeal(item: any, index: number): Deal | null {
+  if (!item || typeof item !== "object") return null;
+
+  return {
+    id: Number(item.id ?? Date.now() + index),
+    title: String(item.title || item.dealTitle || item.name || `Deal ${index + 1}`),
+    client: String(item.client || item.clientName || item.customerName || item.company || "Unknown Client"),
+    value:
+      typeof item.value === "number"
+        ? `₹${item.value.toLocaleString("en-IN")}`
+        : String(item.value || "—"),
+    city: String(item.city || item.location || "Unknown"),
+    owner: String(item.owner || "Unassigned"),
+    stage: normalizeStage(item.stage || item.status),
+    leadId: item.leadId ? Number(item.leadId) : undefined,
+    company: item.company ? String(item.company) : undefined,
+    source: item.source ? String(item.source) : undefined,
+    status: item.status ? String(item.status) : undefined,
+    createdAt: item.createdAt,
+  };
+}
+
+function formatDateShort(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 export default function DealsPage({
   mode,
   onToggleTheme,
 }: DealsPageProps) {
   const colors = getTheme(mode);
 
-  const [deals, setDeals] = useState<Deal[]>(initialDeals);
+  const [deals, setDeals] = useState<Deal[]>(() => {
+    const stored = readStoredDeals();
+    return stored.length > 0 ? stored : fallbackDeals;
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -99,6 +184,24 @@ export default function DealsPage({
     stage: "New" as DealStage,
   });
 
+  useEffect(() => {
+    const syncDeals = () => {
+      const stored = readStoredDeals();
+      if (stored.length > 0) {
+        setDeals(stored);
+      }
+    };
+
+    window.addEventListener("storage", syncDeals);
+    return () => window.removeEventListener("storage", syncDeals);
+  }, []);
+
+  useEffect(() => {
+    if (deals.length > 0) {
+      saveStoredDeals(deals);
+    }
+  }, [deals]);
+
   const filteredDeals = useMemo(() => {
     return deals.filter((deal) => {
       const matchesFilter =
@@ -111,7 +214,10 @@ export default function DealsPage({
         deal.client.toLowerCase().includes(q) ||
         deal.city.toLowerCase().includes(q) ||
         deal.owner.toLowerCase().includes(q) ||
-        deal.value.toLowerCase().includes(q);
+        deal.value.toLowerCase().includes(q) ||
+        String(deal.id).toLowerCase().includes(q) ||
+        String(deal.company || "").toLowerCase().includes(q) ||
+        String(deal.source || "").toLowerCase().includes(q);
 
       return matchesFilter && matchesSearch;
     });
@@ -119,8 +225,15 @@ export default function DealsPage({
 
   const totalDeals = deals.length;
   const newDeals = deals.filter((d) => d.stage === "New").length;
-  const wonDeals = deals.filter((d) => d.stage === "Won").length;
   const negotiationDeals = deals.filter((d) => d.stage === "Negotiation").length;
+  const proposalDeals = deals.filter((d) => d.stage === "Proposal").length;
+  const wonDeals = deals.filter((d) => d.stage === "Won").length;
+  const lostDeals = deals.filter((d) => d.stage === "Lost").length;
+
+  const totalDealValue = deals.reduce((sum, deal) => {
+    const numeric = Number(String(deal.value).replace(/[^\d.]/g, ""));
+    return sum + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
 
   const handleAddDeal = () => {
     if (
@@ -141,6 +254,7 @@ export default function DealsPage({
       city: formData.city.trim(),
       owner: formData.owner.trim() || "Unassigned",
       stage: formData.stage,
+      createdAt: new Date().toISOString(),
     };
 
     setDeals((prev) => [newDeal, ...prev]);
@@ -157,32 +271,156 @@ export default function DealsPage({
     setSearchTerm("");
   };
 
+  const handleKpiFilter = (filter: FilterType) => {
+    setActiveFilter(filter);
+  };
+
   return (
     <AppLayout title="Deals" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 30, color: colors.text }}>
-            Deal Management
-          </h2>
-          <p style={{ margin: "8px 0 0", color: colors.subText }}>
-            Track opportunities, proposals, negotiations, and closed deals.
-          </p>
-        </div>
+        <section
+          style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 24,
+            boxShadow: colors.shadowSoft,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 12px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                background: colors.cardBgSoft,
+                color: colors.subText,
+                border: `1px solid ${colors.border}`,
+                marginBottom: 14,
+              }}
+            >
+              MEI CRM Deals
+            </div>
 
-        <div
+            <h2 style={{ margin: 0, fontSize: 30, color: colors.text, fontWeight: 800 }}>
+              Deal Management
+            </h2>
+
+            <p style={{ margin: "8px 0 0", color: colors.subText }}>
+              Live deals synced from manual entries and lead conversion flow.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              border: "none",
+              background: colors.primary,
+              color: "#ffffff",
+              padding: "12px 18px",
+              borderRadius: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            + Add Deal
+          </button>
+        </section>
+
+        <section
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
           }}
         >
-          <StatCard label="Total Deals" value={totalDeals} colors={colors} />
-          <StatCard label="New Deals" value={newDeals} colors={colors} />
-          <StatCard label="Negotiation" value={negotiationDeals} colors={colors} />
-          <StatCard label="Won Deals" value={wonDeals} colors={colors} />
-        </div>
+          {[
+            { label: "Total Deals", value: totalDeals, filter: "All" as FilterType },
+            { label: "New Deals", value: newDeals, filter: "New" as FilterType },
+            { label: "Negotiation", value: negotiationDeals, filter: "Negotiation" as FilterType },
+            { label: "Proposal", value: proposalDeals, filter: "Proposal" as FilterType },
+            { label: "Won Deals", value: wonDeals, filter: "Won" as FilterType },
+            { label: "Lost Deals", value: lostDeals, filter: "Lost" as FilterType },
+          ].map((item) => {
+            const active = activeFilter === item.filter;
 
-        <div
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => handleKpiFilter(item.filter)}
+                style={{
+                  background: active ? colors.primary : colors.cardBg,
+                  border: `1px solid ${active ? colors.primary : colors.border}`,
+                  borderRadius: 18,
+                  padding: 20,
+                  boxShadow: colors.shadowSoft,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  color: active ? "#ffffff" : colors.text,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: active ? "rgba(255,255,255,0.82)" : colors.subText,
+                    fontWeight: 600,
+                  }}
+                >
+                  {item.label}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 32,
+                    fontWeight: 800,
+                    color: active ? "#ffffff" : colors.text,
+                  }}
+                >
+                  {item.value}
+                </div>
+              </button>
+            );
+          })}
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <StatCard
+            label="Pipeline Value"
+            value={`₹${totalDealValue.toLocaleString("en-IN")}`}
+            colors={colors}
+          />
+          <StatCard
+            label="Converted From Leads"
+            value={String(deals.filter((deal) => deal.leadId).length)}
+            colors={colors}
+          />
+          <StatCard
+            label="Live Filter Results"
+            value={String(filteredDeals.length)}
+            colors={colors}
+          />
+        </section>
+
+        <section
           style={{
             background: colors.cardBg,
             border: `1px solid ${colors.border}`,
@@ -203,7 +441,7 @@ export default function DealsPage({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search title, client, city, owner..."
+              placeholder="Search title, client, city, owner, source..."
               style={{
                 width: "100%",
                 padding: "14px 16px",
@@ -218,20 +456,21 @@ export default function DealsPage({
             />
 
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setActiveFilter("All");
+                setSearchTerm("");
+              }}
               style={{
-                border: "none",
-                background: colors.primary,
-                color: "#ffffff",
-                padding: "12px 18px",
+                border: `1px solid ${colors.border}`,
+                background: "transparent",
+                color: colors.subText,
+                padding: "12px 16px",
                 borderRadius: 12,
                 fontWeight: 700,
                 cursor: "pointer",
-                whiteSpace: "nowrap",
-                boxShadow: colors.shadowSoft,
               }}
             >
-              + Add Deal
+              Clear
             </button>
           </div>
 
@@ -266,28 +505,10 @@ export default function DealsPage({
                 );
               }
             )}
-
-            <button
-              onClick={() => {
-                setActiveFilter("All");
-                setSearchTerm("");
-              }}
-              style={{
-                border: `1px solid ${colors.border}`,
-                background: "transparent",
-                color: colors.subText,
-                padding: "10px 14px",
-                borderRadius: 999,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Clear
-            </button>
           </div>
-        </div>
+        </section>
 
-        <div
+        <section
           style={{
             background: colors.cardBg,
             border: `1px solid ${colors.border}`,
@@ -322,7 +543,7 @@ export default function DealsPage({
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                minWidth: 980,
+                minWidth: 1200,
               }}
             >
               <thead>
@@ -339,6 +560,9 @@ export default function DealsPage({
                   <th style={thStyle(colors.subText)}>City</th>
                   <th style={thStyle(colors.subText)}>Owner</th>
                   <th style={thStyle(colors.subText)}>Stage</th>
+                  <th style={thStyle(colors.subText)}>Source</th>
+                  <th style={thStyle(colors.subText)}>Lead Ref</th>
+                  <th style={thStyle(colors.subText)}>Created</th>
                 </tr>
               </thead>
 
@@ -353,7 +577,20 @@ export default function DealsPage({
                       }}
                     >
                       <td style={tdStyle(colors.text)}>{deal.id}</td>
-                      <td style={tdStyle(colors.text)}>{deal.title}</td>
+                      <td style={tdStyle(colors.text)}>
+                        <div style={{ fontWeight: 700 }}>{deal.title}</div>
+                        {deal.company ? (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: colors.subText,
+                            }}
+                          >
+                            {deal.company}
+                          </div>
+                        ) : null}
+                      </td>
                       <td style={tdStyle(colors.text)}>{deal.client}</td>
                       <td style={tdStyle(colors.text)}>{deal.value}</td>
                       <td style={tdStyle(colors.text)}>{deal.city}</td>
@@ -373,12 +610,19 @@ export default function DealsPage({
                           {deal.stage}
                         </span>
                       </td>
+                      <td style={tdStyle(colors.text)}>{deal.source || "Manual"}</td>
+                      <td style={tdStyle(colors.text)}>
+                        {deal.leadId ? `#${deal.leadId}` : "—"}
+                      </td>
+                      <td style={tdStyle(colors.text)}>
+                        {formatDateShort(deal.createdAt)}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={10}
                       style={{
                         padding: 24,
                         color: colors.subText,
@@ -393,7 +637,7 @@ export default function DealsPage({
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       </div>
 
       {isModalOpen && (
@@ -460,7 +704,7 @@ export default function DealsPage({
                 label="Value"
                 value={formData.value}
                 onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, value: value }))
+                  setFormData((prev) => ({ ...prev, value }))
                 }
                 colors={colors}
               />
@@ -574,7 +818,7 @@ function StatCard({
   colors,
 }: {
   label: string;
-  value: number;
+  value: string;
   colors: ReturnType<typeof getTheme>;
 }) {
   return (
@@ -594,6 +838,7 @@ function StatCard({
           fontSize: 32,
           fontWeight: 800,
           color: colors.text,
+          wordBreak: "break-word",
         }}
       >
         {value}
@@ -651,6 +896,7 @@ function thStyle(color: string): React.CSSProperties {
     fontSize: 13,
     color,
     fontWeight: 700,
+    whiteSpace: "nowrap",
   };
 }
 
@@ -659,5 +905,7 @@ function tdStyle(color: string): React.CSSProperties {
     padding: 14,
     fontSize: 15,
     color,
+    whiteSpace: "nowrap",
+    verticalAlign: "middle",
   };
 }

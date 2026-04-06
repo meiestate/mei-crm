@@ -6,6 +6,7 @@ import LeadsPage from "./pages/leads/LeadsPage";
 import LeadDetailPage from "./pages/leads/LeadDetailPage";
 import ContactsPage from "./pages/contacts/ContactsPage";
 import DealsPage from "./pages/deals/DealsPage";
+import DealDetailPage from "./pages/deals/DealDetailPage";
 import TasksPage from "./pages/tasks/TasksPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import LoginPage from "./pages/auth/LoginPage";
@@ -155,6 +156,10 @@ export default function App() {
 
   const dealsPageElement = (
     <DealsPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const dealDetailPageElement = (
+    <DealDetailPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const tasksPageElement = (
@@ -321,6 +326,21 @@ export default function App() {
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 dealsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/deals/:id"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                dealDetailPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )
