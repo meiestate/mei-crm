@@ -1,122 +1,116 @@
-import { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
 type LeadDetailPageProps = {
   mode: ThemeMode;
+  onToggleTheme: () => void;
 };
 
 type LeadStatus =
   | "New"
-  | "Attempted"
   | "Contacted"
   | "Qualified"
   | "Follow-up"
-  | "Site Visit Scheduled"
   | "Negotiation"
-  | "Won"
-  | "Lost";
+  | "Closed";
 
-type Priority = "Cold" | "Warm" | "Hot";
-type TaskStatus = "Pending" | "In Progress" | "Done" | "Overdue";
-type ActivityType =
-  | "created"
-  | "status_changed"
-  | "note_added"
-  | "call_logged"
-  | "task_created"
-  | "whatsapp_sent"
-  | "email_sent"
-  | "followup_updated"
-  | "converted";
+type LeadPriority = "Low" | "Medium" | "High";
+type TimelineTone = "info" | "success" | "warning" | "danger" | "primary";
+type ActivityFilter = "All" | "Info" | "Success" | "Warning" | "Danger" | "Primary";
 
-type LeadNoteTag = "General" | "Budget" | "Objection" | "Follow-up" | "Meeting";
-
-type LeadInfo = {
-  id: string;
-  name: string;
-  phone: string;
-  alternatePhone?: string;
-  email: string;
-  company?: string;
-  occupation?: string;
-  city: string;
-  address: string;
-  preferredLanguage: string;
-  source: string;
-  campaign?: string;
-  referredBy?: string;
-  owner: string;
-  ownerRole: string;
-  ownerEmail: string;
-  ownerPhone: string;
-  status: LeadStatus;
-  priority: Priority;
-  budget: string;
-  requirementType: string;
-  location: string;
-  createdAt: string;
-  updatedAt: string;
-  timeline: string;
-  financingType: string;
-  purpose: string;
-  sqft: string;
-  facing: string;
-  floorPreference: string;
-  expectedCloseDate: string;
-  probability: number;
-  leadScore: number;
-  estimatedDealValue: string;
-  riskFlag: string;
-  nextFollowUp: string;
-  followUpType: string;
-  lastFollowUp: string;
-  tags: string[];
-  objections: string[];
+type CallLogItem = {
+  time: string;
+  note: string;
+  outcome: string;
 };
 
-type TaskItem = {
-  id: string;
-  title: string;
-  due: string;
-  status: TaskStatus;
-  priority: "Low" | "Medium" | "High";
-  assignee: string;
-};
-
-type NoteItem = {
-  id: string;
-  author: string;
-  tag: LeadNoteTag;
-  content: string;
-  createdAt: string;
-  pinned?: boolean;
-};
-
-type ActivityItem = {
-  id: string;
-  type: ActivityType;
+type TimelineItem = {
   title: string;
   description: string;
-  createdAt: string;
-  user: string;
+  time: string;
+  tone?: TimelineTone;
 };
 
 type AttachmentItem = {
   id: string;
-  fileName: string;
-  size: string;
-  uploadedBy: string;
+  name: string;
+  type: string;
   uploadedAt: string;
+  sizeLabel: string;
 };
 
-type CommunicationItem = {
-  id: string;
-  title: string;
-  subtitle: string;
-  time: string;
+type Lead = {
+  id: number;
+  name: string;
+  phone: string;
+  source: string;
+  city: string;
+  status: LeadStatus;
+  email: string;
+  company: string;
+  budget: string;
+  notes: string;
+  owner: string;
+  priority: LeadPriority;
+  followUpDate: string;
+  lastContact: string;
+  requirement: string;
+  callLogs: CallLogItem[];
+  timeline: TimelineItem[];
+  attachments?: AttachmentItem[];
+  isConvertedToDeal?: boolean;
+  convertedDealAt?: string;
+  convertedDealValue?: string;
+  updatedAt?: string;
+  createdAt?: string;
+
+  alternatePhone?: string;
+  address?: string;
+  preferredLanguage?: string;
+  campaign?: string;
+  referredBy?: string;
+
+  financingType?: string;
+  purpose?: string;
+  sqft?: string;
+  facing?: string;
+  floorPreference?: string;
+  timelineLabel?: string;
+
+  tags?: string[];
+  objections?: string[];
+
+  ownerEmail?: string;
+  ownerPhone?: string;
 };
+
+const LEAD_STORAGE_KEYS = [
+  "mei-crm-leads",
+  "mei_crm_leads",
+  "leads",
+  "crm_leads",
+];
+
+const DEAL_STORAGE_KEY = "mei-crm-deals";
+
+const OWNER_OPTIONS = [
+  "Madhan",
+  "Arun",
+  "Priya",
+  "John Paul",
+  "Sales Desk",
+  "Unassigned",
+];
+
+const WHATSAPP_TEMPLATES = [
+  "Hi {name}, just checking in regarding your enquiry. Shall we connect today?",
+  "Hi {name}, your follow-up is due today. Please let me know a convenient time.",
+  "Hi {name}, I’ve shared the details. Happy to walk you through the next steps.",
+  "Hi {name}, we can move this to the next stage whenever you're ready.",
+];
 
 const PIPELINE_STEPS: LeadStatus[] = [
   "New",
@@ -124,732 +118,1319 @@ const PIPELINE_STEPS: LeadStatus[] = [
   "Qualified",
   "Follow-up",
   "Negotiation",
-  "Won",
+  "Closed",
 ];
 
-const sampleLead: LeadInfo = {
-  id: "LD-1001",
-  name: "Arun Kumar",
-  phone: "+91 98765 43210",
-  alternatePhone: "+91 91234 56789",
-  email: "arun.kumar@email.com",
-  company: "Apex Systems",
-  occupation: "Senior Software Engineer",
-  city: "Bengaluru",
-  address: "Whitefield, Bengaluru, Karnataka",
-  preferredLanguage: "Tamil / English",
-  source: "Facebook Lead Form",
-  campaign: "Whitefield 2BHK Campaign",
-  referredBy: "Rajesh",
-  owner: "Balraj",
-  ownerRole: "Sales Manager",
-  ownerEmail: "balraj@mei.com",
-  ownerPhone: "+91 90000 11111",
-  status: "Negotiation",
-  priority: "Hot",
-  budget: "₹65,00,000",
-  requirementType: "2BHK Flat",
-  location: "Whitefield",
-  createdAt: "28 Mar 2026, 10:15 AM",
-  updatedAt: "06 Apr 2026, 05:20 PM",
-  timeline: "Within 30 Days",
-  financingType: "Bank Loan",
-  purpose: "Self-use",
-  sqft: "1150 - 1300 Sq.ft",
-  facing: "East",
-  floorPreference: "3rd Floor and above",
-  expectedCloseDate: "12 Apr 2026",
-  probability: 70,
-  leadScore: 82,
-  estimatedDealValue: "₹65,00,000",
-  riskFlag: "Loan approval pending",
-  nextFollowUp: "07 Apr 2026, 11:30 AM",
-  followUpType: "Call",
-  lastFollowUp: "06 Apr 2026, 03:40 PM",
-  tags: ["Hot Lead", "Loan Required", "Self Use", "Whitefield", "High Intent"],
-  objections: [
-    "Comparing with competitor project",
-    "Wants better negotiation on final price",
-    "Waiting for loan pre-approval",
-  ],
-};
+function getStatusColor(status: LeadStatus, mode: ThemeMode) {
+  const colors = getTheme(mode);
 
-const initialTasks: TaskItem[] = [
-  {
-    id: "TSK-01",
-    title: "Call customer regarding budget confirmation",
-    due: "Today, 06:30 PM",
-    status: "Pending",
-    priority: "High",
-    assignee: "Balraj",
-  },
-  {
-    id: "TSK-02",
-    title: "Send updated brochure and floor plan",
-    due: "Tomorrow, 10:00 AM",
-    status: "In Progress",
-    priority: "Medium",
-    assignee: "Balraj",
-  },
-  {
-    id: "TSK-03",
-    title: "Coordinate site visit with project team",
-    due: "08 Apr 2026, 01:00 PM",
-    status: "Overdue",
-    priority: "High",
-    assignee: "Operations Team",
-  },
-];
+  switch (status) {
+    case "New":
+      return colors.info;
+    case "Contacted":
+      return colors.warning;
+    case "Qualified":
+      return colors.premium;
+    case "Follow-up":
+      return colors.warning;
+    case "Negotiation":
+      return colors.primary;
+    case "Closed":
+      return colors.success;
+    default:
+      return colors.subText;
+  }
+}
 
-const initialNotes: NoteItem[] = [
-  {
-    id: "NOTE-01",
-    author: "Balraj",
-    tag: "Budget",
-    content:
-      "Customer said budget can stretch up to ₹68L if loan process is smooth and registration support is included.",
-    createdAt: "06 Apr 2026, 04:10 PM",
-    pinned: true,
-  },
-  {
-    id: "NOTE-02",
-    author: "Balraj",
-    tag: "Objection",
-    content:
-      "He is comparing with another project nearby and wants clarity on amenities, maintenance cost, and possession timeline.",
-    createdAt: "05 Apr 2026, 06:25 PM",
-  },
-  {
-    id: "NOTE-03",
-    author: "Rakesh",
-    tag: "Follow-up",
-    content:
-      "Requested a callback after office hours. Prefers short WhatsApp summaries before calls.",
-    createdAt: "04 Apr 2026, 08:15 PM",
-  },
-];
+function getPriorityColor(priority: LeadPriority, mode: ThemeMode) {
+  const colors = getTheme(mode);
 
-const initialActivities: ActivityItem[] = [
-  {
-    id: "ACT-01",
-    type: "status_changed",
-    title: "Status changed to Negotiation",
-    description: "Moved from Follow-up to Negotiation after pricing discussion.",
-    createdAt: "06 Apr 2026, 05:12 PM",
-    user: "Balraj",
-  },
-  {
-    id: "ACT-02",
-    type: "note_added",
-    title: "Budget note added",
-    description: "Customer budget stretch information recorded.",
-    createdAt: "06 Apr 2026, 04:10 PM",
-    user: "Balraj",
-  },
-  {
-    id: "ACT-03",
-    type: "whatsapp_sent",
-    title: "WhatsApp summary sent",
-    description: "Shared brochure, floor plan, and tentative price breakup.",
-    createdAt: "06 Apr 2026, 03:50 PM",
-    user: "Balraj",
-  },
-  {
-    id: "ACT-04",
-    type: "call_logged",
-    title: "Call logged",
-    description: "Discussed loan process, site visit, and possession timeline.",
-    createdAt: "06 Apr 2026, 03:40 PM",
-    user: "Balraj",
-  },
-  {
-    id: "ACT-05",
-    type: "created",
-    title: "Lead created",
-    description: "Lead captured from Facebook Lead Form campaign.",
-    createdAt: "28 Mar 2026, 10:15 AM",
-    user: "System",
-  },
-];
+  switch (priority) {
+    case "High":
+      return colors.danger;
+    case "Medium":
+      return colors.warning;
+    case "Low":
+      return colors.success;
+    default:
+      return colors.subText;
+  }
+}
 
-const attachments: AttachmentItem[] = [
-  {
-    id: "ATT-01",
-    fileName: "Whitefield-2BHK-Brochure.pdf",
-    size: "2.4 MB",
-    uploadedBy: "Balraj",
-    uploadedAt: "05 Apr 2026, 05:12 PM",
-  },
-  {
-    id: "ATT-02",
-    fileName: "FloorPlan-TypeA.jpg",
-    size: "1.1 MB",
-    uploadedBy: "Balraj",
-    uploadedAt: "05 Apr 2026, 05:14 PM",
-  },
-];
+function normalizeStatus(value: string | undefined): LeadStatus {
+  const normalized = String(value || "New").toLowerCase();
 
-const calls: CommunicationItem[] = [
-  {
-    id: "CALL-01",
-    title: "Pricing discussion call",
-    subtitle: "12 mins • Connected",
-    time: "06 Apr 2026, 03:40 PM",
-  },
-  {
-    id: "CALL-02",
-    title: "Requirement qualification call",
-    subtitle: "8 mins • Connected",
-    time: "04 Apr 2026, 08:00 PM",
-  },
-];
+  if (normalized.includes("contact")) return "Contacted";
+  if (normalized.includes("qual")) return "Qualified";
+  if (normalized.includes("follow")) return "Follow-up";
+  if (normalized.includes("neg")) return "Negotiation";
+  if (normalized.includes("closed") || normalized.includes("won")) return "Closed";
+  return "New";
+}
 
-const whatsapps: CommunicationItem[] = [
-  {
-    id: "WA-01",
-    title: "Brochure and floor plan sent",
-    subtitle: "Documents shared successfully",
-    time: "06 Apr 2026, 03:50 PM",
-  },
-  {
-    id: "WA-02",
-    title: "Reminder message sent",
-    subtitle: "Asked for callback confirmation",
-    time: "05 Apr 2026, 07:15 PM",
-  },
-];
+function normalizePriority(value: string | undefined): LeadPriority {
+  const normalized = String(value || "Medium").toLowerCase();
 
-const emails: CommunicationItem[] = [
-  {
-    id: "EMAIL-01",
-    title: "Project details emailed",
-    subtitle: "Sent to arun.kumar@email.com",
-    time: "05 Apr 2026, 06:40 PM",
-  },
-];
+  if (normalized === "high") return "High";
+  if (normalized === "low") return "Low";
+  return "Medium";
+}
 
-export default function LeadDetailPage({ mode }: LeadDetailPageProps) {
-  const theme = getTheme(mode);
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+function readStoredLeads(): Lead[] {
+  for (const key of LEAD_STORAGE_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
 
-  const [lead, setLead] = useState<LeadInfo>({
-    ...sampleLead,
-    id: id ? `LD-${id}` : sampleLead.id,
-  });
-  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
-  const [notes, setNotes] = useState<NoteItem[]>(initialNotes);
-  const [activities, setActivities] = useState<ActivityItem[]>(initialActivities);
-  const [newNote, setNewNote] = useState("");
-  const [activeTab, setActiveTab] = useState<"calls" | "whatsapp" | "emails">(
-    "calls"
-  );
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) continue;
 
-  const overdueTasksCount = tasks.filter((task) => task.status === "Overdue").length;
-  const completedTasksCount = tasks.filter((task) => task.status === "Done").length;
-  const currentPipelineIndex = PIPELINE_STEPS.indexOf(
-    lead.status === "Won" || lead.status === "Lost" ? "Negotiation" : lead.status
-  );
+      const mapped = parsed
+        .map((item: any, index: number) => mapUnknownLead(item, index))
+        .filter(Boolean) as Lead[];
 
-  const followUpState = useMemo(() => {
-    if (overdueTasksCount > 0) return "overdue";
-    if (lead.nextFollowUp.includes("07 Apr")) return "upcoming";
-    return "due";
-  }, [lead.nextFollowUp, overdueTasksCount]);
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
 
-  const handleStatusChange = (status: LeadStatus) => {
-    setLead((prev) => ({
-      ...prev,
-      status,
-      updatedAt: "06 Apr 2026, 06:00 PM",
-    }));
+  return [];
+}
 
-    setActivities((prev) => [
-      {
-        id: `ACT-${prev.length + 1}`,
-        type: "status_changed",
-        title: `Status changed to ${status}`,
-        description: `Lead moved to ${status} stage.`,
-        createdAt: "06 Apr 2026, 06:00 PM",
-        user: "You",
-      },
-      ...prev,
-    ]);
+function saveStoredLeads(leads: Lead[]) {
+  try {
+    localStorage.setItem("mei-crm-leads", JSON.stringify(leads));
+  } catch (error) {
+    console.error("Failed to save leads to localStorage:", error);
+  }
+}
+
+function readStoredDeals(): any[] {
+  try {
+    const raw = localStorage.getItem(DEAL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to read deals:", error);
+    return [];
+  }
+}
+
+function saveStoredDeals(deals: any[]) {
+  try {
+    localStorage.setItem(DEAL_STORAGE_KEY, JSON.stringify(deals));
+  } catch (error) {
+    console.error("Failed to save deals:", error);
+  }
+}
+
+function mapUnknownLead(item: any, index: number): Lead | null {
+  if (!item || typeof item !== "object") return null;
+
+  const timeline = Array.isArray(item.timeline)
+    ? item.timeline.map((entry: any) => ({
+        title: String(entry?.title || "Activity"),
+        description: String(entry?.description || "Lead activity recorded."),
+        time: String(entry?.time || "Recent"),
+        tone: entry?.tone as TimelineTone | undefined,
+      }))
+    : [];
+
+  const callLogs = Array.isArray(item.callLogs)
+    ? item.callLogs.map((entry: any) => ({
+        time: String(entry?.time || "Recent"),
+        note: String(entry?.note || "Call activity recorded."),
+        outcome: String(entry?.outcome || "Connected"),
+      }))
+    : [];
+
+  const attachments = Array.isArray(item.attachments)
+    ? item.attachments.map((entry: any, i: number) => ({
+        id: String(entry?.id || `${Date.now()}-${i}`),
+        name: String(entry?.name || "Attachment"),
+        type: String(entry?.type || "file"),
+        uploadedAt: String(entry?.uploadedAt || "Recent"),
+        sizeLabel: String(entry?.sizeLabel || "—"),
+      }))
+    : [];
+
+  return {
+    id: Number(item.id ?? Date.now() + index),
+    name: String(
+      item.name ||
+        item.fullName ||
+        item.customerName ||
+        item.company ||
+        `Lead ${index + 1}`
+    ),
+    phone: String(item.phone || item.mobile || item.whatsapp || "-"),
+    alternatePhone: String(item.alternatePhone || item.altPhone || "-"),
+    source: String(item.source || "Manual"),
+    city: String(item.city || item.location || item.area || "Unknown"),
+    status: normalizeStatus(item.status),
+    email: String(item.email || "-"),
+    company: String(item.company || "-"),
+    budget:
+      typeof item.budget === "number"
+        ? `₹${item.budget.toLocaleString("en-IN")}`
+        : String(item.budget || "-"),
+    notes: String(item.notes || "No notes added yet."),
+    owner: String(item.owner || item.assignedTo || item.leadOwner || "Unassigned"),
+    priority: normalizePriority(item.priority),
+    followUpDate: String(item.followUpDate || item.nextFollowUp || "-"),
+    lastContact: String(item.lastContact || "Recent"),
+    requirement: String(item.requirement || "Requirement details not added yet."),
+    callLogs,
+    timeline,
+    attachments,
+    isConvertedToDeal: Boolean(item.isConvertedToDeal),
+    convertedDealAt: item.convertedDealAt,
+    convertedDealValue: item.convertedDealValue,
+    updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+
+    address: String(item.address || item.fullAddress || "-"),
+    preferredLanguage: String(item.preferredLanguage || "Tamil / English"),
+    campaign: String(item.campaign || item.campaignName || "-"),
+    referredBy: String(item.referredBy || item.referenceBy || "-"),
+
+    financingType: String(item.financingType || "Bank Loan"),
+    purpose: String(item.purpose || "Self-use"),
+    sqft: String(item.sqft || item.areaRange || "-"),
+    facing: String(item.facing || "-"),
+    floorPreference: String(item.floorPreference || "-"),
+    timelineLabel: String(item.timelineLabel || item.purchaseTimeline || "-"),
+
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    objections: Array.isArray(item.objections) ? item.objections : [],
+
+    ownerEmail: String(item.ownerEmail || "-"),
+    ownerPhone: String(item.ownerPhone || "-"),
   };
+}
 
-  const handleAddNote = () => {
-    const trimmed = newNote.trim();
-    if (!trimmed) return;
+function getNowLabel() {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+}
 
-    const note: NoteItem = {
-      id: `NOTE-${notes.length + 1}`,
-      author: "You",
-      tag: "General",
-      content: trimmed,
-      createdAt: "06 Apr 2026, 06:05 PM",
+function getLastContactLabel() {
+  return "Just now";
+}
+
+function isOverdue(dateValue: string, status: LeadStatus) {
+  if (!dateValue || dateValue === "-" || status === "Closed") return false;
+
+  const today = new Date().toISOString().slice(0, 10);
+  return dateValue.slice(0, 10) < today;
+}
+
+function getTimelineToneColor(
+  tone: TimelineTone | undefined,
+  colors: ReturnType<typeof getTheme>
+) {
+  switch (tone) {
+    case "success":
+      return colors.success;
+    case "warning":
+      return colors.warning;
+    case "danger":
+      return colors.danger;
+    case "primary":
+      return colors.primary;
+    default:
+      return colors.info;
+  }
+}
+
+function getLeadHealthScore(lead: Lead) {
+  let score = 40;
+
+  if (lead.priority === "High") score += 20;
+  if (lead.status === "Qualified") score += 18;
+  if (lead.status === "Negotiation") score += 25;
+  if (lead.status === "Closed") score = 100;
+  if (lead.callLogs.length >= 2) score += 8;
+  if (lead.notes && lead.notes !== "No notes added yet.") score += 5;
+  if (lead.requirement && lead.requirement !== "Requirement details not added yet.") score += 4;
+  if (isOverdue(lead.followUpDate, lead.status)) score -= 15;
+  if (lead.attachments && lead.attachments.length > 0) score += 5;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function getStageProbability(status: LeadStatus) {
+  switch (status) {
+    case "New":
+      return "12%";
+    case "Contacted":
+      return "28%";
+    case "Qualified":
+      return "55%";
+    case "Follow-up":
+      return "64%";
+    case "Negotiation":
+      return "78%";
+    case "Closed":
+      return "100%";
+    default:
+      return "0%";
+  }
+}
+
+function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Info") return (tone || "info") === "info";
+  if (filter === "Success") return tone === "success";
+  if (filter === "Warning") return tone === "warning";
+  if (filter === "Danger") return tone === "danger";
+  if (filter === "Primary") return tone === "primary";
+  return true;
+}
+
+export default function LeadDetailPage({
+  mode,
+  onToggleTheme,
+}: LeadDetailPageProps) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const colors = getTheme(mode);
+
+  const leadId = Number(id);
+
+  const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [callNote, setCallNote] = useState("");
+  const [callOutcome, setCallOutcome] = useState("Connected");
+  const [followUpInput, setFollowUpInput] = useState("");
+  const [ownerInput, setOwnerInput] = useState("");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("All");
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentType, setAttachmentType] = useState("Proposal");
+  const [attachmentSize, setAttachmentSize] = useState("");
+
+  useEffect(() => {
+    const syncLeads = () => {
+      setAllLeads(readStoredLeads());
     };
 
-    setNotes((prev) => [note, ...prev]);
-    setActivities((prev) => [
-      {
-        id: `ACT-${prev.length + 1}`,
-        type: "note_added",
-        title: "New note added",
-        description: trimmed,
-        createdAt: "06 Apr 2026, 06:05 PM",
-        user: "You",
-      },
-      ...prev,
-    ]);
-    setNewNote("");
-  };
+    window.addEventListener("storage", syncLeads);
+    return () => window.removeEventListener("storage", syncLeads);
+  }, []);
 
-  const markTaskDone = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, status: "Done" } : task))
+  const initialLead = useMemo(
+    () => allLeads.find((item) => item.id === leadId) ?? null,
+    [allLeads, leadId]
+  );
+
+  const [leadState, setLeadState] = useState<Lead | null>(initialLead);
+  const [formData, setFormData] = useState<Lead | null>(initialLead);
+
+  useEffect(() => {
+    setLeadState(initialLead);
+    setFormData(initialLead);
+    setFollowUpInput(
+      initialLead?.followUpDate && initialLead.followUpDate !== "-"
+        ? initialLead.followUpDate
+        : ""
     );
+    setOwnerInput(initialLead?.owner || "");
+  }, [initialLead]);
+
+  const currentIndex = useMemo(
+    () => allLeads.findIndex((item) => item.id === leadId),
+    [allLeads, leadId]
+  );
+
+  const previousLead = currentIndex > 0 ? allLeads[currentIndex - 1] : null;
+  const nextLead =
+    currentIndex >= 0 && currentIndex < allLeads.length - 1
+      ? allLeads[currentIndex + 1]
+      : null;
+
+  const persistLeadUpdate = (updater: (lead: Lead) => Lead) => {
+    const latestLeads = readStoredLeads();
+    const updatedLeads = latestLeads.map((lead) =>
+      lead.id === leadId ? updater(lead) : lead
+    );
+
+    saveStoredLeads(updatedLeads);
+    setAllLeads(updatedLeads);
+
+    const updatedLead = updatedLeads.find((lead) => lead.id === leadId) ?? null;
+    setLeadState(updatedLead);
+    setFormData(updatedLead);
   };
 
-  const getStatusBadgeStyles = (status: LeadStatus) => {
-    if (status === "Won") {
-      return { background: "rgba(34,197,94,0.12)", color: "#16a34a" };
-    }
-    if (status === "Lost") {
-      return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
-    }
-    if (status === "Negotiation") {
-      return { background: "rgba(168,85,247,0.14)", color: "#7c3aed" };
-    }
-    if (status === "Follow-up" || status === "Site Visit Scheduled") {
-      return { background: "rgba(249,115,22,0.12)", color: "#ea580c" };
-    }
-    return { background: "rgba(59,130,246,0.12)", color: "#2563eb" };
-  };
-
-  const getPriorityBadgeStyles = (priority: Priority) => {
-    if (priority === "Hot") {
-      return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
-    }
-    if (priority === "Warm") {
-      return { background: "rgba(249,115,22,0.12)", color: "#ea580c" };
-    }
-    return { background: "rgba(148,163,184,0.18)", color: theme.text };
-  };
-
-  const getTaskStatusStyles = (status: TaskStatus) => {
-    if (status === "Done") {
-      return { background: "rgba(34,197,94,0.12)", color: "#16a34a" };
-    }
-    if (status === "Overdue") {
-      return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
-    }
-    if (status === "In Progress") {
-      return { background: "rgba(59,130,246,0.12)", color: "#2563eb" };
-    }
-    return { background: "rgba(249,115,22,0.12)", color: "#ea580c" };
-  };
-
-  const followUpTone =
-    followUpState === "overdue"
-      ? { background: "rgba(239,68,68,0.10)", border: "rgba(239,68,68,0.28)", color: "#dc2626" }
-      : followUpState === "due"
-      ? { background: "rgba(249,115,22,0.10)", border: "rgba(249,115,22,0.28)", color: "#ea580c" }
-      : { background: "rgba(34,197,94,0.10)", border: "rgba(34,197,94,0.28)", color: "#16a34a" };
-
-  const communicationList =
-    activeTab === "calls" ? calls : activeTab === "whatsapp" ? whatsapps : emails;
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: theme.pageBg,
-        color: theme.text,
-        padding: "24px",
-      }}
-    >
-      <div style={{ maxWidth: 1440, margin: "0 auto" }}>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          style={{
-            marginBottom: 16,
-            border: `1px solid ${theme.border}`,
-            background: theme.cardBg,
-            color: theme.text,
-            borderRadius: 10,
-            padding: "10px 14px",
-            cursor: "pointer",
-          }}
-        >
-          ← Back
-        </button>
-
-        <LeadHeader
-          theme={theme}
-          lead={lead}
-          onStatusChange={handleStatusChange}
-          statusBadgeStyle={getStatusBadgeStyles(lead.status)}
-          priorityBadgeStyle={getPriorityBadgeStyles(lead.priority)}
-        />
-
-        <LeadSummaryCard
-          theme={theme}
-          lead={lead}
-          statusBadgeStyle={getStatusBadgeStyles(lead.status)}
-          priorityBadgeStyle={getPriorityBadgeStyles(lead.priority)}
-        />
-
+  if (!leadState || !formData) {
+    return (
+      <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
         <div
           style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 24,
+            boxShadow: colors.shadowSoft,
+          }}
+        >
+          <h2 style={{ margin: 0, color: colors.text, fontSize: 28 }}>
+            Lead not found
+          </h2>
+
+          <p style={{ margin: "10px 0 0", color: colors.subText }}>
+            The requested lead does not exist or may have been removed.
+          </p>
+
+          <div style={{ marginTop: 20 }}>
+            <Link
+              to="/leads"
+              style={{
+                display: "inline-block",
+                textDecoration: "none",
+                background: colors.primary,
+                color: "#ffffff",
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+              }}
+            >
+              Back to Leads
+            </Link>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const lead = leadState;
+  const overdue = isOverdue(lead.followUpDate, lead.status);
+  const leadHealth = getLeadHealthScore(lead);
+  const filteredTimeline = lead.timeline.filter((item) =>
+    toneMatchesFilter(item.tone, activityFilter)
+  );
+  const pipelineIndex = PIPELINE_STEPS.indexOf(lead.status);
+
+  const updateStatus = (nextStatus: LeadStatus) => {
+    persistLeadUpdate((prev) => {
+      const statusTimeline: TimelineItem = {
+        title: "Status Updated",
+        description: `Lead status changed to ${nextStatus}.`,
+        time: getNowLabel(),
+        tone:
+          nextStatus === "Closed"
+            ? "success"
+            : nextStatus === "Negotiation"
+            ? "warning"
+            : nextStatus === "Qualified"
+            ? "primary"
+            : "info",
+      };
+
+      return {
+        ...prev,
+        status: nextStatus,
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [statusTimeline, ...(prev.timeline || [])],
+      };
+    });
+  };
+
+  const saveLeadChanges = () => {
+    if (
+      !formData.name.trim() ||
+      !formData.phone.trim() ||
+      !formData.city.trim() ||
+      !formData.owner.trim()
+    ) {
+      alert("Name, phone, city, owner fill பண்ணணும்.");
+      return;
+    }
+
+    persistLeadUpdate((prev) => {
+      const editTimeline: TimelineItem = {
+        title: "Lead Updated",
+        description: "Lead profile information was edited from the detail page.",
+        time: getNowLabel(),
+        tone: "primary",
+      };
+
+      return {
+        ...prev,
+        ...formData,
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [editTimeline, ...(prev.timeline || [])],
+      };
+    });
+
+    setIsEditOpen(false);
+  };
+
+  const handleDeleteLead = () => {
+    const confirmed = window.confirm(`Delete ${lead.name} from leads?`);
+    if (!confirmed) return;
+
+    const latestLeads = readStoredLeads();
+    const updatedLeads = latestLeads.filter((item) => item.id !== lead.id);
+
+    saveStoredLeads(updatedLeads);
+    setAllLeads(updatedLeads);
+    navigate("/leads");
+  };
+
+  const handleAddQuickNote = () => {
+    if (!noteInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const existingNotes =
+        prev.notes && prev.notes !== "No notes added yet." ? prev.notes : "";
+
+      const nextNotes = existingNotes
+        ? `${noteInput.trim()}\n\n${existingNotes}`
+        : noteInput.trim();
+
+      const noteTimeline: TimelineItem = {
+        title: "Quick Note Added",
+        description: noteInput.trim(),
+        time: getNowLabel(),
+        tone: "info",
+      };
+
+      return {
+        ...prev,
+        notes: nextNotes,
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [noteTimeline, ...(prev.timeline || [])],
+      };
+    });
+
+    setNoteInput("");
+  };
+
+  const handleAddCallLog = () => {
+    if (!callNote.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const nextCall: CallLogItem = {
+        time: getNowLabel(),
+        note: callNote.trim(),
+        outcome: callOutcome,
+      };
+
+      const callTimeline: TimelineItem = {
+        title: "Call Log Added",
+        description: `${callOutcome}: ${callNote.trim()}`,
+        time: getNowLabel(),
+        tone: callOutcome.toLowerCase().includes("won")
+          ? "success"
+          : callOutcome.toLowerCase().includes("not")
+          ? "danger"
+          : "warning",
+      };
+
+      return {
+        ...prev,
+        callLogs: [nextCall, ...(prev.callLogs || [])],
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [callTimeline, ...(prev.timeline || [])],
+      };
+    });
+
+    setCallNote("");
+    setCallOutcome("Connected");
+  };
+
+  const handleRescheduleFollowUp = () => {
+    if (!followUpInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Follow-up Rescheduled",
+        description: `Next follow-up moved to ${followUpInput}.`,
+        time: getNowLabel(),
+        tone: "warning",
+      };
+
+      return {
+        ...prev,
+        followUpDate: followUpInput,
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+  };
+
+  const handleReassignOwner = () => {
+    if (!ownerInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Owner Reassigned",
+        description: `Lead owner changed to ${ownerInput.trim()}.`,
+        time: getNowLabel(),
+        tone: "primary",
+      };
+
+      return {
+        ...prev,
+        owner: ownerInput.trim(),
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+  };
+
+  const handleAddAttachment = () => {
+    if (!attachmentName.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const nextAttachment: AttachmentItem = {
+        id: `${Date.now()}`,
+        name: attachmentName.trim(),
+        type: attachmentType,
+        uploadedAt: getNowLabel(),
+        sizeLabel: attachmentSize.trim() || "—",
+      };
+
+      const timelineItem: TimelineItem = {
+        title: "Attachment Added",
+        description: `${nextAttachment.name} uploaded under ${nextAttachment.type}.`,
+        time: getNowLabel(),
+        tone: "info",
+      };
+
+      return {
+        ...prev,
+        attachments: [nextAttachment, ...(prev.attachments || [])],
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+
+    setAttachmentName("");
+    setAttachmentSize("");
+    setAttachmentType("Proposal");
+  };
+
+  const handleConvertToDeal = () => {
+    if (lead.isConvertedToDeal) {
+      alert("This lead is already converted to a deal.");
+      return;
+    }
+
+    const latestDeals = readStoredDeals();
+    const nextDeal = {
+      id: Date.now(),
+      leadId: lead.id,
+      title: `${lead.name} Deal`,
+      clientName: lead.name,
+      company: lead.company,
+      owner: lead.owner,
+      status: "Open",
+      stage: lead.status === "Negotiation" ? "Negotiation" : "Qualified",
+      value: lead.budget || "—",
+      city: lead.city,
+      source: lead.source,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveStoredDeals([nextDeal, ...latestDeals]);
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Converted to Deal",
+        description: `Lead converted into active deal with value ${prev.budget || "—"}.`,
+        time: getNowLabel(),
+        tone: "success",
+      };
+
+      return {
+        ...prev,
+        isConvertedToDeal: true,
+        convertedDealAt: new Date().toISOString(),
+        convertedDealValue: prev.budget,
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
+
+    alert("Lead converted to deal successfully.");
+  };
+
+  const handleOpenWhatsAppTemplate = (template: string) => {
+    const text = template
+      .replace("{name}", lead.name)
+      .replace("{company}", lead.company || "");
+
+    const phone = lead.phone.replace(/\D/g, "");
+    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
+      <div style={{ display: "grid", gap: 20 }}>
+        <section
+          style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 22,
+            padding: 24,
+            boxShadow: colors.shadowSoft,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 12px",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: colors.cardBgSoft,
+                  color: colors.subText,
+                  border: `1px solid ${colors.border}`,
+                  marginBottom: 14,
+                }}
+              >
+                Dashboard / Leads / {lead.id}
+              </div>
+
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 32,
+                  color: colors.text,
+                  fontWeight: 800,
+                }}
+              >
+                {lead.name}
+              </h2>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: colors.subText,
+                  fontSize: 15,
+                  lineHeight: 1.6,
+                }}
+              >
+                Single lead control room — full profile, follow-up plan, notes, call history, and conversion actions.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {overdue && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    background: colors.danger,
+                    color: "#ffffff",
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Overdue Follow-up
+                </span>
+              )}
+
+              {lead.isConvertedToDeal && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    background: colors.success,
+                    color: "#ffffff",
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Deal Converted
+                </span>
+              )}
+
+              <span
+                style={{
+                  display: "inline-block",
+                  background: getPriorityColor(lead.priority, mode),
+                  color: "#ffffff",
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {lead.priority} Priority
+              </span>
+
+              <span
+                style={{
+                  display: "inline-block",
+                  background: getStatusColor(lead.status, mode),
+                  color: "#ffffff",
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {lead.status}
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 18,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            <a href={`tel:${lead.phone}`} style={primaryLinkButton(colors)}>
+              Call
+            </a>
+
+            {lead.phone && lead.phone !== "-" ? (
+              <a
+                href={`https://wa.me/91${lead.phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                style={secondaryLinkButton(colors)}
+              >
+                WhatsApp
+              </a>
+            ) : null}
+
+            {lead.email && lead.email !== "-" ? (
+              <a href={`mailto:${lead.email}`} style={secondaryLinkButton(colors)}>
+                Email
+              </a>
+            ) : null}
+
+            <button
+              onClick={handleConvertToDeal}
+              style={{
+                ...primaryButton(colors),
+                opacity: lead.isConvertedToDeal ? 0.65 : 1,
+                cursor: lead.isConvertedToDeal ? "not-allowed" : "pointer",
+              }}
+              disabled={lead.isConvertedToDeal}
+            >
+              Convert to Deal
+            </button>
+
+            <button
+              onClick={() => {
+                setFormData(lead);
+                setIsEditOpen(true);
+              }}
+              style={secondaryButton(colors)}
+            >
+              Edit Lead
+            </button>
+
+            <button onClick={handleDeleteLead} style={dangerButton(colors)}>
+              Delete
+            </button>
+
+            <Link to="/leads" style={secondaryLinkButton(colors)}>
+              Back to Leads
+            </Link>
+          </div>
+        </section>
+
+        <section
+          style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 2fr) minmax(320px, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <MiniStatCard label="Lead Health" value={`${leadHealth}/100`} colors={colors} />
+          <MiniStatCard label="Stage Probability" value={getStageProbability(lead.status)} colors={colors} />
+          <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
+          <MiniStatCard label="Attachments" value={String(lead.attachments?.length || 0)} colors={colors} />
+          <MiniStatCard label="Timeline Events" value={String(lead.timeline.length)} colors={colors} />
+          <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
+        </section>
+
+        <section
+          style={{
+            background: colors.cardBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 20,
+            padding: 20,
+            boxShadow: colors.shadowSoft,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color: colors.text,
+              marginBottom: 16,
+            }}
+          >
+            Lead Summary
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+              gap: 14,
+            }}
+          >
+            <DetailCard label="Lead ID" value={String(lead.id)} colors={colors} />
+            <DetailCard label="Phone" value={lead.phone} colors={colors} />
+            <DetailCard label="Email" value={lead.email} colors={colors} />
+            <DetailCard label="Source" value={lead.source} colors={colors} />
+            <DetailCard label="City" value={lead.city} colors={colors} />
+            <DetailCard label="Company" value={lead.company} colors={colors} />
+            <DetailCard label="Owner" value={lead.owner} colors={colors} />
+            <DetailCard label="Budget" value={lead.budget} colors={colors} />
+            <DetailCard label="Follow-up Date" value={lead.followUpDate} colors={colors} />
+            <DetailCard label="Last Contact" value={lead.lastContact} colors={colors} />
+          </div>
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(320px, 1.35fr) minmax(300px, 0.85fr)",
             gap: 20,
             alignItems: "start",
           }}
         >
           <div style={{ display: "grid", gap: 20 }}>
-            <SectionCard title="Lead Information" theme={theme}>
+            <InfoPanel title="Lead Information" colors={colors}>
               <InfoGrid
-                theme={theme}
+                colors={colors}
                 items={[
                   ["Full Name", lead.name],
-                  ["Mobile", lead.phone],
+                  ["Phone", lead.phone],
                   ["Alternate Number", lead.alternatePhone || "-"],
                   ["Email", lead.email],
-                  ["Company", lead.company || "-"],
-                  ["Occupation", lead.occupation || "-"],
+                  ["Company", lead.company],
                   ["City", lead.city],
-                  ["Address", lead.address],
-                  ["Preferred Language", lead.preferredLanguage],
-                  ["Source", lead.source],
+                  ["Address", lead.address || "-"],
+                  ["Preferred Language", lead.preferredLanguage || "-"],
+                  ["Lead Source", lead.source],
                   ["Campaign", lead.campaign || "-"],
                   ["Reference By", lead.referredBy || "-"],
+                  ["Owner", lead.owner],
                 ]}
               />
-            </SectionCard>
+            </InfoPanel>
 
-            <SectionCard title="Requirement Details" theme={theme}>
+            <InfoPanel title="Requirement Details" colors={colors}>
               <InfoGrid
-                theme={theme}
+                colors={colors}
                 items={[
-                  ["Requirement Type", lead.requirementType],
+                  ["Requirement", lead.requirement],
                   ["Budget", lead.budget],
-                  ["Preferred Location", lead.location],
-                  ["Purchase Timeline", lead.timeline],
-                  ["Financing Type", lead.financingType],
-                  ["Purpose", lead.purpose],
-                  ["Sq.ft Preference", lead.sqft],
-                  ["Facing", lead.facing],
-                  ["Floor Preference", lead.floorPreference],
+                  ["Purchase Timeline", lead.timelineLabel || "-"],
+                  ["Financing Type", lead.financingType || "-"],
+                  ["Purpose", lead.purpose || "-"],
+                  ["Sq.ft", lead.sqft || "-"],
+                  ["Facing", lead.facing || "-"],
+                  ["Floor Preference", lead.floorPreference || "-"],
                 ]}
               />
-            </SectionCard>
+            </InfoPanel>
 
-            <SectionCard
-              title="Notes"
-              theme={theme}
-              action={
-                <button
-                  type="button"
-                  onClick={handleAddNote}
-                  style={primaryButtonStyle(theme)}
-                >
-                  Add Note
-                </button>
-              }
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
             >
               <div
                 style={{
-                  display: "grid",
-                  gap: 12,
-                  marginBottom: 18,
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
                 }}
               >
+                Notes
+              </div>
+
+              <div
+                style={{
+                  background: colors.cardBgSoft,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 14,
+                  padding: 16,
+                  color: colors.text,
+                  lineHeight: 1.7,
+                  fontSize: 14,
+                  whiteSpace: "pre-wrap",
+                  marginBottom: 14,
+                }}
+              >
+                {lead.notes}
+              </div>
+
+              <textarea
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                rows={4}
+                placeholder="Write a fresh update, objection note, or follow-up note..."
+                style={{
+                  ...inputStyle(colors),
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={handleAddQuickNote} style={primaryButton(colors)}>
+                  Add Note
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Call Log
+              </div>
+
+              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                <select
+                  value={callOutcome}
+                  onChange={(e) => setCallOutcome(e.target.value)}
+                  style={inputStyle(colors)}
+                >
+                  <option value="Connected">Connected</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Follow-up Required">Follow-up Required</option>
+                  <option value="Not Reachable">Not Reachable</option>
+                  <option value="Won">Won</option>
+                </select>
+
                 <textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Write an internal note..."
-                  rows={4}
+                  value={callNote}
+                  onChange={(e) => setCallNote(e.target.value)}
+                  rows={3}
+                  placeholder="Add call summary..."
                   style={{
-                    width: "100%",
+                    ...inputStyle(colors),
                     resize: "vertical",
-                    borderRadius: 12,
-                    border: `1px solid ${theme.border}`,
-                    background: theme.inputBg,
-                    color: theme.text,
-                    padding: 14,
-                    outline: "none",
+                    fontFamily: "inherit",
                   }}
                 />
+
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={handleAddCallLog} style={primaryButton(colors)}>
+                    Add Call Log
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      background: theme.cardBgSoft || theme.cardBg,
-                      borderRadius: 14,
-                      padding: 14,
-                    }}
-                  >
+                {lead.callLogs.length > 0 ? (
+                  lead.callLogs.map((log, index) => (
                     <div
+                      key={index}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                        <strong>{note.author}</strong>
-                        <Badge
-                          label={note.tag}
-                          background="rgba(59,130,246,0.12)"
-                          color="#2563eb"
-                        />
-                        {note.pinned ? (
-                          <Badge
-                            label="Pinned"
-                            background="rgba(245,158,11,0.12)"
-                            color="#d97706"
-                          />
-                        ) : null}
-                      </div>
-                      <span style={{ color: theme.mutedText, fontSize: 13 }}>{note.createdAt}</span>
-                    </div>
-                    <div style={{ color: theme.subText, lineHeight: 1.7 }}>{note.content}</div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Activity Timeline" theme={theme}>
-              <div style={{ display: "grid", gap: 14 }}>
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "44px 1fr",
-                      gap: 12,
-                      alignItems: "start",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "50%",
-                        display: "grid",
-                        placeItems: "center",
-                        background: theme.cardBgSoft || "rgba(148,163,184,0.12)",
-                        border: `1px solid ${theme.border}`,
-                        fontSize: 18,
-                      }}
-                    >
-                      {getActivityIcon(activity.type)}
-                    </div>
-                    <div
-                      style={{
-                        border: `1px solid ${theme.border}`,
+                        background: colors.cardBgSoft,
+                        border: `1px solid ${colors.border}`,
                         borderRadius: 14,
-                        padding: 14,
-                        background: theme.cardBg,
+                        padding: 16,
                       }}
                     >
                       <div
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          gap: 12,
+                          gap: 10,
                           flexWrap: "wrap",
-                          marginBottom: 6,
+                          alignItems: "center",
                         }}
                       >
-                        <strong>{activity.title}</strong>
-                        <span style={{ color: theme.mutedText, fontSize: 13 }}>
-                          {activity.createdAt}
-                        </span>
-                      </div>
-                      <div style={{ color: theme.subText, marginBottom: 4 }}>{activity.description}</div>
-                      <div style={{ color: theme.mutedText, fontSize: 13 }}>by {activity.user}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                        <div
+                          style={{
+                            color: colors.text,
+                            fontSize: 15,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {log.outcome}
+                        </div>
 
-            <SectionCard title="Communication" theme={theme}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-                {(["calls", "whatsapp", "emails"] as const).map((tab) => {
-                  const isActive = activeTab === tab;
-                  return (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveTab(tab)}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: `1px solid ${isActive ? theme.primary : theme.border}`,
-                        background: isActive ? theme.primary : theme.cardBg,
-                        color: isActive ? "#fff" : theme.text,
-                        cursor: "pointer",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {tab}
-                    </button>
-                  );
-                })}
+                        <div
+                          style={{
+                            color: colors.mutedText,
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {log.time}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 8,
+                          color: colors.subText,
+                          lineHeight: 1.6,
+                          fontSize: 14,
+                        }}
+                      >
+                        {log.note}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStateCard text="No call logs yet." colors={colors} />
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  marginBottom: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: colors.text,
+                  }}
+                >
+                  Activity Timeline
+                </div>
+
+                <select
+                  value={activityFilter}
+                  onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
+                  style={inputStyle(colors)}
+                >
+                  <option value="All">All</option>
+                  <option value="Info">Info</option>
+                  <option value="Success">Success</option>
+                  <option value="Warning">Warning</option>
+                  <option value="Danger">Danger</option>
+                  <option value="Primary">Primary</option>
+                </select>
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {communicationList.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: 14,
-                      background: theme.cardBgSoft || theme.cardBg,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <strong>{item.title}</strong>
-                      <span style={{ color: theme.mutedText, fontSize: 13 }}>{item.time}</span>
-                    </div>
-                    <div style={{ color: theme.subText, marginTop: 6 }}>{item.subtitle}</div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+                {filteredTimeline.length > 0 ? (
+                  filteredTimeline.map((item, index) => {
+                    const dotColor = getTimelineToneColor(item.tone, colors);
 
-            <SectionCard title="Attachments" theme={theme}>
-              <div style={{ display: "grid", gap: 12 }}>
-                {attachments.map((file) => (
-                  <div
-                    key={file.id}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      background: theme.cardBg,
-                      padding: 14,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{file.fileName}</div>
-                      <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 4 }}>
-                        {file.size} • Uploaded by {file.uploadedBy} • {file.uploadedAt}
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "14px 1fr",
+                          gap: 12,
+                          alignItems: "start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: 999,
+                            background: dotColor,
+                            marginTop: 6,
+                          }}
+                        />
+
+                        <div
+                          style={{
+                            background: colors.cardBgSoft,
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 14,
+                            padding: 14,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 8,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: colors.text,
+                                fontSize: 15,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.title}
+                            </div>
+
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                background: dotColor,
+                                color: "#ffffff",
+                              }}
+                            >
+                              {(item.tone || "info").toUpperCase()}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.subText,
+                              lineHeight: 1.6,
+                              fontSize: 14,
+                            }}
+                          >
+                            {item.description}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 8,
+                              color: colors.mutedText,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {item.time}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button type="button" style={ghostButtonStyle(theme)}>
-                        Preview
-                      </button>
-                      <button type="button" style={ghostButtonStyle(theme)}>
-                        Download
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })
+                ) : (
+                  <EmptyStateCard text="No timeline activity for this filter." colors={colors} />
+                )}
               </div>
-            </SectionCard>
+            </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-              position: "sticky",
-              top: 20,
-            }}
-          >
-            <SectionCard title="Quick Actions" theme={theme}>
-              <div style={{ display: "grid", gap: 10 }}>
-                <button type="button" style={primaryButtonStyle(theme)}>
-                  Convert to Deal
-                </button>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    Call
-                  </button>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    WhatsApp
-                  </button>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    Email
-                  </button>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    Edit
-                  </button>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    Add Task
-                  </button>
-                  <button type="button" style={ghostButtonStyle(theme)}>
-                    Add Note
-                  </button>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Status & Pipeline" theme={theme}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                <Badge
-                  label={lead.status}
-                  background={getStatusBadgeStyles(lead.status).background}
-                  color={getStatusBadgeStyles(lead.status).color}
-                />
-                <Badge
-                  label={`${lead.probability}% Probability`}
-                  background="rgba(59,130,246,0.12)"
-                  color="#2563eb"
-                />
+          <div style={{ display: "grid", gap: 20, alignContent: "start", position: "sticky", top: 16 }}>
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Status & Pipeline
               </div>
 
               <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
                 {PIPELINE_STEPS.map((step, index) => {
-                  const isActive = index <= currentPipelineIndex;
+                  const isDone = index <= pipelineIndex;
                   return (
-                    <div key={step} style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 10 }}>
+                    <div
+                      key={step}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "32px 1fr",
+                        gap: 10,
+                        alignItems: "center",
+                      }}
+                    >
                       <div
                         style={{
                           width: 28,
                           height: 28,
-                          borderRadius: "50%",
+                          borderRadius: 999,
                           display: "grid",
                           placeItems: "center",
-                          border: `1px solid ${isActive ? theme.primary : theme.border}`,
-                          background: isActive ? theme.primary : theme.cardBg,
-                          color: isActive ? "#fff" : theme.mutedText,
                           fontSize: 12,
-                          fontWeight: 700,
+                          fontWeight: 800,
+                          background: isDone ? colors.primary : colors.cardBgSoft,
+                          color: isDone ? "#ffffff" : colors.subText,
+                          border: `1px solid ${isDone ? colors.primary : colors.border}`,
                         }}
                       >
                         {index + 1}
                       </div>
+
                       <div
                         style={{
-                          color: isActive ? theme.text : theme.mutedText,
-                          fontWeight: isActive ? 700 : 500,
-                          paddingTop: 4,
+                          color: isDone ? colors.text : colors.subText,
+                          fontWeight: isDone ? 700 : 600,
                         }}
                       >
                         {step}
@@ -859,469 +1440,666 @@ export default function LeadDetailPage({ mode }: LeadDetailPageProps) {
                 })}
               </div>
 
-              <InfoGrid
-                theme={theme}
-                compact
-                items={[
-                  ["Expected Close", lead.expectedCloseDate],
-                  ["Last Updated", lead.updatedAt],
-                ]}
-              />
-            </SectionCard>
-
-            <SectionCard title="Next Follow-up" theme={theme}>
-              <div
-                style={{
-                  border: `1px solid ${followUpTone.border}`,
-                  background: followUpTone.background,
-                  color: followUpTone.color,
-                  borderRadius: 14,
-                  padding: 14,
-                  marginBottom: 14,
-                  fontWeight: 700,
-                }}
+              <select
+                value={lead.status}
+                onChange={(e) => updateStatus(e.target.value as LeadStatus)}
+                style={inputStyle(colors)}
               >
-                {overdueTasksCount > 0
-                  ? "Attention needed: You have overdue follow-up items."
-                  : "Follow-up is on track."}
-              </div>
+                <option value="New">New</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Follow-up">Follow-up</option>
+                <option value="Negotiation">Negotiation</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
 
-              <InfoGrid
-                theme={theme}
-                compact
-                items={[
-                  ["Next Follow-up", lead.nextFollowUp],
-                  ["Type", lead.followUpType],
-                  ["Last Follow-up", lead.lastFollowUp],
-                  ["Assigned To", lead.owner],
-                ]}
-              />
-
-              <button type="button" style={{ ...primaryButtonStyle(theme), marginTop: 14, width: "100%" }}>
-                Reschedule Follow-up
-              </button>
-            </SectionCard>
-
-            <SectionCard title="Assigned Owner" theme={theme}>
-              <div
-                style={{
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 14,
-                  padding: 14,
-                  background: theme.cardBgSoft || theme.cardBg,
-                }}
-              >
-                <div style={{ fontWeight: 800, fontSize: 16 }}>{lead.owner}</div>
-                <div style={{ color: theme.subText, marginTop: 4 }}>{lead.ownerRole}</div>
-                <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 12 }}>
-                  {lead.ownerEmail}
-                </div>
-                <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 4 }}>
-                  {lead.ownerPhone}
-                </div>
-
-                <button type="button" style={{ ...ghostButtonStyle(theme), marginTop: 14, width: "100%" }}>
-                  Reassign Owner
-                </button>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Tasks"
-              theme={theme}
-              subtitle={`${completedTasksCount} completed • ${overdueTasksCount} overdue`}
-            >
-              <div style={{ display: "grid", gap: 12 }}>
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 14,
-                      padding: 14,
-                      background: theme.cardBg,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <strong>{task.title}</strong>
-                      <Badge
-                        label={task.status}
-                        background={getTaskStatusStyles(task.status).background}
-                        color={getTaskStatusStyles(task.status).color}
-                      />
-                    </div>
-                    <div style={{ color: theme.subText, fontSize: 14, marginBottom: 8 }}>
-                      Due: {task.due}
-                    </div>
-                    <div style={{ color: theme.mutedText, fontSize: 13, marginBottom: 12 }}>
-                      {task.priority} Priority • Assigned to {task.assignee}
-                    </div>
-                    {task.status !== "Done" ? (
-                      <button
-                        type="button"
-                        onClick={() => markTaskDone(task.id)}
-                        style={ghostButtonStyle(theme)}
-                      >
-                        Mark as Done
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Tags / Labels" theme={theme}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {lead.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    label={tag}
-                    background="rgba(99,102,241,0.12)"
-                    color="#4f46e5"
-                  />
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Objections / Pain Points" theme={theme}>
-              <div style={{ display: "grid", gap: 10 }}>
-                {lead.objections.map((objection) => (
-                  <div
-                    key={objection}
-                    style={{
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 12,
-                      padding: 12,
-                      background: theme.cardBgSoft || theme.cardBg,
-                      color: theme.subText,
-                    }}
-                  >
-                    • {objection}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Conversion Insight" theme={theme}>
-              <InfoGrid
-                theme={theme}
-                compact
-                items={[
-                  ["Lead Score", `${lead.leadScore}/100`],
-                  ["Probability", `${lead.probability}%`],
-                  ["Estimated Deal Value", lead.estimatedDealValue],
-                  ["Risk Flag", lead.riskFlag],
-                ]}
-              />
-            </SectionCard>
-
-            <SectionCard title="Deal Conversion" theme={theme}>
-              <div style={{ color: theme.subText, lineHeight: 1.7, marginBottom: 14 }}>
-                Convert this lead into a live deal with deal value, expected close date,
-                pipeline stage, and follow-up carry-forward.
-              </div>
-              <button type="button" style={{ ...primaryButtonStyle(theme), width: "100%" }}>
-                Convert to Deal
-              </button>
-            </SectionCard>
-
-            <SectionCard title="Danger Zone" theme={theme}>
-              <div style={{ display: "grid", gap: 10 }}>
-                <button
-                  type="button"
-                  style={{
-                    ...ghostButtonStyle(theme),
-                    border: "1px solid rgba(239,68,68,0.3)",
-                    color: "#dc2626",
-                  }}
-                >
-                  Mark as Lost
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    ...ghostButtonStyle(theme),
-                    border: "1px solid rgba(249,115,22,0.3)",
-                    color: "#ea580c",
-                  }}
-                >
-                  Archive Lead
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    ...ghostButtonStyle(theme),
-                    border: "1px solid rgba(239,68,68,0.3)",
-                    color: "#dc2626",
-                  }}
-                >
-                  Delete Lead
-                </button>
-              </div>
-            </SectionCard>
-          </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: 18,
-            color: theme.mutedText,
-            fontSize: 13,
-          }}
-        >
-          Route example: <code>/leads/1001</code> • Back to{" "}
-          <Link to="/leads" style={{ color: theme.primary, textDecoration: "none" }}>
-            Leads
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LeadHeader({
-  theme,
-  lead,
-  onStatusChange,
-  statusBadgeStyle,
-  priorityBadgeStyle,
-}: {
-  theme: any;
-  lead: LeadInfo;
-  onStatusChange: (status: LeadStatus) => void;
-  statusBadgeStyle: { background: string; color: string };
-  priorityBadgeStyle: { background: string; color: string };
-}) {
-  return (
-    <div
-      style={{
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 18,
-        padding: 20,
-        marginBottom: 20,
-        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
-          marginBottom: 14,
-        }}
-      >
-        <div>
-          <div style={{ color: theme.mutedText, fontSize: 13, marginBottom: 8 }}>
-            Dashboard / Leads / {lead.id}
-          </div>
-          <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2 }}>{lead.name}</div>
-          <div style={{ color: theme.mutedText, marginTop: 6 }}>
-            {lead.id} • Last updated {lead.updatedAt}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "start" }}>
-          <button type="button" style={ghostButtonStyle(theme)}>
-            Edit Lead
-          </button>
-          <button type="button" style={ghostButtonStyle(theme)}>
-            Call
-          </button>
-          <button type="button" style={ghostButtonStyle(theme)}>
-            WhatsApp
-          </button>
-          <button type="button" style={primaryButtonStyle(theme)}>
-            Convert to Deal
-          </button>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <Badge
-          label={lead.status}
-          background={statusBadgeStyle.background}
-          color={statusBadgeStyle.color}
-        />
-        <Badge
-          label={lead.source}
-          background="rgba(59,130,246,0.12)"
-          color="#2563eb"
-        />
-        <Badge
-          label={lead.priority}
-          background={priorityBadgeStyle.background}
-          color={priorityBadgeStyle.color}
-        />
-        <Badge
-          label={`Owner: ${lead.owner}`}
-          background="rgba(16,185,129,0.12)"
-          color="#059669"
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        {(["New", "Contacted", "Qualified", "Follow-up", "Negotiation", "Won", "Lost"] as LeadStatus[]).map(
-          (status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => onStatusChange(status)}
+            <div
               style={{
-                padding: "8px 12px",
-                borderRadius: 10,
-                cursor: "pointer",
-                border: `1px solid ${lead.status === status ? theme.primary : theme.border}`,
-                background: lead.status === status ? theme.primary : theme.cardBg,
-                color: lead.status === status ? "#fff" : theme.text,
-                fontSize: 13,
-                fontWeight: 600,
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
               }}
             >
-              {status}
-            </button>
-          )
-        )}
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Reschedule Follow-up
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <input
+                  type="date"
+                  value={followUpInput}
+                  onChange={(e) => setFollowUpInput(e.target.value)}
+                  style={inputStyle(colors)}
+                />
+
+                <button onClick={handleRescheduleFollowUp} style={primaryButton(colors)}>
+                  Save Follow-up Date
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Reassign Owner
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <select
+                  value={ownerInput}
+                  onChange={(e) => setOwnerInput(e.target.value)}
+                  style={inputStyle(colors)}
+                >
+                  {OWNER_OPTIONS.map((owner) => (
+                    <option key={owner} value={owner}>
+                      {owner}
+                    </option>
+                  ))}
+                </select>
+
+                <button onClick={handleReassignOwner} style={primaryButton(colors)}>
+                  Save Owner
+                </button>
+              </div>
+            </div>
+
+            <InfoPanel title="Assigned Owner" colors={colors}>
+              <InfoGrid
+                colors={colors}
+                items={[
+                  ["Owner", lead.owner],
+                  ["Email", lead.ownerEmail || "-"],
+                  ["Phone", lead.ownerPhone || "-"],
+                ]}
+              />
+            </InfoPanel>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Attachments
+              </div>
+
+              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                <input
+                  type="text"
+                  value={attachmentName}
+                  onChange={(e) => setAttachmentName(e.target.value)}
+                  placeholder="Document name"
+                  style={inputStyle(colors)}
+                />
+
+                <select
+                  value={attachmentType}
+                  onChange={(e) => setAttachmentType(e.target.value)}
+                  style={inputStyle(colors)}
+                >
+                  <option value="Proposal">Proposal</option>
+                  <option value="Quotation">Quotation</option>
+                  <option value="KYC">KYC</option>
+                  <option value="Agreement">Agreement</option>
+                  <option value="Other">Other</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={attachmentSize}
+                  onChange={(e) => setAttachmentSize(e.target.value)}
+                  placeholder="Size label (e.g. 1.2 MB)"
+                  style={inputStyle(colors)}
+                />
+
+                <button onClick={handleAddAttachment} style={primaryButton(colors)}>
+                  Add Attachment
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {(lead.attachments || []).length > 0 ? (
+                  (lead.attachments || []).map((file) => (
+                    <div
+                      key={file.id}
+                      style={{
+                        background: colors.cardBgSoft,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 14,
+                        padding: 14,
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: colors.text }}>{file.name}</div>
+                      <div style={{ marginTop: 6, fontSize: 13, color: colors.subText }}>
+                        {file.type} · {file.sizeLabel} · {file.uploadedAt}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyStateCard text="No attachments yet." colors={colors} />
+                )}
+              </div>
+            </div>
+
+            <InfoPanel title="Tags / Labels" colors={colors}>
+              <TagWrap
+                colors={colors}
+                items={lead.tags && lead.tags.length > 0 ? lead.tags : ["No tags added"]}
+              />
+            </InfoPanel>
+
+            <InfoPanel title="Objections / Pain Points" colors={colors}>
+              <TagWrap
+                colors={colors}
+                items={
+                  lead.objections && lead.objections.length > 0
+                    ? lead.objections
+                    : ["No objections captured yet"]
+                }
+                danger
+              />
+            </InfoPanel>
+
+            <InfoPanel title="Conversion Insight" colors={colors}>
+              <InfoGrid
+                colors={colors}
+                items={[
+                  ["Lead Health", `${leadHealth}/100`],
+                  ["Stage Probability", getStageProbability(lead.status)],
+                  ["Deal Value", lead.convertedDealValue || lead.budget || "-"],
+                  ["Converted", lead.isConvertedToDeal ? "Yes" : "No"],
+                ]}
+              />
+            </InfoPanel>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                Lead Navigation
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <button
+                  onClick={() => previousLead && navigate(`/leads/${previousLead.id}`)}
+                  disabled={!previousLead}
+                  style={{
+                    ...secondaryButton(colors),
+                    opacity: previousLead ? 1 : 0.5,
+                    cursor: previousLead ? "pointer" : "not-allowed",
+                  }}
+                >
+                  ← Previous Lead
+                </button>
+
+                <button
+                  onClick={() => nextLead && navigate(`/leads/${nextLead.id}`)}
+                  disabled={!nextLead}
+                  style={{
+                    ...secondaryButton(colors),
+                    opacity: nextLead ? 1 : 0.5,
+                    cursor: nextLead ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Next Lead →
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
+                WhatsApp Quick Templates
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {WHATSAPP_TEMPLATES.map((template, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleOpenWhatsAppTemplate(template)}
+                    style={{
+                      ...secondaryButton(colors),
+                      textAlign: "left",
+                    }}
+                  >
+                    {template.replace("{name}", lead.name)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
-    </div>
+
+      {isEditOpen && (
+        <div
+          onClick={() => setIsEditOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 999,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 920,
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 20,
+              padding: 24,
+              boxSizing: "border-box",
+              boxShadow: colors.shadowCard,
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ marginBottom: 18 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  color: colors.text,
+                  fontSize: 26,
+                }}
+              >
+                Edit Lead
+              </h3>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: colors.subText,
+                }}
+              >
+                Update lead profile, requirement details, owner, and follow-up details.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 14,
+              }}
+            >
+              <InputField
+                label="Name"
+                value={formData.name}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, name: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Phone"
+                value={formData.phone}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, phone: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Alternate Phone"
+                value={formData.alternatePhone || ""}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, alternatePhone: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Email"
+                value={formData.email}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, email: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Company"
+                value={formData.company}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, company: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="City"
+                value={formData.city}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, city: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Address"
+                value={formData.address || ""}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, address: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Source"
+                value={formData.source}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, source: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Campaign"
+                value={formData.campaign || ""}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, campaign: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Owner"
+                value={formData.owner}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, owner: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <InputField
+                label="Budget"
+                value={formData.budget}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, budget: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <SelectField
+                label="Status"
+                value={formData.status}
+                onChange={(value) =>
+                  setFormData((prev) =>
+                    prev ? { ...prev, status: value as LeadStatus } : prev
+                  )
+                }
+                options={["New", "Contacted", "Qualified", "Follow-up", "Negotiation", "Closed"]}
+                colors={colors}
+              />
+
+              <SelectField
+                label="Priority"
+                value={formData.priority}
+                onChange={(value) =>
+                  setFormData((prev) =>
+                    prev ? { ...prev, priority: value as LeadPriority } : prev
+                  )
+                }
+                options={["Low", "Medium", "High"]}
+                colors={colors}
+              />
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <label
+                  style={{
+                    color: colors.subText,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  Follow-up Date
+                </label>
+
+                <input
+                  type="date"
+                  value={formData.followUpDate === "-" ? "" : formData.followUpDate}
+                  onChange={(e) =>
+                    setFormData((prev) =>
+                      prev ? { ...prev, followUpDate: e.target.value || "-" } : prev
+                    )
+                  }
+                  style={inputStyle(colors)}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14, display: "grid", gap: 14 }}>
+              <TextAreaField
+                label="Requirement"
+                value={formData.requirement}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, requirement: value } : prev))
+                }
+                colors={colors}
+              />
+
+              <TextAreaField
+                label="Notes"
+                value={formData.notes}
+                onChange={(value) =>
+                  setFormData((prev) => (prev ? { ...prev, notes: value } : prev))
+                }
+                colors={colors}
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 22,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                onClick={() => setIsEditOpen(false)}
+                style={secondaryButton(colors)}
+              >
+                Cancel
+              </button>
+
+              <button onClick={saveLeadChanges} style={primaryButton(colors)}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
   );
 }
 
-function LeadSummaryCard({
-  theme,
-  lead,
-  statusBadgeStyle,
-  priorityBadgeStyle,
-}: {
-  theme: any;
-  lead: LeadInfo;
-  statusBadgeStyle: { background: string; color: string };
-  priorityBadgeStyle: { background: string; color: string };
-}) {
-  return (
-    <div
-      style={{
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 18,
-        padding: 20,
-        marginBottom: 20,
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 16,
-        }}
-      >
-        <SummaryBox theme={theme} label="Lead Name" value={lead.name} />
-        <SummaryBox
-          theme={theme}
-          label="Status"
-          value={
-            <Badge
-              label={lead.status}
-              background={statusBadgeStyle.background}
-              color={statusBadgeStyle.color}
-            />
-          }
-        />
-        <SummaryBox
-          theme={theme}
-          label="Priority"
-          value={
-            <Badge
-              label={lead.priority}
-              background={priorityBadgeStyle.background}
-              color={priorityBadgeStyle.color}
-            />
-          }
-        />
-        <SummaryBox theme={theme} label="Budget" value={lead.budget} />
-        <SummaryBox theme={theme} label="Requirement" value={lead.requirementType} />
-        <SummaryBox theme={theme} label="Location" value={lead.location} />
-        <SummaryBox theme={theme} label="Owner" value={lead.owner} />
-        <SummaryBox theme={theme} label="Created On" value={lead.createdAt} />
-      </div>
-    </div>
-  );
-}
-
-function SummaryBox({
-  theme,
+function MiniStatCard({
   label,
   value,
+  colors,
 }: {
-  theme: any;
   label: string;
-  value: React.ReactNode;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
 }) {
   return (
     <div
       style={{
-        background: theme.cardBgSoft || theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 14,
-        padding: 14,
-      }}
-    >
-      <div style={{ color: theme.mutedText, fontSize: 13, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontWeight: 700 }}>{value}</div>
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  subtitle,
-  action,
-  theme,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  theme: any;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
         borderRadius: 18,
-        padding: 20,
-        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.04)",
+        padding: 18,
+        boxShadow: colors.shadowSoft,
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: 18,
+          color: colors.subText,
+          fontSize: 13,
+          fontWeight: 700,
         }}
       >
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{title}</div>
-          {subtitle ? (
-            <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 4 }}>{subtitle}</div>
-          ) : null}
-        </div>
-        {action}
+        {label}
       </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: colors.text,
+          fontSize: 24,
+          fontWeight: 800,
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DetailCard({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 18,
+        padding: 18,
+        boxShadow: colors.shadowSoft,
+      }}
+    >
+      <div
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          marginBottom: 8,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          color: colors.text,
+          fontSize: 18,
+          fontWeight: 700,
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoPanel({
+  title,
+  children,
+  colors,
+}: {
+  title: string;
+  children: React.ReactNode;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 20,
+        padding: 24,
+        boxShadow: colors.shadowSoft,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: 800,
+          color: colors.text,
+          marginBottom: 12,
+        }}
+      >
+        {title}
+      </div>
+
       {children}
     </div>
   );
@@ -1329,113 +2107,293 @@ function SectionCard({
 
 function InfoGrid({
   items,
-  theme,
-  compact = false,
+  colors,
 }: {
   items: Array<[string, string]>;
-  theme: any;
-  compact?: boolean;
+  colors: ReturnType<typeof getTheme>;
 }) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: compact
-          ? "repeat(auto-fit, minmax(180px, 1fr))"
-          : "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: 14,
+        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: 12,
       }}
     >
       {items.map(([label, value]) => (
         <div
           key={`${label}-${value}`}
           style={{
-            border: `1px solid ${theme.border}`,
-            borderRadius: 12,
-            padding: compact ? 12 : 14,
-            background: theme.cardBgSoft || theme.cardBg,
+            background: colors.cardBgSoft,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 14,
+            padding: 14,
           }}
         >
-          <div style={{ color: theme.mutedText, fontSize: 13, marginBottom: 8 }}>{label}</div>
-          <div style={{ fontWeight: 700, color: theme.text }}>{value}</div>
+          <div
+            style={{
+              color: colors.subText,
+              fontSize: 13,
+              fontWeight: 700,
+              marginBottom: 6,
+            }}
+          >
+            {label}
+          </div>
+          <div
+            style={{
+              color: colors.text,
+              fontSize: 14,
+              lineHeight: 1.6,
+              wordBreak: "break-word",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {value || "-"}
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function Badge({
-  label,
-  background,
-  color,
+function TagWrap({
+  items,
+  colors,
+  danger = false,
 }: {
-  label: string;
-  background: string;
-  color: string;
+  items: string[];
+  colors: ReturnType<typeof getTheme>;
+  danger?: boolean;
 }) {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 10px",
-        borderRadius: 999,
-        background,
-        color,
-        fontWeight: 700,
-        fontSize: 12,
-      }}
-    >
-      {label}
-    </span>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+      {items.map((item, index) => (
+        <span
+          key={`${item}-${index}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "8px 12px",
+            borderRadius: 999,
+            background: danger ? colors.cardBgSoft : colors.cardBgSoft,
+            border: `1px solid ${colors.border}`,
+            color: danger ? colors.danger : colors.text,
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
   );
 }
 
-function primaryButtonStyle(theme: any): React.CSSProperties {
+function EmptyStateCard({
+  text,
+  colors,
+}: {
+  text: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBgSoft,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 14,
+        padding: 16,
+        color: colors.subText,
+        fontSize: 14,
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle(colors)}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        style={{
+          ...inputStyle(colors),
+          resize: "vertical",
+          fontFamily: "inherit",
+        }}
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      <label
+        style={{
+          color: colors.subText,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </label>
+
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle(colors)}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function inputStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "14px 16px",
+    borderRadius: 12,
+    border: `1px solid ${colors.border}`,
+    background: colors.inputBg,
+    color: colors.text,
+    outline: "none",
+    fontSize: 14,
+    boxSizing: "border-box",
+  };
+}
+
+function primaryButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
   return {
     border: "none",
-    background: theme.primary,
-    color: "#fff",
-    borderRadius: 10,
-    padding: "12px 14px",
+    background: colors.primary,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
     fontWeight: 700,
     cursor: "pointer",
   };
 }
 
-function ghostButtonStyle(theme: any): React.CSSProperties {
+function secondaryButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
   return {
-    border: `1px solid ${theme.border}`,
-    background: theme.cardBg,
-    color: theme.text,
-    borderRadius: 10,
-    padding: "12px 14px",
-    fontWeight: 600,
+    border: `1px solid ${colors.border}`,
+    background: colors.cardBg,
+    color: colors.text,
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
     cursor: "pointer",
   };
 }
 
-function getActivityIcon(type: ActivityType) {
-  switch (type) {
-    case "created":
-      return "✨";
-    case "status_changed":
-      return "🔁";
-    case "note_added":
-      return "📝";
-    case "call_logged":
-      return "📞";
-    case "task_created":
-      return "✅";
-    case "whatsapp_sent":
-      return "💬";
-    case "email_sent":
-      return "📧";
-    case "followup_updated":
-      return "📅";
-    case "converted":
-      return "💼";
-    default:
-      return "•";
-  }
+function dangerButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: "none",
+    background: colors.danger,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}
+
+function primaryLinkButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    display: "inline-block",
+    textDecoration: "none",
+    background: colors.primary,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+  };
+}
+
+function secondaryLinkButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    display: "inline-block",
+    textDecoration: "none",
+    border: `1px solid ${colors.border}`,
+    background: colors.cardBg,
+    color: colors.text,
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+  };
 }

@@ -9,7 +9,14 @@ type LeadsPageProps = {
   onToggleTheme: () => void;
 };
 
-type LeadStatus = "New" | "Contacted" | "Qualified" | "Negotiation" | "Closed";
+type LeadStatus =
+  | "New"
+  | "Contacted"
+  | "Qualified"
+  | "Follow-up"
+  | "Negotiation"
+  | "Closed";
+
 type LeadPriority = "Low" | "Medium" | "High";
 type SourceType =
   | "WhatsApp"
@@ -127,6 +134,8 @@ function getStatusColor(status: LeadStatus, mode: ThemeMode) {
       return colors.warning;
     case "Qualified":
       return colors.premium;
+    case "Follow-up":
+      return colors.warning;
     case "Negotiation":
       return colors.primary;
     case "Closed":
@@ -159,6 +168,7 @@ function normalizeStatus(value: string | null): FilterType {
   if (normalized === "new") return "New";
   if (normalized === "contacted") return "Contacted";
   if (normalized === "qualified") return "Qualified";
+  if (normalized === "follow-up" || normalized === "followup") return "Follow-up";
   if (normalized === "negotiation") return "Negotiation";
   if (normalized === "closed" || normalized === "won") return "Closed";
 
@@ -195,8 +205,7 @@ function mapUnknownLead(item: any, index: number): Lead | null {
   const rawStatus = String(item.status || "New");
   const normalizedStatus = normalizeStatus(rawStatus);
 
-  const status: LeadStatus =
-    normalizedStatus === "All" ? "New" : normalizedStatus;
+  const status: LeadStatus = normalizedStatus === "All" ? "New" : normalizedStatus;
 
   const priorityRaw = String(item.priority || "Medium").toLowerCase();
   const priority: LeadPriority =
@@ -215,6 +224,7 @@ function mapUnknownLead(item: any, index: number): Lead | null {
     "Walk-in",
     "Manual",
   ];
+
   const source = allowedSources.includes(sourceRaw as SourceType)
     ? (sourceRaw as SourceType)
     : "Manual";
@@ -342,8 +352,7 @@ export default function LeadsPage({
       const matchesFilter =
         activeFilter === "All" ? true : lead.status === activeFilter;
 
-      const matchesCity =
-        cityFilter === "All" ? true : lead.city === cityFilter;
+      const matchesCity = cityFilter === "All" ? true : lead.city === cityFilter;
 
       const q = searchTerm.trim().toLowerCase();
       const matchesSearch =
@@ -363,6 +372,7 @@ export default function LeadsPage({
   const newLeads = leads.filter((l) => l.status === "New").length;
   const contactedLeads = leads.filter((l) => l.status === "Contacted").length;
   const qualifiedLeads = leads.filter((l) => l.status === "Qualified").length;
+  const followUpLeads = leads.filter((l) => l.status === "Follow-up").length;
   const negotiationLeads = leads.filter((l) => l.status === "Negotiation").length;
   const closedLeads = leads.filter((l) => l.status === "Closed").length;
 
@@ -370,7 +380,10 @@ export default function LeadsPage({
   const todayIso = today.toISOString().slice(0, 10);
 
   const todayFollowUps = leads.filter(
-    (lead) => lead.followUpDate && lead.followUpDate !== "-" && lead.followUpDate.slice(0, 10) === todayIso
+    (lead) =>
+      lead.followUpDate &&
+      lead.followUpDate !== "-" &&
+      lead.followUpDate.slice(0, 10) === todayIso
   ).length;
 
   const overdueLeads = leads.filter((lead) => {
@@ -638,101 +651,15 @@ export default function LeadsPage({
             gap: 16,
           }}
         >
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 18,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
-              Today Follow-ups
-            </div>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 28,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
-              {todayFollowUps}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 18,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
-              Overdue Leads
-            </div>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 28,
-                fontWeight: 800,
-                color: overdueLeads > 0 ? colors.danger : colors.text,
-              }}
-            >
-              {overdueLeads}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 18,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
-              Active City Filter
-            </div>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 24,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
-              {cityFilter}
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 18,
-              padding: 18,
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
-              Filtered Results
-            </div>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 28,
-                fontWeight: 800,
-                color: colors.text,
-              }}
-            >
-              {filteredLeads.length}
-            </div>
-          </div>
+          <MiniInfoCard title="Today Follow-ups" value={todayFollowUps} colors={colors} />
+          <MiniInfoCard
+            title="Overdue Leads"
+            value={overdueLeads}
+            colors={colors}
+            valueColor={overdueLeads > 0 ? colors.danger : colors.text}
+          />
+          <MiniInfoCard title="Active City Filter" value={cityFilter} colors={colors} />
+          <MiniInfoCard title="Filtered Results" value={filteredLeads.length} colors={colors} />
         </section>
 
         <section
@@ -779,6 +706,7 @@ export default function LeadsPage({
               <option value="New">New</option>
               <option value="Contacted">Contacted</option>
               <option value="Qualified">Qualified</option>
+              <option value="Follow-up">Follow-up</option>
               <option value="Negotiation">Negotiation</option>
               <option value="Closed">Closed</option>
             </select>
@@ -805,7 +733,7 @@ export default function LeadsPage({
             }}
           >
             {(
-              ["All", "New", "Contacted", "Qualified", "Negotiation", "Closed"] as FilterType[]
+              ["All", "New", "Contacted", "Qualified", "Follow-up", "Negotiation", "Closed"] as FilterType[]
             ).map((item) => {
               const active = activeFilter === item;
 
@@ -1195,7 +1123,14 @@ export default function LeadsPage({
                 onChange={(value) =>
                   setFormData((prev) => ({ ...prev, status: value as LeadStatus }))
                 }
-                options={["New", "Contacted", "Qualified", "Negotiation", "Closed"]}
+                options={[
+                  "New",
+                  "Contacted",
+                  "Qualified",
+                  "Follow-up",
+                  "Negotiation",
+                  "Closed",
+                ]}
                 colors={colors}
               />
 
@@ -1290,6 +1225,44 @@ export default function LeadsPage({
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function MiniInfoCard({
+  title,
+  value,
+  colors,
+  valueColor,
+}: {
+  title: string;
+  value: string | number;
+  colors: ReturnType<typeof getTheme>;
+  valueColor?: string;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 18,
+        padding: 18,
+        boxShadow: colors.shadowSoft,
+      }}
+    >
+      <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
+        {title}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 28,
+          fontWeight: 800,
+          color: valueColor || colors.text,
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
