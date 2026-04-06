@@ -107,43 +107,111 @@ export default function App() {
     setMode((prev) => (prev === "light" ? "dark" : "light"));
   };
 
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleOnboardingComplete = () => {
+    try {
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+    } catch (error) {
+      console.error("Failed to save onboarding state:", error);
+    }
+
+    setHasCompletedOnboarding(true);
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    } catch (error) {
+      console.error("Failed to clear auth state:", error);
+    }
+
+    setIsAuthenticated(false);
+    setHasCompletedOnboarding(false);
+  };
+
   const loginPageElement = (
     <LoginPage
       mode={mode}
       onToggleTheme={toggleTheme}
-      onLoginSuccess={() => setIsAuthenticated(true)}
+      onLoginSuccess={handleLoginSuccess}
     />
   );
 
-  const onboardingPageElement = <OnboardingWelcomePage mode={mode} />;
+  const onboardingPageElement = (
+    <OnboardingWelcomePage
+      mode={mode}
+      onComplete={handleOnboardingComplete}
+      onSkip={handleOnboardingComplete}
+    />
+  );
 
   const dashboardPageElement = (
-    <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
+    <DashboardPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const leadsPageElement = (
-    <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
+    <LeadsPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const leadDetailPageElement = (
-    <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
+    <LeadDetailPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const contactsPageElement = (
-    <ContactsPage mode={mode} onToggleTheme={toggleTheme} />
+    <ContactsPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const dealsPageElement = (
-    <DealsPage mode={mode} onToggleTheme={toggleTheme} />
+    <DealsPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const tasksPageElement = (
-    <TasksPage mode={mode} onToggleTheme={toggleTheme} />
+    <TasksPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
 
   const settingsPageElement = (
-    <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
+    <SettingsPage
+      mode={mode}
+      onToggleTheme={toggleTheme}
+      onLogout={handleLogout}
+    />
   );
+  const onboardingPageElement = (
+  <OnboardingWelcomePage
+    mode={mode}
+    onComplete={handleOnboardingComplete}
+    onSkip={handleOnboardingComplete}
+  />
+);
 
   return (
     <BrowserRouter>

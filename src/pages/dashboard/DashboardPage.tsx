@@ -23,10 +23,38 @@ export default function DashboardPage({
   const colors = getTheme(mode);
 
   const kpiData = [
-    { label: "Total Leads", value: "128", note: "+12 this week", color: colors.info },
-    { label: "Qualified Leads", value: "42", note: "+6 this week", color: colors.premium },
-    { label: "Closed Deals", value: "18", note: "+3 this month", color: colors.success },
-    { label: "Pending Tasks", value: "11", note: "4 due today", color: colors.warning },
+    {
+      label: "Total Leads",
+      value: "128",
+      note: "+12 this week",
+      color: colors.info,
+      bg: colors.infoBg,
+      icon: "📇",
+    },
+    {
+      label: "Qualified Leads",
+      value: "42",
+      note: "+6 this week",
+      color: colors.premium,
+      bg: colors.premiumBg,
+      icon: "🎯",
+    },
+    {
+      label: "Closed Deals",
+      value: "18",
+      note: "+3 this month",
+      color: colors.success,
+      bg: colors.successBg,
+      icon: "🤝",
+    },
+    {
+      label: "Pending Tasks",
+      value: "11",
+      note: "4 due today",
+      color: colors.warning,
+      bg: colors.warningBg,
+      icon: "📝",
+    },
   ];
 
   const notifications: NotificationItem[] = [
@@ -115,6 +143,7 @@ export default function DashboardPage({
                 fontSize: 34,
                 fontWeight: 800,
                 color: colors.text,
+                letterSpacing: "-0.02em",
               }}
             >
               Dashboard
@@ -128,6 +157,7 @@ export default function DashboardPage({
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button style={primaryButtonStyle(colors)}>+ Add Lead</button>
             <button style={secondaryButtonStyle(colors)}>Create Task</button>
+            <button style={secondaryButtonStyle(colors)}>Add Deal</button>
           </div>
         </section>
 
@@ -139,23 +169,55 @@ export default function DashboardPage({
           }}
         >
           {kpiData.map((item) => (
-            <div key={item.label} style={cardStyle(colors)}>
+            <div
+              key={item.label}
+              style={{
+                ...cardStyle(colors),
+                padding: 20,
+                display: "grid",
+                gap: 14,
+              }}
+            >
               <div
                 style={{
-                  color: colors.subText,
-                  fontSize: 14,
-                  fontWeight: 600,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: 12,
                 }}
               >
-                {item.label}
+                <div
+                  style={{
+                    color: colors.subText,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  {item.label}
+                </div>
+
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    display: "grid",
+                    placeItems: "center",
+                    background: item.bg,
+                    color: item.color,
+                    fontSize: 20,
+                  }}
+                >
+                  {item.icon}
+                </div>
               </div>
 
               <div
                 style={{
-                  marginTop: 10,
                   fontSize: 34,
                   fontWeight: 800,
                   color: colors.text,
+                  lineHeight: 1,
                 }}
               >
                 {item.value}
@@ -163,7 +225,6 @@ export default function DashboardPage({
 
               <div
                 style={{
-                  marginTop: 12,
                   display: "flex",
                   justifyContent: "space-between",
                   gap: 10,
@@ -188,8 +249,8 @@ export default function DashboardPage({
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 700,
-                    color: "#ffffff",
-                    background: item.color,
+                    color: item.color,
+                    background: item.bg,
                   }}
                 >
                   Active
@@ -207,48 +268,27 @@ export default function DashboardPage({
           }}
         >
           <div style={cardStyle(colors)}>
-            <h2 style={sectionTitle(colors)}>Revenue Overview</h2>
-            <p style={subTextStyle(colors)}>Monthly revenue trend and growth movement</p>
+            <div style={chartHeaderWrap}>
+              <div>
+                <h2 style={sectionTitle(colors)}>Revenue Overview</h2>
+                <p style={subTextStyle(colors)}>
+                  Monthly revenue trend and growth movement
+                </p>
+              </div>
+              <div style={inlineBadge(colors, colors.success, colors.successBg)}>
+                Trending Up
+              </div>
+            </div>
 
-            <div
-              style={{
-                marginTop: 18,
-                height: 260,
-                borderRadius: 16,
-                background: colors.cardBgSoft,
-                border: `1px solid ${colors.border}`,
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                gap: 12,
-                padding: 18,
-              }}
-            >
+            <div style={chartContainer(colors)}>
               {revenueData.map((value, index) => {
                 const max = Math.max(...revenueData);
                 const height = `${(value / max) * 100}%`;
 
                 return (
-                  <div
-                    key={revenueLabels[index]}
-                    style={{
-                      flex: 1,
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: colors.text,
-                      }}
-                    >
-                      {revenueLabels[index]}
+                  <div key={revenueLabels[index]} style={chartBarWrap}>
+                    <div style={chartLabelTop(colors)}>
+                      ₹{Math.round(value / 1000)}k
                     </div>
 
                     <div
@@ -261,6 +301,10 @@ export default function DashboardPage({
                         background: colors.primary,
                       }}
                     />
+
+                    <div style={chartLabelBottom(colors)}>
+                      {revenueLabels[index]}
+                    </div>
                   </div>
                 );
               })}
@@ -268,48 +312,26 @@ export default function DashboardPage({
           </div>
 
           <div style={cardStyle(colors)}>
-            <h2 style={sectionTitle(colors)}>Lead Trend</h2>
-            <p style={subTextStyle(colors)}>Weekly incoming leads performance</p>
+            <div style={chartHeaderWrap}>
+              <div>
+                <h2 style={sectionTitle(colors)}>Lead Trend</h2>
+                <p style={subTextStyle(colors)}>
+                  Weekly incoming leads performance
+                </p>
+              </div>
+              <div style={inlineBadge(colors, colors.info, colors.infoBg)}>
+                Weekly View
+              </div>
+            </div>
 
-            <div
-              style={{
-                marginTop: 18,
-                height: 260,
-                borderRadius: 16,
-                background: colors.cardBgSoft,
-                border: `1px solid ${colors.border}`,
-                display: "flex",
-                alignItems: "flex-end",
-                gap: 14,
-                padding: 18,
-              }}
-            >
+            <div style={chartContainer(colors)}>
               {leadsData.map((value, index) => {
                 const max = Math.max(...leadsData);
                 const height = `${(value / max) * 100}%`;
 
                 return (
-                  <div
-                    key={leadsLabels[index]}
-                    style={{
-                      flex: 1,
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: colors.text,
-                      }}
-                    >
-                      {value}
-                    </div>
+                  <div key={leadsLabels[index]} style={chartBarWrap}>
+                    <div style={chartLabelTop(colors)}>{value}</div>
 
                     <div
                       style={{
@@ -322,13 +344,7 @@ export default function DashboardPage({
                       }}
                     />
 
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: colors.subText,
-                      }}
-                    >
+                    <div style={chartLabelBottom(colors)}>
                       {leadsLabels[index]}
                     </div>
                   </div>
@@ -339,8 +355,26 @@ export default function DashboardPage({
         </section>
 
         <section style={cardStyle(colors)}>
-          <h2 style={sectionTitle(colors)}>Pipeline Performance</h2>
-          <p style={subTextStyle(colors)}>Track how leads move from enquiry to closed deal</p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2 style={sectionTitle(colors)}>Pipeline Performance</h2>
+              <p style={subTextStyle(colors)}>
+                Track how leads move from enquiry to closed deal
+              </p>
+            </div>
+
+            <div style={inlineBadge(colors, colors.primary, colors.infoBg)}>
+              Live Snapshot
+            </div>
+          </div>
 
           <div
             style={{
@@ -360,7 +394,10 @@ export default function DashboardPage({
             >
               <div style={{ display: "grid", gap: 12 }}>
                 {pipelineData.map((stage, index) => {
-                  const widthPercent = Math.max((stage.value / maxPipeline) * 100, 24);
+                  const widthPercent = Math.max(
+                    (stage.value / maxPipeline) * 100,
+                    24
+                  );
 
                   return (
                     <div key={stage.label}>
@@ -419,9 +456,21 @@ export default function DashboardPage({
             </div>
 
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <MiniStatCard colors={colors} label="Pipeline Close Rate" value="14.1%" />
-              <MiniStatCard colors={colors} label="Top Funnel Volume" value="128" />
-              <MiniStatCard colors={colors} label="Bottom Funnel Wins" value="18" />
+              <MiniStatCard
+                colors={colors}
+                label="Pipeline Close Rate"
+                value="14.1%"
+              />
+              <MiniStatCard
+                colors={colors}
+                label="Top Funnel Volume"
+                value="128"
+              />
+              <MiniStatCard
+                colors={colors}
+                label="Bottom Funnel Wins"
+                value="18"
+              />
               <MiniStatCard
                 colors={colors}
                 label="Biggest Drop Stage"
@@ -563,8 +612,16 @@ export default function DashboardPage({
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
               <MiniStatCard colors={colors} label="Unread Alerts" value="2" />
               <MiniStatCard colors={colors} label="Critical Issues" value="1" />
-              <MiniStatCard colors={colors} label="Today Reminders" value="2" />
-              <MiniStatCard colors={colors} label="Resolved Updates" value="1" />
+              <MiniStatCard
+                colors={colors}
+                label="Today Reminders"
+                value="2"
+              />
+              <MiniStatCard
+                colors={colors}
+                label="Resolved Updates"
+                value="1"
+              />
             </div>
           </div>
         </section>
@@ -655,7 +712,9 @@ function primaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSProperties 
   };
 }
 
-function secondaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
+function secondaryButtonStyle(
+  colors: ReturnType<typeof getTheme>
+): CSSProperties {
   return {
     border: `1px solid ${colors.border}`,
     background: colors.cardBg,
@@ -664,5 +723,74 @@ function secondaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSPropertie
     borderRadius: 12,
     fontWeight: 700,
     cursor: "pointer",
+  };
+}
+
+function inlineBadge(
+  colors: ReturnType<typeof getTheme>,
+  color: string,
+  background: string
+): CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "7px 12px",
+    borderRadius: 999,
+    color,
+    background,
+    fontSize: 12,
+    fontWeight: 800,
+    border: `1px solid ${colors.border}`,
+    whiteSpace: "nowrap",
+  };
+}
+
+const chartHeaderWrap: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+
+function chartContainer(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    marginTop: 18,
+    height: 260,
+    borderRadius: 16,
+    background: colors.cardBgSoft,
+    border: `1px solid ${colors.border}`,
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: 18,
+  };
+}
+
+const chartBarWrap: CSSProperties = {
+  flex: 1,
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "flex-end",
+  alignItems: "center",
+  gap: 8,
+};
+
+function chartLabelTop(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 700,
+    color: colors.text,
+  };
+}
+
+function chartLabelBottom(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 600,
+    color: colors.subText,
   };
 }

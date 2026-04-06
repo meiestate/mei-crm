@@ -5,6 +5,8 @@ import type { ThemeMode } from "../../theme";
 
 type OnboardingWelcomePageProps = {
   mode: ThemeMode;
+  onComplete: () => void;
+  onSkip: () => void;
 };
 
 type CurrentUser = {
@@ -57,6 +59,8 @@ const onboardingSteps: OnboardingStep[] = [
 
 export default function OnboardingWelcomePage({
   mode,
+  onComplete,
+  onSkip,
 }: OnboardingWelcomePageProps) {
   const theme = useMemo(() => getTheme(mode), [mode]);
   const navigate = useNavigate();
@@ -79,21 +83,33 @@ export default function OnboardingWelcomePage({
   const handleGetStarted = () => {
     try {
       localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
-      navigate("/dashboard");
     } catch (error) {
       console.error("Failed to save onboarding state:", error);
-      navigate("/dashboard");
     }
+
+    try {
+      onComplete();
+    } catch (error) {
+      console.error("Failed to run onboarding complete callback:", error);
+    }
+
+    navigate("/dashboard");
   };
 
   const handleSkip = () => {
     try {
       localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
-      navigate("/dashboard");
     } catch (error) {
       console.error("Failed to skip onboarding:", error);
-      navigate("/dashboard");
     }
+
+    try {
+      onSkip();
+    } catch (error) {
+      console.error("Failed to run onboarding skip callback:", error);
+    }
+
+    navigate("/dashboard");
   };
 
   const pageTitle = currentUser?.fullName
