@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -42,204 +42,15 @@ type Lead = {
   requirement: string;
   callLogs: CallLogItem[];
   timeline: TimelineItem[];
+  updatedAt?: string;
+  createdAt?: string;
 };
 
-const leads: Lead[] = [
-  {
-    id: 1001,
-    name: "Arun Kumar",
-    phone: "9876543210",
-    source: "WhatsApp",
-    city: "Chennai",
-    status: "New",
-    email: "arun@example.com",
-    company: "AK Traders",
-    budget: "₹15,00,000",
-    notes:
-      "Interested in premium CRM setup and automation. Wants a quick overview before scheduling a product demo.",
-    owner: "Madhan",
-    priority: "High",
-    followUpDate: "2026-04-05",
-    lastContact: "Today",
-    requirement: "CRM setup, lead automation, dashboard reporting",
-    callLogs: [
-      {
-        time: "Today · 10:30 AM",
-        note: "Initial intro call completed. Lead showed strong interest in automation workflow.",
-        outcome: "Positive",
-      },
-      {
-        time: "Yesterday · 5:15 PM",
-        note: "Shared business overview and collected requirement summary.",
-        outcome: "Connected",
-      },
-    ],
-    timeline: [
-      {
-        title: "Lead Created",
-        description: "Lead entered into CRM from WhatsApp enquiry.",
-        time: "Yesterday · 4:45 PM",
-      },
-      {
-        title: "Requirement Captured",
-        description: "User requirement for CRM automation documented.",
-        time: "Yesterday · 5:20 PM",
-      },
-      {
-        title: "Follow-up Scheduled",
-        description: "Next product discussion planned for 2026-04-05.",
-        time: "Today · 10:35 AM",
-      },
-    ],
-  },
-  {
-    id: 1002,
-    name: "Priya",
-    phone: "9123456780",
-    source: "Facebook",
-    city: "Bangalore",
-    status: "Contacted",
-    email: "priya@example.com",
-    company: "Priya Ventures",
-    budget: "₹8,00,000",
-    notes:
-      "Asked for product demo and pricing details. Wants multi-user access and sales reporting.",
-    owner: "Madhan",
-    priority: "Medium",
-    followUpDate: "2026-04-06",
-    lastContact: "Yesterday",
-    requirement: "Demo, pricing, team user access",
-    callLogs: [
-      {
-        time: "Yesterday · 2:10 PM",
-        note: "Discussed pricing tiers and dashboard features.",
-        outcome: "Interested",
-      },
-    ],
-    timeline: [
-      {
-        title: "Lead Captured",
-        description: "Lead received from Facebook campaign.",
-        time: "2 days ago",
-      },
-      {
-        title: "Contact Established",
-        description: "Spoke with lead and shared company introduction.",
-        time: "Yesterday · 2:10 PM",
-      },
-    ],
-  },
-  {
-    id: 1003,
-    name: "Rahul",
-    phone: "9000012345",
-    source: "Website",
-    city: "Coimbatore",
-    status: "Qualified",
-    email: "rahul@example.com",
-    company: "Rahul Infra",
-    budget: "₹25,00,000",
-    notes:
-      "Looking for multi-user CRM with reports, task assignment, and lead tracking for field sales team.",
-    owner: "Arun",
-    priority: "High",
-    followUpDate: "2026-04-07",
-    lastContact: "2 days ago",
-    requirement: "Team CRM, reporting, field sales workflow",
-    callLogs: [
-      {
-        time: "2 days ago · 1:00 PM",
-        note: "Qualified lead after confirming team size and budget.",
-        outcome: "Qualified",
-      },
-    ],
-    timeline: [
-      {
-        title: "Lead Submitted",
-        description: "Lead submitted enquiry through official website.",
-        time: "3 days ago",
-      },
-      {
-        title: "Qualified",
-        description: "Lead marked qualified after budget and use-case discussion.",
-        time: "2 days ago · 1:00 PM",
-      },
-    ],
-  },
-  {
-    id: 1004,
-    name: "Meena",
-    phone: "9090909090",
-    source: "Referral",
-    city: "Madurai",
-    status: "Negotiation",
-    email: "meena@example.com",
-    company: "Meena Corp",
-    budget: "₹12,00,000",
-    notes:
-      "Pricing negotiation ongoing. Lead is interested but requesting phased onboarding.",
-    owner: "Priya",
-    priority: "Medium",
-    followUpDate: "2026-04-04",
-    lastContact: "Today",
-    requirement: "Phased rollout, onboarding support",
-    callLogs: [
-      {
-        time: "Today · 11:40 AM",
-        note: "Negotiated payment milestone and onboarding timeline.",
-        outcome: "Negotiation",
-      },
-    ],
-    timeline: [
-      {
-        title: "Referred Lead",
-        description: "Lead added through business referral.",
-        time: "4 days ago",
-      },
-      {
-        title: "Negotiation Started",
-        description: "Commercial discussion and rollout model review.",
-        time: "Today · 11:40 AM",
-      },
-    ],
-  },
-  {
-    id: 1005,
-    name: "Suresh",
-    phone: "9345678901",
-    source: "Walk-in",
-    city: "Trichy",
-    status: "Closed",
-    email: "suresh@example.com",
-    company: "Suresh Properties",
-    budget: "₹32,00,000",
-    notes:
-      "Deal closed successfully. Client confirmed onboarding plan and user setup.",
-    owner: "Madhan",
-    priority: "Low",
-    followUpDate: "2026-04-02",
-    lastContact: "3 days ago",
-    requirement: "Onboarding and implementation",
-    callLogs: [
-      {
-        time: "3 days ago · 4:30 PM",
-        note: "Final confirmation call and project kickoff scheduled.",
-        outcome: "Won",
-      },
-    ],
-    timeline: [
-      {
-        title: "Lead Added",
-        description: "Walk-in lead added manually by sales desk.",
-        time: "1 week ago",
-      },
-      {
-        title: "Deal Closed",
-        description: "Commercial approval received and deal marked closed.",
-        time: "3 days ago · 4:30 PM",
-      },
-    ],
-  },
+const LEAD_STORAGE_KEYS = [
+  "mei-crm-leads",
+  "mei_crm_leads",
+  "leads",
+  "crm_leads",
 ];
 
 function getStatusColor(status: LeadStatus, mode: ThemeMode) {
@@ -276,22 +87,162 @@ function getPriorityColor(priority: LeadPriority, mode: ThemeMode) {
   }
 }
 
+function normalizeStatus(value: string | undefined): LeadStatus {
+  const normalized = String(value || "New").toLowerCase();
+
+  if (normalized.includes("contact")) return "Contacted";
+  if (normalized.includes("qual")) return "Qualified";
+  if (normalized.includes("neg")) return "Negotiation";
+  if (normalized.includes("closed") || normalized.includes("won")) return "Closed";
+  return "New";
+}
+
+function normalizePriority(value: string | undefined): LeadPriority {
+  const normalized = String(value || "Medium").toLowerCase();
+
+  if (normalized === "high") return "High";
+  if (normalized === "low") return "Low";
+  return "Medium";
+}
+
+function readStoredLeads(): Lead[] {
+  for (const key of LEAD_STORAGE_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) continue;
+
+      const mapped = parsed
+        .map((item: any, index: number) => mapUnknownLead(item, index))
+        .filter(Boolean) as Lead[];
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
+
+  return [];
+}
+
+function saveStoredLeads(leads: Lead[]) {
+  try {
+    localStorage.setItem("mei-crm-leads", JSON.stringify(leads));
+  } catch (error) {
+    console.error("Failed to save leads to localStorage:", error);
+  }
+}
+
+function mapUnknownLead(item: any, index: number): Lead | null {
+  if (!item || typeof item !== "object") return null;
+
+  const timeline = Array.isArray(item.timeline)
+    ? item.timeline.map((entry: any) => ({
+        title: String(entry?.title || "Activity"),
+        description: String(entry?.description || "Lead activity recorded."),
+        time: String(entry?.time || "Recent"),
+      }))
+    : [];
+
+  const callLogs = Array.isArray(item.callLogs)
+    ? item.callLogs.map((entry: any) => ({
+        time: String(entry?.time || "Recent"),
+        note: String(entry?.note || "Call activity recorded."),
+        outcome: String(entry?.outcome || "Connected"),
+      }))
+    : [];
+
+  return {
+    id: Number(item.id ?? Date.now() + index),
+    name: String(item.name || item.fullName || item.customerName || item.company || `Lead ${index + 1}`),
+    phone: String(item.phone || item.mobile || item.whatsapp || "-"),
+    source: String(item.source || "Manual"),
+    city: String(item.city || item.location || item.area || "Unknown"),
+    status: normalizeStatus(item.status),
+    email: String(item.email || "-"),
+    company: String(item.company || "-"),
+    budget:
+      typeof item.budget === "number"
+        ? `₹${item.budget.toLocaleString("en-IN")}`
+        : String(item.budget || "-"),
+    notes: String(item.notes || "No notes added yet."),
+    owner: String(item.owner || item.assignedTo || item.leadOwner || "Unassigned"),
+    priority: normalizePriority(item.priority),
+    followUpDate: String(item.followUpDate || item.nextFollowUp || "-"),
+    lastContact: String(item.lastContact || "Recent"),
+    requirement: String(item.requirement || "Requirement details not added yet."),
+    callLogs,
+    timeline,
+    updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+  };
+}
+
+function getNowLabel() {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+}
+
+function getLastContactLabel() {
+  return "Just now";
+}
+
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
 }: LeadDetailPageProps) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const colors = getTheme(mode);
 
+  const leadId = Number(id);
+
+  const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
+
+  useEffect(() => {
+    const syncLeads = () => {
+      setAllLeads(readStoredLeads());
+    };
+
+    window.addEventListener("storage", syncLeads);
+    return () => window.removeEventListener("storage", syncLeads);
+  }, []);
+
   const initialLead = useMemo(
-    () => leads.find((item) => item.id === Number(id)),
-    [id]
+    () => allLeads.find((item) => item.id === leadId) ?? null,
+    [allLeads, leadId]
   );
 
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [leadState, setLeadState] = useState<Lead | null>(initialLead ?? null);
+  const [leadState, setLeadState] = useState<Lead | null>(initialLead);
+  const [formData, setFormData] = useState<Lead | null>(initialLead);
 
-  const [formData, setFormData] = useState<Lead | null>(initialLead ?? null);
+  useEffect(() => {
+    setLeadState(initialLead);
+    setFormData(initialLead);
+  }, [initialLead]);
+
+  const persistLeadUpdate = (updater: (lead: Lead) => Lead) => {
+    const latestLeads = readStoredLeads();
+    const updatedLeads = latestLeads.map((lead) =>
+      lead.id === leadId ? updater(lead) : lead
+    );
+
+    saveStoredLeads(updatedLeads);
+    setAllLeads(updatedLeads);
+
+    const updatedLead = updatedLeads.find((lead) => lead.id === leadId) ?? null;
+    setLeadState(updatedLead);
+    setFormData(updatedLead);
+  };
 
   if (!leadState || !formData) {
     return (
@@ -337,20 +288,19 @@ export default function LeadDetailPage({
   const lead = leadState;
 
   const updateStatus = (nextStatus: LeadStatus) => {
-    setLeadState((prev) => {
-      if (!prev) return prev;
-
+    persistLeadUpdate((prev) => {
       const statusTimeline: TimelineItem = {
         title: "Status Updated",
         description: `Lead status changed to ${nextStatus}.`,
-        time: "Just now",
+        time: getNowLabel(),
       };
 
       return {
         ...prev,
         status: nextStatus,
-        lastContact: "Just now",
-        timeline: [statusTimeline, ...prev.timeline],
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [statusTimeline, ...(prev.timeline || [])],
       };
     });
   };
@@ -366,23 +316,35 @@ export default function LeadDetailPage({
       return;
     }
 
-    setLeadState((prev) => {
-      if (!prev) return prev;
-
+    persistLeadUpdate((prev) => {
       const editTimeline: TimelineItem = {
         title: "Lead Updated",
         description: "Lead profile information was edited from the detail page.",
-        time: "Just now",
+        time: getNowLabel(),
       };
 
       return {
+        ...prev,
         ...formData,
-        lastContact: "Just now",
-        timeline: [editTimeline, ...prev.timeline],
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [editTimeline, ...(prev.timeline || [])],
       };
     });
 
     setIsEditOpen(false);
+  };
+
+  const handleDeleteLead = () => {
+    const confirmed = window.confirm(`Delete ${lead.name} from leads?`);
+    if (!confirmed) return;
+
+    const latestLeads = readStoredLeads();
+    const updatedLeads = latestLeads.filter((item) => item.id !== lead.id);
+
+    saveStoredLeads(updatedLeads);
+    setAllLeads(updatedLeads);
+    navigate("/leads");
   };
 
   return (
@@ -536,6 +498,7 @@ export default function LeadDetailPage({
             </button>
 
             <button
+              onClick={handleDeleteLead}
               style={{
                 border: "none",
                 background: colors.danger,
@@ -622,58 +585,73 @@ export default function LeadDetailPage({
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {lead.callLogs.map((log, index) => (
+                {lead.callLogs.length > 0 ? (
+                  lead.callLogs.map((log, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        background: colors.cardBgSoft,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 14,
+                        padding: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: colors.text,
+                            fontSize: 15,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {log.outcome}
+                        </div>
+
+                        <div
+                          style={{
+                            color: colors.mutedText,
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {log.time}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 8,
+                          color: colors.subText,
+                          lineHeight: 1.6,
+                          fontSize: 14,
+                        }}
+                      >
+                        {log.note}
+                      </div>
+                    </div>
+                  ))
+                ) : (
                   <div
-                    key={index}
                     style={{
                       background: colors.cardBgSoft,
                       border: `1px solid ${colors.border}`,
                       borderRadius: 14,
                       padding: 16,
+                      color: colors.subText,
+                      fontSize: 14,
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          color: colors.text,
-                          fontSize: 15,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {log.outcome}
-                      </div>
-
-                      <div
-                        style={{
-                          color: colors.mutedText,
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {log.time}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 8,
-                        color: colors.subText,
-                        lineHeight: 1.6,
-                        fontSize: 14,
-                      }}
-                    >
-                      {log.note}
-                    </div>
+                    No call logs yet.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -767,68 +745,83 @@ export default function LeadDetailPage({
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
-                {lead.timeline.map((item, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "14px 1fr",
-                      gap: 12,
-                      alignItems: "start",
-                    }}
-                  >
+                {lead.timeline.length > 0 ? (
+                  lead.timeline.map((item, index) => (
                     <div
+                      key={index}
                       style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 999,
-                        background: colors.primary,
-                        marginTop: 6,
-                      }}
-                    />
-
-                    <div
-                      style={{
-                        background: colors.cardBgSoft,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 14,
-                        padding: 14,
+                        display: "grid",
+                        gridTemplateColumns: "14px 1fr",
+                        gap: 12,
+                        alignItems: "start",
                       }}
                     >
                       <div
                         style={{
-                          color: colors.text,
-                          fontSize: 15,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {item.title}
-                      </div>
-
-                      <div
-                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 999,
+                          background: colors.primary,
                           marginTop: 6,
-                          color: colors.subText,
-                          lineHeight: 1.6,
-                          fontSize: 14,
                         }}
-                      >
-                        {item.description}
-                      </div>
+                      />
 
                       <div
                         style={{
-                          marginTop: 8,
-                          color: colors.mutedText,
-                          fontSize: 12,
-                          fontWeight: 700,
+                          background: colors.cardBgSoft,
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: 14,
+                          padding: 14,
                         }}
                       >
-                        {item.time}
+                        <div
+                          style={{
+                            color: colors.text,
+                            fontSize: 15,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {item.title}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 6,
+                            color: colors.subText,
+                            lineHeight: 1.6,
+                            fontSize: 14,
+                          }}
+                        >
+                          {item.description}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 8,
+                            color: colors.mutedText,
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {item.time}
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      background: colors.cardBgSoft,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 14,
+                      padding: 16,
+                      color: colors.subText,
+                      fontSize: 14,
+                    }}
+                  >
+                    No timeline activity yet.
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -997,10 +990,10 @@ export default function LeadDetailPage({
 
                 <input
                   type="date"
-                  value={formData.followUpDate}
+                  value={formData.followUpDate === "-" ? "" : formData.followUpDate}
                   onChange={(e) =>
                     setFormData((prev) =>
-                      prev ? { ...prev, followUpDate: e.target.value } : prev
+                      prev ? { ...prev, followUpDate: e.target.value || "-" } : prev
                     )
                   }
                   style={inputStyle(colors)}

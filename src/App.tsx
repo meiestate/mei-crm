@@ -121,19 +121,6 @@ export default function App() {
     setHasCompletedOnboarding(true);
   };
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      sessionStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(ONBOARDING_STORAGE_KEY);
-    } catch (error) {
-      console.error("Failed to clear auth state:", error);
-    }
-
-    setIsAuthenticated(false);
-    setHasCompletedOnboarding(false);
-  };
-
   const loginPageElement = (
     <LoginPage
       mode={mode}
@@ -151,67 +138,32 @@ export default function App() {
   );
 
   const dashboardPageElement = (
-    <DashboardPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const leadsPageElement = (
-    <LeadsPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const leadDetailPageElement = (
-    <LeadDetailPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const contactsPageElement = (
-    <ContactsPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <ContactsPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const dealsPageElement = (
-    <DealsPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <DealsPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const tasksPageElement = (
-    <TasksPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <TasksPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const settingsPageElement = (
-    <SettingsPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLogout={handleLogout}
-    />
+    <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
   );
-  const onboardingPageElement = (
-  <OnboardingWelcomePage
-    mode={mode}
-    onComplete={handleOnboardingComplete}
-    onSkip={handleOnboardingComplete}
-  />
-);
 
   return (
     <BrowserRouter>

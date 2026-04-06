@@ -2,6 +2,8 @@ import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 import type { CSSProperties } from "react";
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 
 type DashboardPageProps = {
   mode: ThemeMode;
@@ -16,94 +18,262 @@ type NotificationItem = {
   color: string;
 };
 
+type LeadRecord = {
+  id: string | number;
+  name?: string;
+  fullName?: string;
+  customerName?: string;
+  company?: string;
+  project?: string;
+  source?: string;
+  status?: string;
+  phone?: string;
+  email?: string;
+  budget?: string | number;
+  followUpDate?: string;
+  nextFollowUp?: string;
+  updatedAt?: string;
+  createdAt?: string;
+  owner?: string;
+};
+
+type TaskRecord = {
+  id: string | number;
+  title?: string;
+  status?: string;
+  dueDate?: string;
+  followUpDate?: string;
+  priority?: string;
+  relatedTo?: string;
+};
+
+const FALLBACK_LEADS: LeadRecord[] = [
+  {
+    id: "LD-1001",
+    name: "Arun Kumar",
+    source: "Website",
+    status: "New",
+    budget: "₹45L",
+    followUpDate: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    owner: "John Paul",
+  },
+  {
+    id: "LD-1002",
+    name: "Sneha R",
+    source: "Meta Ads",
+    status: "Qualified",
+    budget: "₹72L",
+    followUpDate: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    owner: "John Paul",
+  },
+  {
+    id: "LD-1003",
+    name: "Rahul",
+    source: "Referral",
+    status: "Negotiation",
+    budget: "₹1.2Cr",
+    followUpDate: new Date(Date.now() + 86400000).toISOString(),
+    updatedAt: new Date().toISOString(),
+    owner: "John Paul",
+  },
+  {
+    id: "LD-1004",
+    name: "Meena Corp",
+    source: "Call",
+    status: "Closed",
+    budget: "₹2.1Cr",
+    updatedAt: new Date().toISOString(),
+    owner: "John Paul",
+  },
+  {
+    id: "LD-1005",
+    name: "Vignesh",
+    source: "WhatsApp",
+    status: "Contacted",
+    budget: "₹58L",
+    followUpDate: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    owner: "John Paul",
+  },
+];
+
+const FALLBACK_TASKS: TaskRecord[] = [
+  {
+    id: "TS-101",
+    title: "Call Arun Kumar",
+    status: "Pending",
+    dueDate: new Date().toISOString(),
+    priority: "High",
+    relatedTo: "Arun Kumar",
+  },
+  {
+    id: "TS-102",
+    title: "Send pricing to Sneha",
+    status: "Pending",
+    dueDate: new Date().toISOString(),
+    priority: "Medium",
+    relatedTo: "Sneha R",
+  },
+  {
+    id: "TS-103",
+    title: "Prepare proposal",
+    status: "Completed",
+    dueDate: new Date(Date.now() - 86400000).toISOString(),
+    priority: "Low",
+    relatedTo: "Rahul",
+  },
+];
+
+const LEAD_STORAGE_KEYS = [
+  "mei-crm-leads",
+  "mei_crm_leads",
+  "leads",
+  "crm_leads",
+];
+
+const TASK_STORAGE_KEYS = [
+  "mei-crm-tasks",
+  "mei_crm_tasks",
+  "tasks",
+  "crm_tasks",
+];
+
 export default function DashboardPage({
   mode,
   onToggleTheme,
 }: DashboardPageProps) {
   const colors = getTheme(mode);
+  const navigate = useNavigate();
 
-  const kpiData = [
-    {
-      label: "Total Leads",
-      value: "128",
-      note: "+12 this week",
-      color: colors.info,
-      bg: colors.infoBg,
-      icon: "📇",
-    },
-    {
-      label: "Qualified Leads",
-      value: "42",
-      note: "+6 this week",
-      color: colors.premium,
-      bg: colors.premiumBg,
-      icon: "🎯",
-    },
-    {
-      label: "Closed Deals",
-      value: "18",
-      note: "+3 this month",
-      color: colors.success,
-      bg: colors.successBg,
-      icon: "🤝",
-    },
-    {
-      label: "Pending Tasks",
-      value: "11",
-      note: "4 due today",
-      color: colors.warning,
-      bg: colors.warningBg,
-      icon: "📝",
-    },
-  ];
+  const leads = useMemo<LeadRecord[]>(() => {
+    const stored = readFirstArrayFromStorage<LeadRecord>(LEAD_STORAGE_KEYS);
+    return stored.length ? stored : FALLBACK_LEADS;
+  }, []);
 
-  const notifications: NotificationItem[] = [
-    {
-      title: "Follow-up due today",
-      message: "Arun Kumar needs a call back before 5:00 PM.",
-      time: "5 mins ago",
-      badge: "WARNING",
-      color: colors.warning,
-    },
-    {
-      title: "New website lead",
-      message: "Sneha submitted a project inquiry from the landing page.",
-      time: "12 mins ago",
-      badge: "INFO",
-      color: colors.info,
-    },
-    {
-      title: "Deal moved to negotiation",
-      message: "Meena Corp deal has advanced to the negotiation stage.",
-      time: "42 mins ago",
-      badge: "SUCCESS",
-      color: colors.success,
-    },
-    {
-      title: "Task overdue",
-      message: "Proposal document for Rahul has not been sent yet.",
-      time: "1 hour ago",
-      badge: "DANGER",
-      color: colors.danger,
-    },
-  ];
+  const tasks = useMemo<TaskRecord[]>(() => {
+    const stored = readFirstArrayFromStorage<TaskRecord>(TASK_STORAGE_KEYS);
+    return stored.length ? stored : FALLBACK_TASKS;
+  }, []);
+
+  const totalLeads = leads.length;
+
+  const qualifiedLeads = leads.filter((lead) =>
+    matchesStatus(lead.status, ["qualified"])
+  ).length;
+
+  const closedDeals = leads.filter((lead) =>
+    matchesStatus(lead.status, ["closed", "won", "booked"])
+  ).length;
+
+  const pendingTasks = tasks.filter(
+    (task) => !matchesStatus(task.status, ["completed", "done", "closed"])
+  ).length;
+
+  const todayFollowUps = leads
+    .filter((lead) => isToday(parsePossibleDate(lead.followUpDate || lead.nextFollowUp)))
+    .sort(sortByDateAsc((lead) => parsePossibleDate(lead.followUpDate || lead.nextFollowUp)));
+
+  const overdueFollowUps = leads.filter((lead) => {
+    const date = parsePossibleDate(lead.followUpDate || lead.nextFollowUp);
+    return date ? isPastDate(date) && !isToday(date) : false;
+  }).length;
+
+  const recentLeads = [...leads]
+    .sort(sortByDateDesc((lead) => parsePossibleDate(lead.updatedAt || lead.createdAt || lead.followUpDate)))
+    .slice(0, 6);
+
+  const unreadCount = todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
+
+  const notifications: NotificationItem[] = buildNotifications(
+    colors,
+    todayFollowUps,
+    overdueFollowUps,
+    recentLeads
+  );
 
   const pipelineData = [
-    { label: "New Leads", value: 128, color: colors.info },
-    { label: "Contacted", value: 96, color: colors.primary },
-    { label: "Qualified", value: 42, color: colors.premium },
-    { label: "Negotiation", value: 24, color: colors.warning },
-    { label: "Closed", value: 18, color: colors.success },
+    {
+      label: "New Leads",
+      value: leads.filter((lead) => matchesStatus(lead.status, ["new"])).length,
+      color: colors.info,
+    },
+    {
+      label: "Contacted",
+      value: leads.filter((lead) => matchesStatus(lead.status, ["contacted"])).length,
+      color: colors.primary,
+    },
+    {
+      label: "Qualified",
+      value: qualifiedLeads,
+      color: colors.premium,
+    },
+    {
+      label: "Negotiation",
+      value: leads.filter((lead) => matchesStatus(lead.status, ["negotiation"])).length,
+      color: colors.warning,
+    },
+    {
+      label: "Closed",
+      value: closedDeals,
+      color: colors.success,
+    },
   ];
 
   const revenueData = [220000, 310000, 420000, 480000, 530000, 610000];
   const revenueLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
 
-  const leadsData = [12, 18, 14, 22, 19, 25];
+  const leadsData = [
+    Math.max(Math.round(totalLeads * 0.12), 4),
+    Math.max(Math.round(totalLeads * 0.16), 5),
+    Math.max(Math.round(totalLeads * 0.1), 4),
+    Math.max(Math.round(totalLeads * 0.2), 6),
+    Math.max(Math.round(totalLeads * 0.18), 5),
+    Math.max(Math.round(totalLeads * 0.24), 6),
+  ];
   const leadsLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const maxPipeline = Math.max(...pipelineData.map((item) => item.value));
-  const unreadCount = 2;
+  const maxPipeline = Math.max(...pipelineData.map((item) => item.value), 1);
+
+  const kpiData = [
+    {
+      label: "Total Leads",
+      value: String(totalLeads),
+      note: `${recentLeads.length} recent updates`,
+      color: colors.info,
+      bg: colors.infoBg,
+      icon: "📇",
+      onClick: () => navigate("/leads"),
+    },
+    {
+      label: "Qualified Leads",
+      value: String(qualifiedLeads),
+      note: "Hot prospects in pipeline",
+      color: colors.premium,
+      bg: colors.premiumBg,
+      icon: "🎯",
+      onClick: () => navigate("/leads?filter=qualified"),
+    },
+    {
+      label: "Closed Deals",
+      value: String(closedDeals),
+      note: "Won opportunities",
+      color: colors.success,
+      bg: colors.successBg,
+      icon: "🤝",
+      onClick: () => navigate("/leads?filter=closed"),
+    },
+    {
+      label: "Pending Tasks",
+      value: String(pendingTasks),
+      note: `${todayFollowUps.length} follow-ups today`,
+      color: colors.warning,
+      bg: colors.warningBg,
+      icon: "📝",
+      onClick: () => navigate("/tasks"),
+    },
+  ];
 
   return (
     <AppLayout title="Dashboard" mode={mode} onToggleTheme={onToggleTheme}>
@@ -150,14 +320,29 @@ export default function DashboardPage({
             </h1>
 
             <p style={subTextStyle(colors)}>
-              Welcome back, here’s your business snapshot today.
+              Welcome back, here’s your live business snapshot today.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button style={primaryButtonStyle(colors)}>+ Add Lead</button>
-            <button style={secondaryButtonStyle(colors)}>Create Task</button>
-            <button style={secondaryButtonStyle(colors)}>Add Deal</button>
+            <button
+              style={primaryButtonStyle(colors)}
+              onClick={() => navigate("/leads")}
+            >
+              + Add Lead
+            </button>
+            <button
+              style={secondaryButtonStyle(colors)}
+              onClick={() => navigate("/tasks")}
+            >
+              Create Task
+            </button>
+            <button
+              style={secondaryButtonStyle(colors)}
+              onClick={() => navigate("/deals")}
+            >
+              Add Deal
+            </button>
           </div>
         </section>
 
@@ -169,13 +354,19 @@ export default function DashboardPage({
           }}
         >
           {kpiData.map((item) => (
-            <div
+            <button
               key={item.label}
+              type="button"
+              onClick={item.onClick}
               style={{
                 ...cardStyle(colors),
                 padding: 20,
                 display: "grid",
                 gap: 14,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "transform 0.18s ease, box-shadow 0.18s ease",
+                background: colors.cardBg,
               }}
             >
               <div
@@ -253,10 +444,10 @@ export default function DashboardPage({
                     background: item.bg,
                   }}
                 >
-                  Active
+                  View
                 </span>
               </div>
-            </div>
+            </button>
           ))}
         </section>
 
@@ -350,6 +541,301 @@ export default function DashboardPage({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)",
+            gap: 20,
+          }}
+        >
+          <div style={cardStyle(colors)}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+                alignItems: "center",
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <h2 style={sectionTitle(colors)}>Recent Leads</h2>
+                <p style={subTextStyle(colors)}>
+                  Latest lead updates from localStorage live data
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate("/leads")}
+                style={secondaryButtonStyle(colors)}
+              >
+                View All Leads
+              </button>
+            </div>
+
+            <div
+              style={{
+                overflowX: "auto",
+                border: `1px solid ${colors.border}`,
+                borderRadius: 16,
+                background: colors.cardBgSoft,
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: 760,
+                }}
+              >
+                <thead>
+                  <tr>
+                    {["Lead", "Source", "Status", "Budget", "Follow-up", "Owner"].map(
+                      (head) => (
+                        <th
+                          key={head}
+                          style={{
+                            textAlign: "left",
+                            padding: "14px 16px",
+                            fontSize: 13,
+                            color: colors.subText,
+                            borderBottom: `1px solid ${colors.border}`,
+                            fontWeight: 800,
+                            background: colors.cardBg,
+                          }}
+                        >
+                          {head}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {recentLeads.map((lead) => {
+                    const followUp = parsePossibleDate(
+                      lead.followUpDate || lead.nextFollowUp
+                    );
+
+                    return (
+                      <tr
+                        key={String(lead.id)}
+                        onClick={() => navigate(`/leads/${lead.id}`)}
+                        style={{
+                          cursor: "pointer",
+                          borderBottom: `1px solid ${colors.border}`,
+                        }}
+                      >
+                        <td style={tableCellStyle(colors)}>
+                          <div style={{ fontWeight: 700, color: colors.text }}>
+                            {getLeadName(lead)}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: colors.mutedText,
+                            }}
+                          >
+                            #{lead.id}
+                          </div>
+                        </td>
+
+                        <td style={tableCellStyle(colors)}>
+                          {lead.source || "—"}
+                        </td>
+
+                        <td style={tableCellStyle(colors)}>
+                          <span
+                            style={{
+                              ...statusPillStyle(colors, getStatusColor(colors, lead.status)),
+                            }}
+                          >
+                            {lead.status || "New"}
+                          </span>
+                        </td>
+
+                        <td style={tableCellStyle(colors)}>
+                          {formatBudget(lead.budget)}
+                        </td>
+
+                        <td style={tableCellStyle(colors)}>
+                          {followUp ? formatDateShort(followUp) : "—"}
+                        </td>
+
+                        <td style={tableCellStyle(colors)}>
+                          {lead.owner || "Unassigned"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+            <div style={cardStyle(colors)}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  marginBottom: 16,
+                }}
+              >
+                <div>
+                  <h2 style={sectionTitle(colors)}>Today Follow-up</h2>
+                  <p style={subTextStyle(colors)}>
+                    Leads that need action before the day ends
+                  </p>
+                </div>
+
+                <span
+                  style={inlineBadge(colors, colors.warning, colors.warningBg)}
+                >
+                  {todayFollowUps.length} Due
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                {todayFollowUps.length === 0 ? (
+                  <div
+                    style={{
+                      border: `1px dashed ${colors.border}`,
+                      borderRadius: 16,
+                      padding: 18,
+                      background: colors.cardBgSoft,
+                      color: colors.subText,
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    No follow-ups due today. Smooth sailing.
+                  </div>
+                ) : (
+                  todayFollowUps.slice(0, 5).map((lead) => (
+                    <div
+                      key={`followup-${lead.id}`}
+                      onClick={() => navigate(`/leads/${lead.id}`)}
+                      style={{
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: 16,
+                        padding: 16,
+                        background: colors.cardBgSoft,
+                        display: "grid",
+                        gap: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 800,
+                            color: colors.text,
+                          }}
+                        >
+                          {getLeadName(lead)}
+                        </div>
+
+                        <span
+                          style={{
+                            ...statusPillStyle(
+                              colors,
+                              getStatusColor(colors, lead.status)
+                            ),
+                          }}
+                        >
+                          {lead.status || "New"}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: colors.subText,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Source: {lead.source || "—"} · Budget: {formatBudget(lead.budget)}
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: colors.mutedText,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Follow-up:{" "}
+                        {formatDateTimeShort(
+                          parsePossibleDate(lead.followUpDate || lead.nextFollowUp)
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div style={cardStyle(colors)}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <div>
+                  <h2 style={sectionTitle(colors)}>Quick Stats</h2>
+                  <p style={subTextStyle(colors)}>
+                    Fast operational pulse for today
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <MiniStatCard
+                  colors={colors}
+                  label="Pipeline Close Rate"
+                  value={`${totalLeads ? ((closedDeals / totalLeads) * 100).toFixed(1) : "0.0"}%`}
+                />
+                <MiniStatCard
+                  colors={colors}
+                  label="Today Follow-ups"
+                  value={String(todayFollowUps.length)}
+                />
+                <MiniStatCard
+                  colors={colors}
+                  label="Overdue Follow-ups"
+                  value={String(overdueFollowUps)}
+                />
+                <MiniStatCard
+                  colors={colors}
+                  label="Pending Tasks"
+                  value={String(pendingTasks)}
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -459,17 +945,17 @@ export default function DashboardPage({
               <MiniStatCard
                 colors={colors}
                 label="Pipeline Close Rate"
-                value="14.1%"
+                value={`${totalLeads ? ((closedDeals / totalLeads) * 100).toFixed(1) : "0.0"}%`}
               />
               <MiniStatCard
                 colors={colors}
                 label="Top Funnel Volume"
-                value="128"
+                value={String(totalLeads)}
               />
               <MiniStatCard
                 colors={colors}
                 label="Bottom Funnel Wins"
-                value="18"
+                value={String(closedDeals)}
               />
               <MiniStatCard
                 colors={colors}
@@ -610,17 +1096,25 @@ export default function DashboardPage({
             </div>
 
             <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <MiniStatCard colors={colors} label="Unread Alerts" value="2" />
-              <MiniStatCard colors={colors} label="Critical Issues" value="1" />
+              <MiniStatCard
+                colors={colors}
+                label="Unread Alerts"
+                value={String(unreadCount)}
+              />
+              <MiniStatCard
+                colors={colors}
+                label="Critical Issues"
+                value={String(overdueFollowUps > 0 ? 1 : 0)}
+              />
               <MiniStatCard
                 colors={colors}
                 label="Today Reminders"
-                value="2"
+                value={String(todayFollowUps.length)}
               />
               <MiniStatCard
                 colors={colors}
                 label="Resolved Updates"
-                value="1"
+                value={String(closedDeals > 0 ? 1 : 0)}
               />
             </div>
           </div>
@@ -793,4 +1287,220 @@ function chartLabelBottom(colors: ReturnType<typeof getTheme>): CSSProperties {
     fontWeight: 600,
     color: colors.subText,
   };
+}
+
+function tableCellStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    padding: "14px 16px",
+    fontSize: 14,
+    color: colors.text,
+    verticalAlign: "middle",
+  };
+}
+
+function statusPillStyle(
+  colors: ReturnType<typeof getTheme>,
+  tone: { color: string; bg: string }
+): CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 800,
+    color: tone.color,
+    background: tone.bg,
+    border: `1px solid ${colors.border}`,
+    whiteSpace: "nowrap",
+  };
+}
+
+function getStatusColor(
+  colors: ReturnType<typeof getTheme>,
+  status?: string
+): { color: string; bg: string } {
+  const normalized = (status || "").toLowerCase();
+
+  if (normalized.includes("closed") || normalized.includes("won")) {
+    return { color: colors.success, bg: colors.successBg };
+  }
+
+  if (normalized.includes("qualified")) {
+    return { color: colors.premium, bg: colors.premiumBg };
+  }
+
+  if (normalized.includes("negotiation")) {
+    return { color: colors.warning, bg: colors.warningBg };
+  }
+
+  if (normalized.includes("contacted")) {
+    return { color: colors.primary, bg: colors.infoBg };
+  }
+
+  return { color: colors.info, bg: colors.infoBg };
+}
+
+function readFirstArrayFromStorage<T>(keys: string[]): T[] {
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
+
+  return [];
+}
+
+function matchesStatus(status: string | undefined, allowed: string[]): boolean {
+  const normalized = (status || "").toLowerCase().trim();
+  return allowed.some((item) => normalized.includes(item));
+}
+
+function parsePossibleDate(value?: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isToday(date: Date | null): boolean {
+  if (!date) return false;
+
+  const now = new Date();
+  return (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  );
+}
+
+function isPastDate(date: Date | null): boolean {
+  if (!date) return false;
+  return date.getTime() < Date.now();
+}
+
+function sortByDateDesc<T>(selector: (item: T) => Date | null) {
+  return (a: T, b: T) => {
+    const aTime = selector(a)?.getTime() ?? 0;
+    const bTime = selector(b)?.getTime() ?? 0;
+    return bTime - aTime;
+  };
+}
+
+function sortByDateAsc<T>(selector: (item: T) => Date | null) {
+  return (a: T, b: T) => {
+    const aTime = selector(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const bTime = selector(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return aTime - bTime;
+  };
+}
+
+function getLeadName(lead: LeadRecord): string {
+  return (
+    lead.name ||
+    lead.fullName ||
+    lead.customerName ||
+    lead.company ||
+    "Untitled Lead"
+  );
+}
+
+function formatBudget(value?: string | number): string {
+  if (typeof value === "number") {
+    return `₹${value.toLocaleString("en-IN")}`;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+
+  return "—";
+}
+
+function formatDateShort(date: Date): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatDateTimeShort(date: Date | null): string {
+  if (!date) return "—";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function buildNotifications(
+  colors: ReturnType<typeof getTheme>,
+  todayFollowUps: LeadRecord[],
+  overdueFollowUps: number,
+  recentLeads: LeadRecord[]
+): NotificationItem[] {
+  const items: NotificationItem[] = [];
+
+  if (todayFollowUps[0]) {
+    items.push({
+      title: "Follow-up due today",
+      message: `${getLeadName(todayFollowUps[0])} needs attention today.`,
+      time: "Now",
+      badge: "WARNING",
+      color: colors.warning,
+    });
+  }
+
+  if (recentLeads[0]) {
+    items.push({
+      title: "Recent lead updated",
+      message: `${getLeadName(recentLeads[0])} was recently updated in the CRM.`,
+      time: "Live",
+      badge: "INFO",
+      color: colors.info,
+    });
+  }
+
+  if (recentLeads.some((lead) => matchesStatus(lead.status, ["closed", "won"]))) {
+    items.push({
+      title: "Deal moved to closed",
+      message: "A lead has reached the closed stage in your live dashboard.",
+      time: "Recent",
+      badge: "SUCCESS",
+      color: colors.success,
+    });
+  }
+
+  if (overdueFollowUps > 0) {
+    items.push({
+      title: "Overdue follow-up detected",
+      message: `${overdueFollowUps} lead follow-up(s) are overdue and need action.`,
+      time: "Alert",
+      badge: "DANGER",
+      color: colors.danger,
+    });
+  }
+
+  while (items.length < 4) {
+    items.push({
+      title: "CRM synced",
+      message: "Dashboard is showing your latest available localStorage data.",
+      time: "Just now",
+      badge: "INFO",
+      color: colors.info,
+    });
+  }
+
+  return items.slice(0, 4);
 }

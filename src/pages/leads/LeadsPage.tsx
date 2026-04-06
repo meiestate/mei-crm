@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -33,7 +33,16 @@ type Lead = {
   followUpDate: string;
   budget: string;
   lastContact: string;
+  updatedAt?: string;
+  createdAt?: string;
 };
+
+const LEAD_STORAGE_KEYS = [
+  "mei-crm-leads",
+  "mei_crm_leads",
+  "leads",
+  "crm_leads",
+];
 
 const initialLeads: Lead[] = [
   {
@@ -48,6 +57,7 @@ const initialLeads: Lead[] = [
     followUpDate: "2026-04-05",
     budget: "₹25L",
     lastContact: "Today",
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 1002,
@@ -61,6 +71,7 @@ const initialLeads: Lead[] = [
     followUpDate: "2026-04-06",
     budget: "₹40L",
     lastContact: "Yesterday",
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 1003,
@@ -74,6 +85,7 @@ const initialLeads: Lead[] = [
     followUpDate: "2026-04-07",
     budget: "₹55L",
     lastContact: "2 days ago",
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 1004,
@@ -87,6 +99,7 @@ const initialLeads: Lead[] = [
     followUpDate: "2026-04-04",
     budget: "₹70L",
     lastContact: "Today",
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 1005,
@@ -100,6 +113,7 @@ const initialLeads: Lead[] = [
     followUpDate: "2026-04-02",
     budget: "₹32L",
     lastContact: "3 days ago",
+    updatedAt: new Date().toISOString(),
   },
 ];
 
@@ -137,17 +151,126 @@ function getPriorityColor(priority: LeadPriority, mode: ThemeMode) {
   }
 }
 
+function normalizeStatus(value: string | null): FilterType {
+  if (!value) return "All";
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "new") return "New";
+  if (normalized === "contacted") return "Contacted";
+  if (normalized === "qualified") return "Qualified";
+  if (normalized === "negotiation") return "Negotiation";
+  if (normalized === "closed" || normalized === "won") return "Closed";
+
+  return "All";
+}
+
+function safelyReadStoredLeads(): Lead[] {
+  for (const key of LEAD_STORAGE_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) continue;
+
+      const mapped = parsed
+        .map((item: any, index: number) => mapUnknownLead(item, index))
+        .filter(Boolean) as Lead[];
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
+
+  return [];
+}
+
+function mapUnknownLead(item: any, index: number): Lead | null {
+  if (!item || typeof item !== "object") return null;
+
+  const rawStatus = String(item.status || "New");
+  const normalizedStatus = normalizeStatus(rawStatus);
+
+  const status: LeadStatus =
+    normalizedStatus === "All" ? "New" : normalizedStatus;
+
+  const priorityRaw = String(item.priority || "Medium").toLowerCase();
+  const priority: LeadPriority =
+    priorityRaw === "high"
+      ? "High"
+      : priorityRaw === "low"
+      ? "Low"
+      : "Medium";
+
+  const sourceRaw = String(item.source || "Manual");
+  const allowedSources: SourceType[] = [
+    "WhatsApp",
+    "Facebook",
+    "Website",
+    "Referral",
+    "Walk-in",
+    "Manual",
+  ];
+  const source = allowedSources.includes(sourceRaw as SourceType)
+    ? (sourceRaw as SourceType)
+    : "Manual";
+
+  return {
+    id: Number(item.id ?? Date.now() + index),
+    name: String(
+      item.name ||
+        item.fullName ||
+        item.customerName ||
+        item.company ||
+        `Lead ${index + 1}`
+    ),
+    phone: String(item.phone || item.mobile || item.whatsapp || "-"),
+    source,
+    city: String(item.city || item.location || item.area || "Unknown"),
+    status,
+    priority,
+    owner: String(item.owner || item.assignedTo || item.leadOwner || "Unassigned"),
+    followUpDate: String(item.followUpDate || item.nextFollowUp || "-"),
+    budget:
+      typeof item.budget === "number"
+        ? `₹${item.budget.toLocaleString("en-IN")}`
+        : String(item.budget || "-"),
+    lastContact: String(item.lastContact || "Recent"),
+    updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+  };
+}
+
+function saveLeadsToStorage(leads: Lead[]) {
+  try {
+    localStorage.setItem("mei-crm-leads", JSON.stringify(leads));
+  } catch (error) {
+    console.error("Failed to save leads to localStorage:", error);
+  }
+}
+
 export default function LeadsPage({
   mode,
   onToggleTheme,
 }: LeadsPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("All");
-  const [cityFilter, setCityFilter] = useState("All");
+  const [leads, setLeads] = useState<Lead[]>(() => {
+    const stored = safelyReadStoredLeads();
+    return stored.length > 0 ? stored : initialLeads;
+  });
+
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
+  const [activeFilter, setActiveFilter] = useState<FilterType>(() =>
+    normalizeStatus(searchParams.get("filter"))
+  );
+  const [cityFilter, setCityFilter] = useState(() => searchParams.get("city") || "All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
 
@@ -163,8 +286,54 @@ export default function LeadsPage({
     budget: "",
   });
 
+  useEffect(() => {
+    const syncLeads = () => {
+      const stored = safelyReadStoredLeads();
+      if (stored.length > 0) {
+        setLeads(stored);
+      }
+    };
+
+    window.addEventListener("storage", syncLeads);
+    return () => window.removeEventListener("storage", syncLeads);
+  }, []);
+
+  useEffect(() => {
+    saveLeadsToStorage(leads);
+  }, [leads]);
+
+  useEffect(() => {
+    const queryFilter = normalizeStatus(searchParams.get("filter"));
+    const querySearch = searchParams.get("search") || "";
+    const queryCity = searchParams.get("city") || "All";
+
+    setActiveFilter(queryFilter);
+    setSearchTerm(querySearch);
+    setCityFilter(queryCity);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+
+    if (activeFilter !== "All") {
+      nextParams.set("filter", activeFilter.toLowerCase());
+    }
+
+    if (searchTerm.trim()) {
+      nextParams.set("search", searchTerm.trim());
+    }
+
+    if (cityFilter !== "All") {
+      nextParams.set("city", cityFilter);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  }, [activeFilter, cityFilter, searchTerm, setSearchParams]);
+
   const cityOptions = useMemo(() => {
-    const cities = Array.from(new Set(leads.map((lead) => lead.city))).sort();
+    const cities = Array.from(
+      new Set(leads.map((lead) => lead.city).filter(Boolean))
+    ).sort();
     return ["All", ...cities];
   }, [leads]);
 
@@ -183,7 +352,8 @@ export default function LeadsPage({
         lead.phone.toLowerCase().includes(q) ||
         lead.city.toLowerCase().includes(q) ||
         lead.source.toLowerCase().includes(q) ||
-        lead.owner.toLowerCase().includes(q);
+        lead.owner.toLowerCase().includes(q) ||
+        String(lead.id).toLowerCase().includes(q);
 
       return matchesFilter && matchesCity && matchesSearch;
     });
@@ -191,9 +361,22 @@ export default function LeadsPage({
 
   const totalLeads = leads.length;
   const newLeads = leads.filter((l) => l.status === "New").length;
+  const contactedLeads = leads.filter((l) => l.status === "Contacted").length;
   const qualifiedLeads = leads.filter((l) => l.status === "Qualified").length;
   const negotiationLeads = leads.filter((l) => l.status === "Negotiation").length;
   const closedLeads = leads.filter((l) => l.status === "Closed").length;
+
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+
+  const todayFollowUps = leads.filter(
+    (lead) => lead.followUpDate && lead.followUpDate !== "-" && lead.followUpDate.slice(0, 10) === todayIso
+  ).length;
+
+  const overdueLeads = leads.filter((lead) => {
+    if (!lead.followUpDate || lead.followUpDate === "-") return false;
+    return lead.followUpDate.slice(0, 10) < todayIso && lead.status !== "Closed";
+  }).length;
 
   const handleAddLead = () => {
     if (
@@ -218,6 +401,8 @@ export default function LeadsPage({
       followUpDate: formData.followUpDate || "-",
       budget: formData.budget.trim() || "-",
       lastContact: "Just now",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     setLeads((prev) => [newLead, ...prev]);
@@ -240,6 +425,16 @@ export default function LeadsPage({
 
   const openLeadDetail = (leadId: number) => {
     navigate(`/leads/${leadId}`);
+  };
+
+  const handleKpiFilter = (filter: FilterType) => {
+    setActiveFilter(filter);
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilter("All");
+    setCityFilter("All");
+    setSearchTerm("");
   };
 
   return (
@@ -296,26 +491,43 @@ export default function LeadsPage({
                 lineHeight: 1.6,
               }}
             >
-              Manage, filter, and convert your lead pipeline efficiently.
+              Dashboard KPI filters, localStorage live data, and pipeline view all in sync.
             </p>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            style={{
-              border: "none",
-              background: colors.primary,
-              color: "#ffffff",
-              padding: "12px 18px",
-              borderRadius: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              boxShadow: colors.shadowSoft,
-            }}
-          >
-            + Add Lead
-          </button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={() => navigate("/dashboard")}
+              style={{
+                border: `1px solid ${colors.border}`,
+                background: colors.cardBgSoft,
+                color: colors.text,
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ← Back to Dashboard
+            </button>
+
+            <button
+              onClick={() => setIsModalOpen(true)}
+              style={{
+                border: "none",
+                background: colors.primary,
+                color: "#ffffff",
+                padding: "12px 18px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              + Add Lead
+            </button>
+          </div>
         </section>
 
         <section
@@ -326,26 +538,68 @@ export default function LeadsPage({
           }}
         >
           {[
-            { label: "Total Leads", value: totalLeads, note: "All active records" },
-            { label: "New Leads", value: newLeads, note: "Fresh opportunities" },
-            { label: "Qualified", value: qualifiedLeads, note: "Sales-ready leads" },
-            { label: "Negotiation", value: negotiationLeads, note: "Hot deals in progress" },
-            { label: "Closed", value: closedLeads, note: "Successfully converted" },
+            {
+              label: "Total Leads",
+              value: totalLeads,
+              note: "All active records",
+              filter: "All" as FilterType,
+              active: activeFilter === "All",
+            },
+            {
+              label: "New Leads",
+              value: newLeads,
+              note: "Fresh opportunities",
+              filter: "New" as FilterType,
+              active: activeFilter === "New",
+            },
+            {
+              label: "Contacted",
+              value: contactedLeads,
+              note: "Already reached out",
+              filter: "Contacted" as FilterType,
+              active: activeFilter === "Contacted",
+            },
+            {
+              label: "Qualified",
+              value: qualifiedLeads,
+              note: "Sales-ready leads",
+              filter: "Qualified" as FilterType,
+              active: activeFilter === "Qualified",
+            },
+            {
+              label: "Negotiation",
+              value: negotiationLeads,
+              note: "Hot deals in progress",
+              filter: "Negotiation" as FilterType,
+              active: activeFilter === "Negotiation",
+            },
+            {
+              label: "Closed",
+              value: closedLeads,
+              note: "Successfully converted",
+              filter: "Closed" as FilterType,
+              active: activeFilter === "Closed",
+            },
           ].map((item) => (
-            <div
+            <button
               key={item.label}
+              type="button"
+              onClick={() => handleKpiFilter(item.filter)}
               style={{
-                background: colors.cardBg,
-                border: `1px solid ${colors.border}`,
+                background: item.active ? colors.primary : colors.cardBg,
+                border: `1px solid ${item.active ? colors.primary : colors.border}`,
                 borderRadius: 18,
                 padding: 20,
                 boxShadow: colors.shadowSoft,
+                cursor: "pointer",
+                textAlign: "left",
+                color: item.active ? "#ffffff" : colors.text,
               }}
             >
               <div
                 style={{
                   fontSize: 14,
-                  color: colors.subText,
+                  color: item.active ? "rgba(255,255,255,0.82)" : colors.subText,
                   fontWeight: 600,
                 }}
               >
@@ -357,7 +611,7 @@ export default function LeadsPage({
                   marginTop: 8,
                   fontSize: 32,
                   fontWeight: 800,
-                  color: colors.text,
+                  color: item.active ? "#ffffff" : colors.text,
                 }}
               >
                 {item.value}
@@ -367,14 +621,118 @@ export default function LeadsPage({
                 style={{
                   marginTop: 8,
                   fontSize: 13,
-                  color: colors.mutedText,
+                  color: item.active ? "rgba(255,255,255,0.78)" : colors.mutedText,
                   fontWeight: 600,
                 }}
               >
                 {item.note}
               </div>
-            </div>
+            </button>
           ))}
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 18,
+              padding: 18,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
+              Today Follow-ups
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 28,
+                fontWeight: 800,
+                color: colors.text,
+              }}
+            >
+              {todayFollowUps}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 18,
+              padding: 18,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
+              Overdue Leads
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 28,
+                fontWeight: 800,
+                color: overdueLeads > 0 ? colors.danger : colors.text,
+              }}
+            >
+              {overdueLeads}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 18,
+              padding: 18,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
+              Active City Filter
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 24,
+                fontWeight: 800,
+                color: colors.text,
+              }}
+            >
+              {cityFilter}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 18,
+              padding: 18,
+              boxShadow: colors.shadowSoft,
+            }}
+          >
+            <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
+              Filtered Results
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 28,
+                fontWeight: 800,
+                color: colors.text,
+              }}
+            >
+              {filteredLeads.length}
+            </div>
+          </div>
         </section>
 
         <section
@@ -398,7 +756,7 @@ export default function LeadsPage({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search name, phone, city, owner..."
+              placeholder="Search name, phone, city, owner, id..."
               style={{
                 width: "100%",
                 padding: "14px 16px",
@@ -471,11 +829,7 @@ export default function LeadsPage({
             })}
 
             <button
-              onClick={() => {
-                setActiveFilter("All");
-                setCityFilter("All");
-                setSearchTerm("");
-              }}
+              onClick={clearAllFilters}
               style={{
                 border: `1px solid ${colors.border}`,
                 background: "transparent",
@@ -488,6 +842,39 @@ export default function LeadsPage({
             >
               Clear Filters
             </button>
+          </div>
+
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            {activeFilter !== "All" && (
+              <FilterChip
+                label={`Status: ${activeFilter}`}
+                onRemove={() => setActiveFilter("All")}
+                colors={colors}
+              />
+            )}
+
+            {cityFilter !== "All" && (
+              <FilterChip
+                label={`City: ${cityFilter}`}
+                onRemove={() => setCityFilter("All")}
+                colors={colors}
+              />
+            )}
+
+            {searchTerm.trim() && (
+              <FilterChip
+                label={`Search: ${searchTerm}`}
+                onRemove={() => setSearchTerm("")}
+                colors={colors}
+              />
+            )}
           </div>
         </section>
 
@@ -566,6 +953,10 @@ export default function LeadsPage({
                 {filteredLeads.length > 0 ? (
                   filteredLeads.map((lead) => {
                     const isHovered = hoveredRowId === lead.id;
+                    const isOverdue =
+                      lead.followUpDate !== "-" &&
+                      lead.followUpDate.slice(0, 10) < todayIso &&
+                      lead.status !== "Closed";
 
                     return (
                       <tr
@@ -575,7 +966,13 @@ export default function LeadsPage({
                         onMouseLeave={() => setHoveredRowId(null)}
                         style={{
                           borderTop: `1px solid ${colors.border}`,
-                          background: isHovered ? colors.rowHover : colors.rowBg,
+                          background: isOverdue
+                            ? mode === "dark"
+                              ? "rgba(239,68,68,0.08)"
+                              : "rgba(239,68,68,0.05)"
+                            : isHovered
+                            ? colors.rowHover
+                            : colors.rowBg,
                           cursor: "pointer",
                           transition: "background 0.2s ease",
                         }}
@@ -634,7 +1031,22 @@ export default function LeadsPage({
                           </span>
                         </td>
 
-                        <td style={tdStyle(colors.text)}>{lead.followUpDate}</td>
+                        <td style={tdStyle(colors.text)}>
+                          <div>{lead.followUpDate}</div>
+                          {isOverdue && (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: colors.danger,
+                              }}
+                            >
+                              Overdue
+                            </div>
+                          )}
+                        </td>
+
                         <td style={tdStyle(colors.text)}>{lead.budget}</td>
                         <td style={tdStyle(colors.text)}>{lead.lastContact}</td>
                       </tr>
@@ -878,6 +1290,49 @@ export default function LeadsPage({
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function FilterChip({
+  label,
+  onRemove,
+  colors,
+}: {
+  label: string;
+  onRemove: () => void;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px",
+        borderRadius: 999,
+        background: colors.cardBgSoft,
+        border: `1px solid ${colors.border}`,
+        color: colors.text,
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+    >
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        style={{
+          border: "none",
+          background: "transparent",
+          color: colors.subText,
+          cursor: "pointer",
+          fontWeight: 800,
+          fontSize: 14,
+        }}
+      >
+        ✕
+      </button>
+    </div>
   );
 }
 
