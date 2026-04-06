@@ -200,13 +200,16 @@ export default function LeadsCalendarPage({
   const colors = getTheme(mode);
   const navigate = useNavigate();
 
+  const todayDate = useMemo(() => new Date(), []);
   const [viewMode, setViewMode] = useState<CalendarViewMode>("Month");
-  const [currentMonthLabel] = useState("April 2026");
+  const [currentMonthDate, setCurrentMonthDate] = useState<Date>(
+    new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOwner, setSelectedOwner] = useState("All Owners");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
   const [selectedActivityType, setSelectedActivityType] = useState("All Activities");
-  const [selectedDate, setSelectedDate] = useState("2026-04-08");
+  const [selectedDate, setSelectedDate] = useState(formatDateToIso(todayDate));
   const [storageEvents, setStorageEvents] = useState<LeadEvent[]>([]);
 
   useEffect(() => {
@@ -288,8 +291,15 @@ export default function LeadsCalendarPage({
     return filteredEvents.filter((event) => event.date === selectedDate);
   }, [filteredEvents, selectedDate]);
 
+  const currentMonthLabel = useMemo(() => {
+    return currentMonthDate.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [currentMonthDate]);
+
   const stats = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatDateToIso(new Date());
 
     return {
       todayFollowUps: filteredEvents.filter((e) => e.date === today).length,
@@ -302,24 +312,88 @@ export default function LeadsCalendarPage({
   }, [filteredEvents]);
 
   const monthCells = useMemo(() => {
-    const cells = [];
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const cells: Array<{
+      key: string;
+      day: number | null;
+      isoDate: string | null;
+      events: LeadEvent[];
+      isToday: boolean;
+      isSelected: boolean;
+      isCurrentMonth: boolean;
+    }> = [];
 
-    for (let day = 1; day <= 30; day += 1) {
-      const isoDate = `2026-04-${String(day).padStart(2, "0")}`;
+    const year = currentMonthDate.getFullYear();
+    const month = currentMonthDate.getMonth();
+
+    const firstDayOfMonth = new Date(year, month, 1);
+    const startWeekday = firstDayOfMonth.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayIso = formatDateToIso(new Date());
+
+    for (let i = 0; i < startWeekday; i += 1) {
+      cells.push({
+        key: `empty-start-${i}`,
+        day: null,
+        isoDate: null,
+        events: [],
+        isToday: false,
+        isSelected: false,
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const isoDate = formatDatePartsToIso(year, month, day);
       const dayEvents = filteredEvents.filter((event) => event.date === isoDate);
 
       cells.push({
+        key: isoDate,
         day,
         isoDate,
         events: dayEvents,
         isToday: isoDate === todayIso,
         isSelected: isoDate === selectedDate,
+        isCurrentMonth: true,
+      });
+    }
+
+    while (cells.length % 7 !== 0) {
+      const index = cells.length;
+      cells.push({
+        key: `empty-end-${index}`,
+        day: null,
+        isoDate: null,
+        events: [],
+        isToday: false,
+        isSelected: false,
+        isCurrentMonth: false,
       });
     }
 
     return cells;
-  }, [filteredEvents, selectedDate]);
+  }, [filteredEvents, selectedDate, currentMonthDate]);
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedDate(formatDateToIso(today));
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonthDate((prev) => {
+      const nextDate = new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+      syncSelectedDateForVisibleMonth(nextDate, selectedDate, setSelectedDate);
+      return nextDate;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonthDate((prev) => {
+      const nextDate = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+      syncSelectedDateForVisibleMonth(nextDate, selectedDate, setSelectedDate);
+      return nextDate;
+    });
+  };
 
   return (
     <AppLayout title="Leads Calendar" mode={mode} onToggleTheme={onToggleTheme}>
@@ -398,7 +472,7 @@ export default function LeadsCalendarPage({
             <HeaderButton
               label="Today"
               colors={colors}
-              onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))}
+              onClick={goToToday}
             />
 
             <HeaderButton label="Export" colors={colors} />
@@ -462,19 +536,27 @@ export default function LeadsCalendarPage({
             }}
           >
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <ToolbarButton label="←" colors={colors} />
+              <ToolbarButton
+                label="←"
+                colors={colors}
+                onClick={goToPreviousMonth}
+              />
               <div
                 style={{
                   fontSize: 22,
                   fontWeight: 800,
                   color: colors.text,
-                  minWidth: 140,
+                  minWidth: 180,
                   textAlign: "center",
                 }}
               >
                 {currentMonthLabel}
               </div>
-              <ToolbarButton label="→" colors={colors} />
+              <ToolbarButton
+                label="→"
+                colors={colors}
+                onClick={goToNextMonth}
+              />
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -606,83 +688,94 @@ export default function LeadsCalendarPage({
                     gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
                   }}
                 >
-                  {monthCells.map((cell) => (
-                    <button
-                      key={cell.isoDate}
-                      onClick={() => setSelectedDate(cell.isoDate)}
-                      style={{
-                        minHeight: 150,
-                        border: `1px solid ${colors.borderSoft || colors.border}`,
-                        background: cell.isSelected
-                          ? colors.cardBgSoft
-                          : cell.isToday
-                          ? mode === "dark"
-                            ? "rgba(59,130,246,0.08)"
-                            : "rgba(59,130,246,0.05)"
-                          : colors.cardBg,
-                        padding: 10,
-                        textAlign: "left",
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      <div
+                  {monthCells.map((cell) =>
+                    cell.isoDate ? (
+                      <button
+                        key={cell.key}
+                        onClick={() => setSelectedDate(cell.isoDate!)}
                         style={{
+                          minHeight: 150,
+                          border: `1px solid ${colors.borderSoft || colors.border}`,
+                          background: cell.isSelected
+                            ? colors.cardBgSoft
+                            : cell.isToday
+                            ? mode === "dark"
+                              ? "rgba(59,130,246,0.08)"
+                              : "rgba(59,130,246,0.05)"
+                            : colors.cardBg,
+                          padding: 10,
+                          textAlign: "left",
+                          cursor: "pointer",
                           display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
+                          flexDirection: "column",
+                          gap: 8,
                         }}
                       >
-                        <span
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 999,
-                            display: "grid",
-                            placeItems: "center",
-                            background: cell.isToday ? colors.primary : "transparent",
-                            color: cell.isToday ? "#fff" : colors.text,
-                            fontWeight: 800,
-                            fontSize: 13,
-                          }}
-                        >
-                          {cell.day}
-                        </span>
-
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: colors.subText,
-                          }}
-                        >
-                          {cell.events.length} item{cell.events.length === 1 ? "" : "s"}
-                        </span>
-                      </div>
-
-                      {cell.events.slice(0, 3).map((event) => (
-                        <CalendarEventMiniCard
-                          key={`${event.id}-${event.date}-${event.time}`}
-                          event={event}
-                          mode={mode}
-                        />
-                      ))}
-
-                      {cell.events.length > 3 && (
                         <div
                           style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: colors.primary,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                           }}
                         >
-                          +{cell.events.length - 3} more
+                          <span
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 999,
+                              display: "grid",
+                              placeItems: "center",
+                              background: cell.isToday ? colors.primary : "transparent",
+                              color: cell.isToday ? "#fff" : colors.text,
+                              fontWeight: 800,
+                              fontSize: 13,
+                            }}
+                          >
+                            {cell.day}
+                          </span>
+
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: colors.subText,
+                            }}
+                          >
+                            {cell.events.length} item{cell.events.length === 1 ? "" : "s"}
+                          </span>
                         </div>
-                      )}
-                    </button>
-                  ))}
+
+                        {cell.events.slice(0, 3).map((event) => (
+                          <CalendarEventMiniCard
+                            key={`${event.id}-${event.date}-${event.time}`}
+                            event={event}
+                            mode={mode}
+                          />
+                        ))}
+
+                        {cell.events.length > 3 && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: colors.primary,
+                            }}
+                          >
+                            +{cell.events.length - 3} more
+                          </div>
+                        )}
+                      </button>
+                    ) : (
+                      <div
+                        key={cell.key}
+                        style={{
+                          minHeight: 150,
+                          border: `1px solid ${colors.borderSoft || colors.border}`,
+                          background: colors.cardBgSoft,
+                        }}
+                      />
+                    )
+                  )}
                 </div>
               </>
             )}
@@ -1041,6 +1134,33 @@ function isEvening(time: string) {
   return normalized >= "17:00" && normalized <= "23:59";
 }
 
+function formatDateToIso(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function formatDatePartsToIso(year: number, monthIndex: number, day: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function syncSelectedDateForVisibleMonth(
+  visibleMonthDate: Date,
+  currentSelectedDate: string,
+  setSelectedDate: React.Dispatch<React.SetStateAction<string>>
+) {
+  const [selectedYear, selectedMonth] = currentSelectedDate.split("-").map(Number);
+  const visibleYear = visibleMonthDate.getFullYear();
+  const visibleMonth = visibleMonthDate.getMonth() + 1;
+
+  const isSameVisibleMonth =
+    selectedYear === visibleYear && selectedMonth === visibleMonth;
+
+  if (!isSameVisibleMonth) {
+    setSelectedDate(formatDatePartsToIso(visibleYear, visibleMonthDate.getMonth(), 1));
+  }
+}
+
 function HeaderButton({
   label,
   colors,
@@ -1071,12 +1191,15 @@ function HeaderButton({
 function ToolbarButton({
   label,
   colors,
+  onClick,
 }: {
   label: string;
   colors: ReturnType<typeof getTheme>;
+  onClick?: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       style={{
         width: 40,
         height: 40,
