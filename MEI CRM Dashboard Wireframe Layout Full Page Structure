@@ -1,0 +1,213 @@
+-------------------------------------------------------------
+| Dashboard Header                                           |
+| Welcome | Date | Search | Add Lead | Add Task | Add Deal  |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Business Snapshot                                          |
+| [Total Leads] [New Leads] [Follow-ups] [Active Deals]     |
+| [Won Deals] [Lost Deals] [Pending Tasks] [Revenue]        |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Today’s Action Center        | Upcoming Schedule           |
+| Today Follow-ups             | Meetings Today              |
+| Overdue Follow-ups           | Upcoming Calls              |
+| Tasks Due Today              | Calendar Preview            |
+| Missed Activities Alert      | Event Reminder              |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Sales Pipeline Snapshot     | Alerts & Notifications       |
+| New                         | Overdue Alerts               |
+| Contacted                   | High Priority Leads          |
+| Qualified                   | Deal Approval Alerts         |
+| Proposal Sent               | Subscription Alert           |
+| Negotiation                 | System Notifications         |
+| Won / Lost                  | Reminder Notices             |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Recent Leads                                               |
+| Lead Name | Source | Status | Owner | Follow-up | Action  |
+| --------------------------------------------------------- |
+| Ravi      | Web    | New    | Admin | Today     | View    |
+| Priya     | Ad     | Hot    | Bala  | Tomorrow  | Update  |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Task & Follow-up Tracker    | Recent Activity Timeline     |
+| Upcoming Tasks              | Lead Added                   |
+| Overdue Tasks               | Status Changed               |
+| Completed Today             | Deal Updated                 |
+| Reminder List               | Task Completed               |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Revenue Overview            | Lead Source Performance      |
+| Expected Revenue            | Website Leads                |
+| Closed Revenue              | Facebook Leads               |
+| Monthly Revenue Trend       | Referral Leads               |
+| Avg Deal Size               | Google Leads                 |
+| Conversion Rate             | Walk-in / Direct Call        |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Team Performance                                          |
+| Top Performer | Leads/User | Deals Closed | Conversion    |
+-------------------------------------------------------------
+
+-------------------------------------------------------------
+| Quick Access                                              |
+| [Add Lead] [Import Leads] [Create Task] [Add Contact]     |
+| [Create Deal] [Open Reports]                              |
+-------------------------------------------------------------
+
+Section-by-Section Wireframe
+1) Dashboard Header
+
+-------------------------------------------------------------
+| Welcome back, Balraj                         [Search_____] |
+| Monday, April 6, 2026                        [+ Lead]      |
+|                                              [+ Task]      |
+|                                              [+ Deal]      |
+-------------------------------------------------------------
+
+purpose
+first impression
+navigation speed
+quick actions
+2) Business Snapshot
+
+-------------------------------------------------------------
+| [ Total Leads ]   [ New Leads ]   [ Follow-ups Today ]    |
+|      1248              36                 18               |
+|-----------------------------------------------------------|
+| [ Active Deals ]  [ Won Deals ]   [ Pending Tasks ]       |
+|      82               14                11                 |
+|-----------------------------------------------------------|
+| [ Lost Deals ]    [ Expected Revenue ]                    |
+|      5              ₹12.4L                                |
+-------------------------------------------------------------
+UI style
+8 cards
+same height
+icon top left
+count center
+trend small text bottom
+3) Today’s Action Center + Upcoming Schedule
+-------------------------------------------------------------
+| Today’s Action Center     | Upcoming Schedule             |
+|---------------------------|-------------------------------|
+| • 8 Follow-ups today      | 10:00 AM - Ravi call         |
+| • 3 Overdue leads         | 12:30 PM - Priya meeting     |
+| • 5 Tasks due             | 03:00 PM - Site visit        |
+| • 2 Missed activities     | 05:30 PM - Proposal review   |
+-------------------------------------------------------------
+
+ layout idea
+left = urgent actions
+right = scheduled items
+4) Sales Pipeline Snapshot + Alerts
+
+-------------------------------------------------------------
+| Sales Pipeline Snapshot | Alerts & Notifications          |
+|-------------------------|---------------------------------|
+| New           22        | • 3 Overdue follow-ups         |
+| Contacted     16        | • 1 High priority lead         |
+| Qualified     10        | • 2 Deals need approval        |
+| Proposal      7         | • Subscription expires soon    |
+| Negotiation   5         | • 4 Reminder notices           |
+| Won           3         |                                 |
+| Lost          2         |                                 |
+-------------------------------------------------------------
+UI style
+pipeline = vertical list or mini kanban
+alerts = red/yellow badges
+5) Recent Leads Table
+-----------------------------------------------------------------------------
+| Recent Leads                                                             |
+-----------------------------------------------------------------------------
+| Lead Name | Source    | Status      | Owner   | Next Follow-up | Action  |
+-----------------------------------------------------------------------------
+| Ravi      | Website   | New         | Balraj  | Today          | View    |
+| Priya     | Facebook  | Qualified   | Admin   | Tomorrow       | Update  |
+| Arjun     | Referral  | Proposal    | Bala    | Apr 08         | View    |
+-----------------------------------------------------------------------------
+action buttons
+View
+Edit
+Status Update
+6) Task & Follow-up Tracker + Activity Timeline
+-------------------------------------------------------------
+| Task & Follow-up Tracker  | Recent Activity Timeline      |
+|---------------------------|-------------------------------|
+| • 4 Upcoming tasks        | • Lead Ravi added            |
+| • 2 Overdue tasks         | • Priya moved to Qualified   |
+| • 6 Completed today       | • Deal updated by Admin      |
+| • 3 Priority reminders    | • Task marked complete       |
+-------------------------------------------------------------
+purpose
+left = work pending
+right = work history
+7) Revenue Overview + Lead Source Performance
+-------------------------------------------------------------
+| Revenue Overview         | Lead Source Performance        |
+|--------------------------|--------------------------------|
+| Expected Revenue ₹12.4L  | Website Leads      34         |
+| Closed Revenue   ₹3.8L   | Facebook Leads     18         |
+| Avg Deal Size    ₹1.2L   | Referral Leads     12         |
+| Conversion Rate   18%    | Google Leads        9         |
+-------------------------------------------------------------
+future chart version
+revenue line chart
+source bar chart
+8) Team Performance
+-----------------------------------------------------------------------------
+| Team Performance                                                          |
+-----------------------------------------------------------------------------
+| User      | Leads Assigned | Follow-ups Done | Deals Closed | Conversion  |
+-----------------------------------------------------------------------------
+| Balraj    | 24             | 18              | 4            | 22%         |
+| Admin     | 18             | 11              | 3            | 17%         |
+| Kumar     | 14             | 9               | 2            | 14%         |
+-----------------------------------------------------------------------------
+9) Quick Access
+-------------------------------------------------------------
+| Quick Access                                              |
+| [ Add Lead ] [ Import Leads ] [ Create Task ]            |
+| [ Add Contact ] [ Create Deal ] [ Open Reports ]         |
+-------------------------------------------------------------
+purpose
+fast operations
+one-click actions
+Best Responsive Layout
+Desktop
+2 column and 3 column mixed layout
+Tablet
+most sections 2 columns
+Mobile
+all widgets stacked
+KPI cards horizontal scroll or 2-column grid
+Recommended Final Wireframe Order
+1. Dashboard Header
+2. Business Snapshot
+3. Today’s Action Center + Upcoming Schedule
+4. Sales Pipeline Snapshot + Alerts & Notifications
+5. Recent Leads
+6. Task & Follow-up Tracker + Recent Activity Timeline
+7. Revenue Overview + Lead Source Performance
+8. Team Performance
+9. Quick Access
+MVP Wireframe மட்டும் build பண்ண வேண்டும்னா
+
+முதலில் இதை மட்டும் code பண்ணலாம்:
+
+1. Dashboard Header
+2. Business Snapshot
+3. Today’s Action Center
+4. Sales Pipeline Snapshot
+5. Recent Leads
+6. Recent Activity Timeline
+7. Quick Access
+
