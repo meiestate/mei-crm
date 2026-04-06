@@ -22,6 +22,7 @@ type TimelineItem = {
   title: string;
   description: string;
   time: string;
+  tone?: "info" | "success" | "warning" | "danger" | "primary";
 };
 
 type Lead = {
@@ -145,6 +146,7 @@ function mapUnknownLead(item: any, index: number): Lead | null {
         title: String(entry?.title || "Activity"),
         description: String(entry?.description || "Lead activity recorded."),
         time: String(entry?.time || "Recent"),
+        tone: entry?.tone,
       }))
     : [];
 
@@ -158,7 +160,13 @@ function mapUnknownLead(item: any, index: number): Lead | null {
 
   return {
     id: Number(item.id ?? Date.now() + index),
-    name: String(item.name || item.fullName || item.customerName || item.company || `Lead ${index + 1}`),
+    name: String(
+      item.name ||
+        item.fullName ||
+        item.customerName ||
+        item.company ||
+        `Lead ${index + 1}`
+    ),
     phone: String(item.phone || item.mobile || item.whatsapp || "-"),
     source: String(item.source || "Manual"),
     city: String(item.city || item.location || item.area || "Unknown"),
@@ -195,6 +203,31 @@ function getLastContactLabel() {
   return "Just now";
 }
 
+function isOverdue(dateValue: string, status: LeadStatus) {
+  if (!dateValue || dateValue === "-" || status === "Closed") return false;
+
+  const today = new Date().toISOString().slice(0, 10);
+  return dateValue.slice(0, 10) < today;
+}
+
+function getTimelineToneColor(
+  tone: TimelineItem["tone"],
+  colors: ReturnType<typeof getTheme>
+) {
+  switch (tone) {
+    case "success":
+      return colors.success;
+    case "warning":
+      return colors.warning;
+    case "danger":
+      return colors.danger;
+    case "primary":
+      return colors.primary;
+    default:
+      return colors.info;
+  }
+}
+
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
@@ -206,6 +239,12 @@ export default function LeadDetailPage({
   const leadId = Number(id);
 
   const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [callNote, setCallNote] = useState("");
+  const [callOutcome, setCallOutcome] = useState("Connected");
+  const [followUpInput, setFollowUpInput] = useState("");
 
   useEffect(() => {
     const syncLeads = () => {
@@ -221,14 +260,25 @@ export default function LeadDetailPage({
     [allLeads, leadId]
   );
 
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [leadState, setLeadState] = useState<Lead | null>(initialLead);
   const [formData, setFormData] = useState<Lead | null>(initialLead);
 
   useEffect(() => {
     setLeadState(initialLead);
     setFormData(initialLead);
+    setFollowUpInput(initialLead?.followUpDate && initialLead.followUpDate !== "-" ? initialLead.followUpDate : "");
   }, [initialLead]);
+
+  const currentIndex = useMemo(
+    () => allLeads.findIndex((item) => item.id === leadId),
+    [allLeads, leadId]
+  );
+
+  const previousLead = currentIndex > 0 ? allLeads[currentIndex - 1] : null;
+  const nextLead =
+    currentIndex >= 0 && currentIndex < allLeads.length - 1
+      ? allLeads[currentIndex + 1]
+      : null;
 
   const persistLeadUpdate = (updater: (lead: Lead) => Lead) => {
     const latestLeads = readStoredLeads();
@@ -286,6 +336,7 @@ export default function LeadDetailPage({
   }
 
   const lead = leadState;
+  const overdue = isOverdue(lead.followUpDate, lead.status);
 
   const updateStatus = (nextStatus: LeadStatus) => {
     persistLeadUpdate((prev) => {
@@ -293,6 +344,14 @@ export default function LeadDetailPage({
         title: "Status Updated",
         description: `Lead status changed to ${nextStatus}.`,
         time: getNowLabel(),
+        tone:
+          nextStatus === "Closed"
+            ? "success"
+            : nextStatus === "Negotiation"
+            ? "warning"
+            : nextStatus === "Qualified"
+            ? "primary"
+            : "info",
       };
 
       return {
@@ -321,6 +380,7 @@ export default function LeadDetailPage({
         title: "Lead Updated",
         description: "Lead profile information was edited from the detail page.",
         time: getNowLabel(),
+        tone: "primary",
       };
 
       return {
@@ -345,6 +405,90 @@ export default function LeadDetailPage({
     saveStoredLeads(updatedLeads);
     setAllLeads(updatedLeads);
     navigate("/leads");
+  };
+
+  const handleAddQuickNote = () => {
+    if (!noteInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const existingNotes =
+        prev.notes && prev.notes !== "No notes added yet." ? prev.notes : "";
+
+      const nextNotes = existingNotes
+        ? `${noteInput.trim()}\n\n${existingNotes}`
+        : noteInput.trim();
+
+      const noteTimeline: TimelineItem = {
+        title: "Quick Note Added",
+        description: noteInput.trim(),
+        time: getNowLabel(),
+        tone: "info",
+      };
+
+      return {
+        ...prev,
+        notes: nextNotes,
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [noteTimeline, ...(prev.timeline || [])],
+      };
+    });
+
+    setNoteInput("");
+  };
+
+  const handleAddCallLog = () => {
+    if (!callNote.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const nextCall: CallLogItem = {
+        time: getNowLabel(),
+        note: callNote.trim(),
+        outcome: callOutcome,
+      };
+
+      const callTimeline: TimelineItem = {
+        title: "Call Log Added",
+        description: `${callOutcome}: ${callNote.trim()}`,
+        time: getNowLabel(),
+        tone: callOutcome.toLowerCase().includes("won")
+          ? "success"
+          : callOutcome.toLowerCase().includes("not")
+          ? "danger"
+          : "warning",
+      };
+
+      return {
+        ...prev,
+        callLogs: [nextCall, ...(prev.callLogs || [])],
+        lastContact: getLastContactLabel(),
+        updatedAt: new Date().toISOString(),
+        timeline: [callTimeline, ...(prev.timeline || [])],
+      };
+    });
+
+    setCallNote("");
+    setCallOutcome("Connected");
+  };
+
+  const handleRescheduleFollowUp = () => {
+    if (!followUpInput.trim()) return;
+
+    persistLeadUpdate((prev) => {
+      const timelineItem: TimelineItem = {
+        title: "Follow-up Rescheduled",
+        description: `Next follow-up moved to ${followUpInput}.`,
+        time: getNowLabel(),
+        tone: "warning",
+      };
+
+      return {
+        ...prev,
+        followUpDate: followUpInput,
+        updatedAt: new Date().toISOString(),
+        timeline: [timelineItem, ...(prev.timeline || [])],
+      };
+    });
   };
 
   return (
@@ -411,6 +555,22 @@ export default function LeadDetailPage({
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {overdue && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    background: colors.danger,
+                    color: "#ffffff",
+                    padding: "8px 14px",
+                    borderRadius: 999,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  Overdue Follow-up
+                </span>
+              )}
+
               <span
                 style={{
                   display: "inline-block",
@@ -440,6 +600,19 @@ export default function LeadDetailPage({
               </span>
             </div>
           </div>
+        </section>
+
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <MiniStatCard label="Lead Score" value={lead.priority === "High" ? "88" : lead.priority === "Medium" ? "71" : "56"} colors={colors} />
+          <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
+          <MiniStatCard label="Timeline Events" value={String(lead.timeline.length)} colors={colors} />
+          <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
         </section>
 
         <section
@@ -484,46 +657,16 @@ export default function LeadDetailPage({
                 setFormData(lead);
                 setIsEditOpen(true);
               }}
-              style={{
-                border: `1px solid ${colors.border}`,
-                background: colors.cardBg,
-                color: colors.text,
-                padding: "12px 16px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              style={secondaryButton(colors)}
             >
               Edit Lead
             </button>
 
-            <button
-              onClick={handleDeleteLead}
-              style={{
-                border: "none",
-                background: colors.danger,
-                color: "#ffffff",
-                padding: "12px 16px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={handleDeleteLead} style={dangerButton(colors)}>
               Delete
             </button>
 
-            <Link
-              to="/leads"
-              style={{
-                display: "inline-block",
-                textDecoration: "none",
-                background: colors.primary,
-                color: "#ffffff",
-                padding: "12px 16px",
-                borderRadius: 12,
-                fontWeight: 700,
-              }}
-            >
+            <Link to="/leads" style={primaryLinkButton(colors)}>
               Back to Leads
             </Link>
           </div>
@@ -581,7 +724,78 @@ export default function LeadDetailPage({
                   marginBottom: 14,
                 }}
               >
+                Add Quick Note
+              </div>
+
+              <textarea
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                rows={4}
+                placeholder="Write a fresh update, negotiation note, or reminder..."
+                style={{
+                  ...inputStyle(colors),
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={handleAddQuickNote} style={primaryButton(colors)}>
+                  Add Note
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
                 Call Log
+              </div>
+
+              <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+                <select
+                  value={callOutcome}
+                  onChange={(e) => setCallOutcome(e.target.value)}
+                  style={inputStyle(colors)}
+                >
+                  <option value="Connected">Connected</option>
+                  <option value="Interested">Interested</option>
+                  <option value="Follow-up Required">Follow-up Required</option>
+                  <option value="Not Reachable">Not Reachable</option>
+                  <option value="Won">Won</option>
+                </select>
+
+                <textarea
+                  value={callNote}
+                  onChange={(e) => setCallNote(e.target.value)}
+                  rows={3}
+                  placeholder="Add call summary..."
+                  style={{
+                    ...inputStyle(colors),
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                />
+
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button onClick={handleAddCallLog} style={primaryButton(colors)}>
+                    Add Call Log
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
@@ -680,6 +894,40 @@ export default function LeadDetailPage({
                   marginBottom: 14,
                 }}
               >
+                Reschedule Follow-up
+              </div>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <input
+                  type="date"
+                  value={followUpInput}
+                  onChange={(e) => setFollowUpInput(e.target.value)}
+                  style={inputStyle(colors)}
+                />
+
+                <button onClick={handleRescheduleFollowUp} style={primaryButton(colors)}>
+                  Save Follow-up Date
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
                 Next Follow-up
               </div>
 
@@ -703,7 +951,7 @@ export default function LeadDetailPage({
                 <div
                   style={{
                     marginTop: 8,
-                    color: colors.text,
+                    color: overdue ? colors.danger : colors.text,
                     fontSize: 24,
                     fontWeight: 800,
                   }}
@@ -741,73 +989,148 @@ export default function LeadDetailPage({
                   marginBottom: 14,
                 }}
               >
+                Lead Navigation
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <button
+                  onClick={() => previousLead && navigate(`/leads/${previousLead.id}`)}
+                  disabled={!previousLead}
+                  style={{
+                    ...secondaryButton(colors),
+                    opacity: previousLead ? 1 : 0.5,
+                    cursor: previousLead ? "pointer" : "not-allowed",
+                  }}
+                >
+                  ← Previous Lead
+                </button>
+
+                <button
+                  onClick={() => nextLead && navigate(`/leads/${nextLead.id}`)}
+                  disabled={!nextLead}
+                  style={{
+                    ...secondaryButton(colors),
+                    opacity: nextLead ? 1 : 0.5,
+                    cursor: nextLead ? "pointer" : "not-allowed",
+                  }}
+                >
+                  Next Lead →
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBg,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 20,
+                padding: 24,
+                boxShadow: colors.shadowSoft,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 800,
+                  color: colors.text,
+                  marginBottom: 14,
+                }}
+              >
                 Activity Timeline
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
                 {lead.timeline.length > 0 ? (
-                  lead.timeline.map((item, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "14px 1fr",
-                        gap: 12,
-                        alignItems: "start",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: 999,
-                          background: colors.primary,
-                          marginTop: 6,
-                        }}
-                      />
+                  lead.timeline.map((item, index) => {
+                    const dotColor = getTimelineToneColor(item.tone, colors);
 
+                    return (
                       <div
+                        key={index}
                         style={{
-                          background: colors.cardBgSoft,
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: 14,
-                          padding: 14,
+                          display: "grid",
+                          gridTemplateColumns: "14px 1fr",
+                          gap: 12,
+                          alignItems: "start",
                         }}
                       >
                         <div
                           style={{
-                            color: colors.text,
-                            fontSize: 15,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {item.title}
-                        </div>
-
-                        <div
-                          style={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: 999,
+                            background: dotColor,
                             marginTop: 6,
-                            color: colors.subText,
-                            lineHeight: 1.6,
-                            fontSize: 14,
                           }}
-                        >
-                          {item.description}
-                        </div>
+                        />
 
                         <div
                           style={{
-                            marginTop: 8,
-                            color: colors.mutedText,
-                            fontSize: 12,
-                            fontWeight: 700,
+                            background: colors.cardBgSoft,
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: 14,
+                            padding: 14,
                           }}
                         >
-                          {item.time}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 8,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: colors.text,
+                                fontSize: 15,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.title}
+                            </div>
+
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                background: dotColor,
+                                color: "#ffffff",
+                              }}
+                            >
+                              {(item.tone || "info").toUpperCase()}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 6,
+                              color: colors.subText,
+                              lineHeight: 1.6,
+                              fontSize: 14,
+                            }}
+                          >
+                            {item.description}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 8,
+                              color: colors.mutedText,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {item.time}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div
                     style={{
@@ -1032,31 +1355,12 @@ export default function LeadDetailPage({
             >
               <button
                 onClick={() => setIsEditOpen(false)}
-                style={{
-                  border: `1px solid ${colors.border}`,
-                  background: "transparent",
-                  color: colors.text,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
+                style={secondaryButton(colors)}
               >
                 Cancel
               </button>
 
-              <button
-                onClick={saveLeadChanges}
-                style={{
-                  border: "none",
-                  background: colors.primary,
-                  color: "#ffffff",
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={saveLeadChanges} style={primaryButton(colors)}>
                 Save Changes
               </button>
             </div>
@@ -1064,6 +1368,50 @@ export default function LeadDetailPage({
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function MiniStatCard({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: string;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        background: colors.cardBg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 18,
+        padding: 18,
+        boxShadow: colors.shadowSoft,
+      }}
+    >
+      <div
+        style={{
+          color: colors.subText,
+          fontSize: 13,
+          fontWeight: 700,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          marginTop: 8,
+          color: colors.text,
+          fontSize: 24,
+          fontWeight: 800,
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -1150,6 +1498,7 @@ function InfoPanel({
           color: colors.text,
           lineHeight: 1.7,
           fontSize: 14,
+          whiteSpace: "pre-wrap",
         }}
       >
         {children}
@@ -1279,5 +1628,53 @@ function inputStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
     outline: "none",
     fontSize: 14,
     boxSizing: "border-box",
+  };
+}
+
+function primaryButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: "none",
+    background: colors.primary,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}
+
+function secondaryButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: `1px solid ${colors.border}`,
+    background: colors.cardBg,
+    color: colors.text,
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}
+
+function dangerButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: "none",
+    background: colors.danger,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+}
+
+function primaryLinkButton(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    display: "inline-block",
+    textDecoration: "none",
+    background: colors.primary,
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
   };
 }
