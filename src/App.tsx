@@ -1,8 +1,9 @@
- import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import LeadsPage from "./pages/leads/LeadsPage";
+import AddLeadPage from "./pages/leads/AddLeadPage";
 import LeadDetailPage from "./pages/leads/LeadDetailPage";
 import ContactsPage from "./pages/contacts/ContactsPage";
 import DealsPage from "./pages/deals/DealsPage";
@@ -147,6 +148,8 @@ export default function App() {
     <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
+  const addLeadPageElement = <AddLeadPage mode={mode} />;
+
   const leadDetailPageElement = (
     <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
   );
@@ -286,6 +289,21 @@ export default function App() {
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 leadsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/leads/new"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                addLeadPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )

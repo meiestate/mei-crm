@@ -215,7 +215,7 @@ function mapUnknownLead(item: any, index: number): Lead | null {
       ? "Low"
       : "Medium";
 
-  const sourceRaw = String(item.source || "Manual");
+  const sourceRaw = String(item.source || item.leadSource || "Manual");
   const allowedSources: SourceType[] = [
     "WhatsApp",
     "Facebook",
@@ -240,13 +240,24 @@ function mapUnknownLead(item: any, index: number): Lead | null {
     ),
     phone: String(item.phone || item.mobile || item.whatsapp || "-"),
     source,
-    city: String(item.city || item.location || item.area || "Unknown"),
+    city: String(
+      item.city ||
+        item.preferredLocation ||
+        item.location ||
+        item.area ||
+        item.subLocation ||
+        "Unknown"
+    ),
     status,
     priority,
     owner: String(item.owner || item.assignedTo || item.leadOwner || "Unassigned"),
-    followUpDate: String(item.followUpDate || item.nextFollowUp || "-"),
+    followUpDate: String(
+      item.followUpDate || item.nextFollowUpDate || item.nextFollowUp || "-"
+    ),
     budget:
-      typeof item.budget === "number"
+      item.minBudget || item.maxBudget
+        ? `₹${item.minBudget || "0"} - ₹${item.maxBudget || "0"}`
+        : typeof item.budget === "number"
         ? `₹${item.budget.toLocaleString("en-IN")}`
         : String(item.budget || "-"),
     lastContact: String(item.lastContact || "Recent"),
@@ -281,20 +292,7 @@ export default function LeadsPage({
     normalizeStatus(searchParams.get("filter"))
   );
   const [cityFilter, setCityFilter] = useState(() => searchParams.get("city") || "All");
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    source: "Manual" as SourceType,
-    city: "",
-    status: "New" as LeadStatus,
-    priority: "Medium" as LeadPriority,
-    owner: "",
-    followUpDate: "",
-    budget: "",
-  });
 
   useEffect(() => {
     const syncLeads = () => {
@@ -372,7 +370,6 @@ export default function LeadsPage({
   const newLeads = leads.filter((l) => l.status === "New").length;
   const contactedLeads = leads.filter((l) => l.status === "Contacted").length;
   const qualifiedLeads = leads.filter((l) => l.status === "Qualified").length;
-  const followUpLeads = leads.filter((l) => l.status === "Follow-up").length;
   const negotiationLeads = leads.filter((l) => l.status === "Negotiation").length;
   const closedLeads = leads.filter((l) => l.status === "Closed").length;
 
@@ -390,51 +387,6 @@ export default function LeadsPage({
     if (!lead.followUpDate || lead.followUpDate === "-") return false;
     return lead.followUpDate.slice(0, 10) < todayIso && lead.status !== "Closed";
   }).length;
-
-  const handleAddLead = () => {
-    if (
-      !formData.name.trim() ||
-      !formData.phone.trim() ||
-      !formData.city.trim() ||
-      !formData.owner.trim()
-    ) {
-      alert("Name, phone, city, owner fill பண்ணணும்.");
-      return;
-    }
-
-    const newLead: Lead = {
-      id: Date.now(),
-      name: formData.name.trim(),
-      phone: formData.phone.trim(),
-      source: formData.source,
-      city: formData.city.trim(),
-      status: formData.status,
-      priority: formData.priority,
-      owner: formData.owner.trim(),
-      followUpDate: formData.followUpDate || "-",
-      budget: formData.budget.trim() || "-",
-      lastContact: "Just now",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setLeads((prev) => [newLead, ...prev]);
-    setFormData({
-      name: "",
-      phone: "",
-      source: "Manual",
-      city: "",
-      status: "New",
-      priority: "Medium",
-      owner: "",
-      followUpDate: "",
-      budget: "",
-    });
-    setIsModalOpen(false);
-    setActiveFilter("All");
-    setCityFilter("All");
-    setSearchTerm("");
-  };
 
   const openLeadDetail = (leadId: number) => {
     navigate(`/leads/${leadId}`);
@@ -525,7 +477,7 @@ export default function LeadsPage({
             </button>
 
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => navigate("/leads/new")}
               style={{
                 border: "none",
                 background: colors.primary,
@@ -1001,229 +953,6 @@ export default function LeadsPage({
           </div>
         </section>
       </div>
-
-      {isModalOpen && (
-        <div
-          onClick={() => setIsModalOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
-            zIndex: 999,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 760,
-              background: colors.cardBg,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 20,
-              padding: 24,
-              boxSizing: "border-box",
-              boxShadow: colors.shadowCard,
-            }}
-          >
-            <div style={{ marginBottom: 18 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  color: colors.text,
-                  fontSize: 26,
-                }}
-              >
-                Add New Lead
-              </h3>
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: colors.subText,
-                }}
-              >
-                Fill the details and create a new lead.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 14,
-              }}
-            >
-              <InputField
-                label="Name"
-                value={formData.name}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, name: value }))
-                }
-                colors={colors}
-              />
-
-              <InputField
-                label="Phone"
-                value={formData.phone}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, phone: value }))
-                }
-                colors={colors}
-              />
-
-              <SelectField
-                label="Source"
-                value={formData.source}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, source: value as SourceType }))
-                }
-                options={[
-                  "Manual",
-                  "WhatsApp",
-                  "Facebook",
-                  "Website",
-                  "Referral",
-                  "Walk-in",
-                ]}
-                colors={colors}
-              />
-
-              <InputField
-                label="City"
-                value={formData.city}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, city: value }))
-                }
-                colors={colors}
-              />
-
-              <InputField
-                label="Owner"
-                value={formData.owner}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, owner: value }))
-                }
-                colors={colors}
-              />
-
-              <InputField
-                label="Budget"
-                value={formData.budget}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, budget: value }))
-                }
-                colors={colors}
-              />
-
-              <SelectField
-                label="Status"
-                value={formData.status}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, status: value as LeadStatus }))
-                }
-                options={[
-                  "New",
-                  "Contacted",
-                  "Qualified",
-                  "Follow-up",
-                  "Negotiation",
-                  "Closed",
-                ]}
-                colors={colors}
-              />
-
-              <SelectField
-                label="Priority"
-                value={formData.priority}
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    priority: value as LeadPriority,
-                  }))
-                }
-                options={["Low", "Medium", "High"]}
-                colors={colors}
-              />
-
-              <div style={{ display: "grid", gap: 8 }}>
-                <label
-                  style={{
-                    color: colors.subText,
-                    fontSize: 14,
-                    fontWeight: 600,
-                  }}
-                >
-                  Follow-up Date
-                </label>
-
-                <input
-                  type="date"
-                  value={formData.followUpDate}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      followUpDate: e.target.value,
-                    }))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "14px 16px",
-                    borderRadius: 12,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.inputBg,
-                    color: colors.text,
-                    outline: "none",
-                    fontSize: 14,
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 22,
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                onClick={() => setIsModalOpen(false)}
-                style={{
-                  border: `1px solid ${colors.border}`,
-                  background: "transparent",
-                  color: colors.text,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleAddLead}
-                style={{
-                  border: "none",
-                  background: colors.primary,
-                  color: "#ffffff",
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Save Lead
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AppLayout>
   );
 }
@@ -1305,89 +1034,6 @@ function FilterChip({
       >
         ✕
       </button>
-    </div>
-  );
-}
-
-function InputField({
-  label,
-  value,
-  onChange,
-  colors,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  colors: ReturnType<typeof getTheme>;
-}) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <label
-        style={{
-          color: colors.subText,
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </label>
-
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "14px 16px",
-          borderRadius: 12,
-          border: `1px solid ${colors.border}`,
-          background: colors.inputBg,
-          color: colors.text,
-          outline: "none",
-          fontSize: 14,
-          boxSizing: "border-box",
-        }}
-      />
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  colors,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  colors: ReturnType<typeof getTheme>;
-}) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <label
-        style={{
-          color: colors.subText,
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </label>
-
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={selectStyle(colors)}
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

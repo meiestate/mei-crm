@@ -87,6 +87,10 @@ type Lead = {
   ownerPhone?: string;
 };
 
+type LeadDetailLocationState = {
+  filteredLeadIds?: number[];
+};
+
 const LEAD_STORAGE_KEYS = [
   "mei-crm-leads",
   "mei_crm_leads",
@@ -407,6 +411,7 @@ export default function LeadDetailPage({
 
   const leadId = Number(id);
   const leadsBackLink = `/leads${location.search || ""}`;
+  const locationState = (location.state || {}) as LeadDetailLocationState;
 
   const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -448,15 +453,32 @@ export default function LeadDetailPage({
     setOwnerInput(initialLead?.owner || "");
   }, [initialLead]);
 
+  const filteredLeadIdsFromState = useMemo(() => {
+    return Array.isArray(locationState.filteredLeadIds)
+      ? locationState.filteredLeadIds.filter((value): value is number => typeof value === "number")
+      : [];
+  }, [locationState.filteredLeadIds]);
+
+  const navigationLeads = useMemo(() => {
+    if (filteredLeadIdsFromState.length > 0) {
+      const leadMap = new Map(allLeads.map((lead) => [lead.id, lead]));
+      return filteredLeadIdsFromState
+        .map((id) => leadMap.get(id))
+        .filter(Boolean) as Lead[];
+    }
+
+    return allLeads;
+  }, [allLeads, filteredLeadIdsFromState]);
+
   const currentIndex = useMemo(
-    () => allLeads.findIndex((item) => item.id === leadId),
-    [allLeads, leadId]
+    () => navigationLeads.findIndex((item) => item.id === leadId),
+    [navigationLeads, leadId]
   );
 
-  const previousLead = currentIndex > 0 ? allLeads[currentIndex - 1] : null;
+  const previousLead = currentIndex > 0 ? navigationLeads[currentIndex - 1] : null;
   const nextLead =
-    currentIndex >= 0 && currentIndex < allLeads.length - 1
-      ? allLeads[currentIndex + 1]
+    currentIndex >= 0 && currentIndex < navigationLeads.length - 1
+      ? navigationLeads[currentIndex + 1]
       : null;
 
   const persistLeadUpdate = (updater: (lead: Lead) => Lead) => {
@@ -1663,17 +1685,31 @@ export default function LeadDetailPage({
                   fontSize: 20,
                   fontWeight: 800,
                   color: colors.text,
-                  marginBottom: 14,
+                  marginBottom: 6,
                 }}
               >
                 Lead Navigation
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: colors.subText,
+                  marginBottom: 14,
+                }}
+              >
+                {filteredLeadIdsFromState.length > 0
+                  ? "Navigating within current filtered leads"
+                  : "Navigating within all leads"}
               </div>
 
               <div style={{ display: "grid", gap: 10 }}>
                 <button
                   onClick={() =>
                     previousLead &&
-                    navigate(`/leads/${previousLead.id}${location.search || ""}`)
+                    navigate(`/leads/${previousLead.id}${location.search || ""}`, {
+                      state: { filteredLeadIds: filteredLeadIdsFromState },
+                    })
                   }
                   disabled={!previousLead}
                   style={{
@@ -1688,7 +1724,9 @@ export default function LeadDetailPage({
                 <button
                   onClick={() =>
                     nextLead &&
-                    navigate(`/leads/${nextLead.id}${location.search || ""}`)
+                    navigate(`/leads/${nextLead.id}${location.search || ""}`, {
+                      state: { filteredLeadIds: filteredLeadIdsFromState },
+                    })
                   }
                   disabled={!nextLead}
                   style={{
