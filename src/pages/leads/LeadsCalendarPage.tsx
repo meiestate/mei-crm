@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -21,6 +22,7 @@ type LeadEventStatus = "Pending" | "Completed" | "Missed" | "Rescheduled";
 
 type LeadEvent = {
   id: number;
+  leadId?: number;
   leadName: string;
   phone: string;
   owner: string;
@@ -34,11 +36,54 @@ type LeadEvent = {
   note: string;
   budget: string;
   location: string;
+  source?: string;
+  isFromStorage?: boolean;
 };
+
+type StoredLeadLike = {
+  id?: number | string;
+  name?: string;
+  fullName?: string;
+  phone?: string;
+  mobile?: string;
+  whatsapp?: string;
+  owner?: string;
+  assignedTo?: string;
+  leadOwner?: string;
+  city?: string;
+  preferredLocation?: string;
+  location?: string;
+  area?: string;
+  subLocation?: string;
+  status?: string;
+  priority?: string;
+  source?: string;
+  leadSource?: string;
+  followUpDate?: string;
+  nextFollowUpDate?: string;
+  nextFollowUp?: string;
+  nextFollowUpTime?: string;
+  followUpType?: string;
+  budget?: string | number;
+  minBudget?: string | number;
+  maxBudget?: string | number;
+  leadSummary?: string;
+  conversationNotes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+const LEAD_STORAGE_KEYS = [
+  "mei-crm-leads",
+  "mei_crm_leads",
+  "leads",
+  "crm_leads",
+];
 
 const demoEvents: LeadEvent[] = [
   {
     id: 1,
+    leadId: 1001,
     leadName: "Arun Kumar",
     phone: "9876543210",
     owner: "Madhan",
@@ -52,9 +97,11 @@ const demoEvents: LeadEvent[] = [
     note: "Budget discussion and project shortlist",
     budget: "₹45L - ₹60L",
     location: "OMR, Chennai",
+    source: "WhatsApp",
   },
   {
     id: 2,
+    leadId: 1002,
     leadName: "Priya",
     phone: "9123456780",
     owner: "Madhan",
@@ -68,9 +115,11 @@ const demoEvents: LeadEvent[] = [
     note: "Send brochure and price sheet",
     budget: "₹70L - ₹90L",
     location: "Whitefield, Bangalore",
+    source: "Facebook",
   },
   {
     id: 3,
+    leadId: 1003,
     leadName: "Rahul",
     phone: "9000012345",
     owner: "Arun",
@@ -84,9 +133,11 @@ const demoEvents: LeadEvent[] = [
     note: "Villa site visit confirmed",
     budget: "₹1.1Cr - ₹1.4Cr",
     location: "Saravanampatti, Coimbatore",
+    source: "Website",
   },
   {
     id: 4,
+    leadId: 1004,
     leadName: "Meena",
     phone: "9090909090",
     owner: "Priya",
@@ -100,9 +151,11 @@ const demoEvents: LeadEvent[] = [
     note: "Final price negotiation round",
     budget: "₹80L",
     location: "KK Nagar, Madurai",
+    source: "Referral",
   },
   {
     id: 5,
+    leadId: 1005,
     leadName: "Suresh",
     phone: "9345678901",
     owner: "Madhan",
@@ -116,9 +169,11 @@ const demoEvents: LeadEvent[] = [
     note: "Missed follow-up call",
     budget: "₹32L",
     location: "Trichy Junction",
+    source: "Walk-in",
   },
   {
     id: 6,
+    leadId: 1006,
     leadName: "Lavanya",
     phone: "9888877766",
     owner: "Arun",
@@ -132,6 +187,7 @@ const demoEvents: LeadEvent[] = [
     note: "Office meeting for documentation review",
     budget: "₹52L",
     location: "Anna Nagar, Chennai",
+    source: "Manual",
   },
 ];
 
@@ -142,6 +198,7 @@ export default function LeadsCalendarPage({
   onToggleTheme,
 }: LeadsCalendarPageProps) {
   const colors = getTheme(mode);
+  const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("Month");
   const [currentMonthLabel] = useState("April 2026");
@@ -150,15 +207,63 @@ export default function LeadsCalendarPage({
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
   const [selectedActivityType, setSelectedActivityType] = useState("All Activities");
   const [selectedDate, setSelectedDate] = useState("2026-04-08");
+  const [storageEvents, setStorageEvents] = useState<LeadEvent[]>([]);
+
+  useEffect(() => {
+    const syncStoredLeadEvents = () => {
+      setStorageEvents(readLeadEventsFromStorage());
+    };
+
+    syncStoredLeadEvents();
+    window.addEventListener("storage", syncStoredLeadEvents);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredLeadEvents);
+    };
+  }, []);
+
+  const allEvents = useMemo(() => {
+    const merged = [...storageEvents];
+
+    for (const demoEvent of demoEvents) {
+      const alreadyExists = merged.some((item) => {
+        return (
+          item.leadName.toLowerCase() === demoEvent.leadName.toLowerCase() &&
+          item.date === demoEvent.date &&
+          item.time === demoEvent.time &&
+          item.activityType === demoEvent.activityType
+        );
+      });
+
+      if (!alreadyExists) {
+        merged.push(demoEvent);
+      }
+    }
+
+    return merged.sort((a, b) => {
+      const aKey = `${a.date} ${to24HourTime(a.time)}`;
+      const bKey = `${b.date} ${to24HourTime(b.time)}`;
+      return aKey.localeCompare(bKey);
+    });
+  }, [storageEvents]);
+
+  const ownerOptions = useMemo(() => {
+    const owners = Array.from(
+      new Set(allEvents.map((event) => event.owner).filter(Boolean))
+    ).sort();
+
+    return ["All Owners", ...owners];
+  }, [allEvents]);
 
   const filteredEvents = useMemo(() => {
-    return demoEvents.filter((event) => {
+    return allEvents.filter((event) => {
       const matchesSearch =
         !searchTerm.trim() ||
         event.leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         event.phone.includes(searchTerm) ||
         event.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        event.owner.toLowerCase().includes(searchTerm.toLowerCase());
+        event.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        event.location.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesOwner =
         selectedOwner === "All Owners" || event.owner === selectedOwner;
@@ -177,14 +282,14 @@ export default function LeadsCalendarPage({
         matchesActivityType
       );
     });
-  }, [searchTerm, selectedOwner, selectedPriority, selectedActivityType]);
+  }, [allEvents, searchTerm, selectedOwner, selectedPriority, selectedActivityType]);
 
   const selectedDateEvents = useMemo(() => {
     return filteredEvents.filter((event) => event.date === selectedDate);
   }, [filteredEvents, selectedDate]);
 
   const stats = useMemo(() => {
-    const today = "2026-04-08";
+    const today = new Date().toISOString().slice(0, 10);
 
     return {
       todayFollowUps: filteredEvents.filter((e) => e.date === today).length,
@@ -198,6 +303,7 @@ export default function LeadsCalendarPage({
 
   const monthCells = useMemo(() => {
     const cells = [];
+    const todayIso = new Date().toISOString().slice(0, 10);
 
     for (let day = 1; day <= 30; day += 1) {
       const isoDate = `2026-04-${String(day).padStart(2, "0")}`;
@@ -207,7 +313,7 @@ export default function LeadsCalendarPage({
         day,
         isoDate,
         events: dayEvents,
-        isToday: isoDate === "2026-04-08",
+        isToday: isoDate === todayIso,
         isSelected: isoDate === selectedDate,
       });
     }
@@ -274,9 +380,31 @@ export default function LeadsCalendarPage({
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <HeaderButton label="Today" colors={colors} />
-            <HeaderButton label="Export" colors={colors} />
             <button
+              onClick={() => navigate("/leads")}
+              style={{
+                border: `1px solid ${colors.border}`,
+                background: colors.cardBgSoft,
+                color: colors.text,
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              ← Back to Leads
+            </button>
+
+            <HeaderButton
+              label="Today"
+              colors={colors}
+              onClick={() => setSelectedDate(new Date().toISOString().slice(0, 10))}
+            />
+
+            <HeaderButton label="Export" colors={colors} />
+
+            <button
+              onClick={() => navigate("/leads/new")}
               style={{
                 border: "none",
                 background: colors.primary,
@@ -394,10 +522,11 @@ export default function LeadsCalendarPage({
               onChange={(e) => setSelectedOwner(e.target.value)}
               style={inputStyle(colors)}
             >
-              <option>All Owners</option>
-              <option>Madhan</option>
-              <option>Arun</option>
-              <option>Priya</option>
+              {ownerOptions.map((owner) => (
+                <option key={owner} value={owner}>
+                  {owner}
+                </option>
+              ))}
             </select>
 
             <select
@@ -535,7 +664,7 @@ export default function LeadsCalendarPage({
 
                       {cell.events.slice(0, 3).map((event) => (
                         <CalendarEventMiniCard
-                          key={event.id}
+                          key={`${event.id}-${event.date}-${event.time}`}
                           event={event}
                           mode={mode}
                         />
@@ -609,7 +738,7 @@ export default function LeadsCalendarPage({
                 <div style={{ display: "grid", gap: 12 }}>
                   {selectedDateEvents.map((event) => (
                     <div
-                      key={event.id}
+                      key={`${event.id}-${event.date}-${event.time}-detail`}
                       style={{
                         border: `1px solid ${colors.border}`,
                         borderRadius: 16,
@@ -660,7 +789,15 @@ export default function LeadsCalendarPage({
                       </div>
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <QuickActionChip label="Open Lead" colors={colors} />
+                        <QuickActionChip
+                          label="Open Lead"
+                          colors={colors}
+                          onClick={() => {
+                            if (event.leadId) {
+                              navigate(`/leads/${event.leadId}`);
+                            }
+                          }}
+                        />
                         <QuickActionChip label="Mark Done" colors={colors} />
                         <QuickActionChip label="Reschedule" colors={colors} />
                         <QuickActionChip label="WhatsApp" colors={colors} />
@@ -685,7 +822,7 @@ export default function LeadsCalendarPage({
                 colors={colors}
               />
               <AlertItem
-                text="Site visit load is high on Apr 8"
+                text="Site visit load is high on busy dates"
                 tone="info"
                 colors={colors}
               />
@@ -693,9 +830,21 @@ export default function LeadsCalendarPage({
 
             <SidebarCard title="Mini Planner" colors={colors}>
               <div style={{ display: "grid", gap: 12 }}>
-                <PlannerRow label="Morning" value="2 follow-ups" colors={colors} />
-                <PlannerRow label="Afternoon" value="1 site visit" colors={colors} />
-                <PlannerRow label="Evening" value="1 callback" colors={colors} />
+                <PlannerRow
+                  label="Morning"
+                  value={`${selectedDateEvents.filter((e) => isMorning(e.time)).length} activities`}
+                  colors={colors}
+                />
+                <PlannerRow
+                  label="Afternoon"
+                  value={`${selectedDateEvents.filter((e) => isAfternoon(e.time)).length} activities`}
+                  colors={colors}
+                />
+                <PlannerRow
+                  label="Evening"
+                  value={`${selectedDateEvents.filter((e) => isEvening(e.time)).length} activities`}
+                  colors={colors}
+                />
               </div>
             </SidebarCard>
           </aside>
@@ -705,15 +854,205 @@ export default function LeadsCalendarPage({
   );
 }
 
+function readLeadEventsFromStorage(): LeadEvent[] {
+  for (const key of LEAD_STORAGE_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) continue;
+
+      const mapped = parsed
+        .map((item: StoredLeadLike, index: number) => mapStoredLeadToEvent(item, index))
+        .filter(Boolean) as LeadEvent[];
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
+
+  return [];
+}
+
+function mapStoredLeadToEvent(item: StoredLeadLike, index: number): LeadEvent | null {
+  if (!item || typeof item !== "object") return null;
+
+  const rawDate =
+    item.followUpDate || item.nextFollowUpDate || item.nextFollowUp || "";
+
+  const normalizedDate = normalizeIsoDate(rawDate);
+  if (!normalizedDate) return null;
+
+  const priority = normalizePriority(item.priority);
+  const leadStatus = normalizeLeadStatus(item.status);
+  const activityType = normalizeActivityType(item.followUpType, leadStatus);
+  const owner = String(item.owner || item.assignedTo || item.leadOwner || "Unassigned");
+  const location = String(
+    item.preferredLocation ||
+      item.location ||
+      item.city ||
+      item.area ||
+      item.subLocation ||
+      "Unknown"
+  );
+
+  const budget = formatBudget(item);
+  const time = normalizeTime(item.nextFollowUpTime);
+  const isMissed =
+    normalizedDate < new Date().toISOString().slice(0, 10) &&
+    leadStatus !== "Closed";
+
+  return {
+    id: Number(item.id ?? Date.now() + index),
+    leadId: Number(item.id ?? Date.now() + index),
+    leadName: String(item.name || item.fullName || `Lead ${index + 1}`),
+    phone: String(item.phone || item.mobile || item.whatsapp || "-"),
+    owner,
+    city: String(item.city || item.preferredLocation || item.location || "Unknown"),
+    date: normalizedDate,
+    time,
+    priority,
+    leadStatus,
+    activityType,
+    activityStatus: isMissed ? "Missed" : "Pending",
+    note: String(
+      item.leadSummary ||
+        item.conversationNotes ||
+        `${activityType} scheduled for follow-up`
+    ),
+    budget,
+    location,
+    source: String(item.source || item.leadSource || "Manual"),
+    isFromStorage: true,
+  };
+}
+
+function normalizeIsoDate(value: string | undefined) {
+  if (!value) return "";
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : "";
+}
+
+function normalizePriority(value: string | undefined): LeadEvent["priority"] {
+  const normalized = String(value || "Medium").trim().toLowerCase();
+  if (normalized === "hot") return "Hot";
+  if (normalized === "high") return "High";
+  if (normalized === "low") return "Low";
+  return "Medium";
+}
+
+function normalizeLeadStatus(value: string | undefined): LeadEvent["leadStatus"] {
+  const normalized = String(value || "New").trim().toLowerCase();
+
+  if (normalized === "contacted") return "Contacted";
+  if (normalized === "qualified") return "Qualified";
+  if (normalized === "follow-up" || normalized === "followup") return "Follow-up";
+  if (normalized === "negotiation") return "Negotiation";
+  if (normalized === "closed" || normalized === "won") return "Closed";
+  return "New";
+}
+
+function normalizeActivityType(
+  value: string | undefined,
+  leadStatus: LeadEvent["leadStatus"]
+): LeadEventType {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized.includes("whatsapp")) return "WhatsApp";
+  if (normalized.includes("site")) return "Site Visit";
+  if (normalized.includes("meeting")) return "Meeting";
+  if (normalized.includes("negotiation")) return "Negotiation";
+  if (normalized.includes("closing")) return "Closing";
+
+  if (leadStatus === "Negotiation") return "Negotiation";
+  if (leadStatus === "Qualified") return "Meeting";
+  return "Call";
+}
+
+function formatBudget(item: StoredLeadLike) {
+  if (item.minBudget || item.maxBudget) {
+    const min = String(item.minBudget || "0");
+    const max = String(item.maxBudget || "0");
+    return `₹${min} - ₹${max}`;
+  }
+
+  if (typeof item.budget === "number") {
+    return `₹${item.budget.toLocaleString("en-IN")}`;
+  }
+
+  return String(item.budget || "-");
+}
+
+function normalizeTime(value: string | undefined) {
+  if (!value) return "10:00 AM";
+
+  const trimmed = value.trim();
+  if (/am|pm/i.test(trimmed)) return trimmed;
+
+  const parts = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!parts) return "10:00 AM";
+
+  let hours = Number(parts[1]);
+  const minutes = parts[2];
+  const suffix = hours >= 12 ? "PM" : "AM";
+
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  return `${String(hours).padStart(2, "0")}:${minutes} ${suffix}`;
+}
+
+function to24HourTime(value: string) {
+  const trimmed = value.trim().toUpperCase();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/);
+
+  if (!match) return "10:00";
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const suffix = match[3];
+
+  if (suffix === "AM") {
+    if (hours === 12) hours = 0;
+  } else if (hours !== 12) {
+    hours += 12;
+  }
+
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
+}
+
+function isMorning(time: string) {
+  const normalized = to24HourTime(time);
+  return normalized >= "05:00" && normalized < "12:00";
+}
+
+function isAfternoon(time: string) {
+  const normalized = to24HourTime(time);
+  return normalized >= "12:00" && normalized < "17:00";
+}
+
+function isEvening(time: string) {
+  const normalized = to24HourTime(time);
+  return normalized >= "17:00" && normalized <= "23:59";
+}
+
 function HeaderButton({
   label,
   colors,
+  onClick,
 }: {
   label: string;
   colors: ReturnType<typeof getTheme>;
+  onClick?: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       style={{
         border: `1px solid ${colors.border}`,
         background: colors.cardBgSoft,
@@ -909,12 +1248,15 @@ function DetailRow({
 function QuickActionChip({
   label,
   colors,
+  onClick,
 }: {
   label: string;
   colors: ReturnType<typeof getTheme>;
+  onClick?: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       style={{
         border: `1px solid ${colors.border}`,
         background: colors.cardBg,

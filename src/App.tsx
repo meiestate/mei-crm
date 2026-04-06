@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import LeadsPage from "./pages/leads/LeadsPage";
 import AddLeadPage from "./pages/leads/AddLeadPage";
+import LeadsCalendarPage from "./pages/leads/LeadsCalendarPage";
 import LeadDetailPage from "./pages/leads/LeadDetailPage";
 import ContactsPage from "./pages/contacts/ContactsPage";
 import DealsPage from "./pages/deals/DealsPage";
@@ -149,6 +150,10 @@ export default function App() {
   );
 
   const addLeadPageElement = <AddLeadPage mode={mode} />;
+
+  const leadsCalendarPageElement = (
+    <LeadsCalendarPage mode={mode} onToggleTheme={toggleTheme} />
+  );
 
   const leadDetailPageElement = (
     <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
@@ -304,6 +309,21 @@ export default function App() {
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 addLeadPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/leads/calendar"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                leadsCalendarPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )

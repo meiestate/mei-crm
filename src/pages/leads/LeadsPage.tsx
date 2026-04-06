@@ -477,6 +477,22 @@ export default function LeadsPage({
             </button>
 
             <button
+              onClick={() => navigate("/leads/calendar")}
+              style={{
+                border: `1px solid ${colors.border}`,
+                background: colors.cardBgSoft,
+                color: colors.text,
+                padding: "12px 16px",
+                borderRadius: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Calendar View
+            </button>
+
+            <button
               onClick={() => navigate("/leads/new")}
               style={{
                 border: "none",
