@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -17,6 +17,8 @@ type StoredUser = {
   company: string;
   password: string;
   createdAt: string;
+  isVerified?: boolean;
+  isMobileVerified?: boolean;
 };
 
 export default function LoginPage({
@@ -37,6 +39,19 @@ export default function LoginPage({
     general?: string;
   }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    try {
+      const rememberedEmail = localStorage.getItem("mei_crm_remembered_email");
+
+      if (rememberedEmail) {
+        setEmail(rememberedEmail);
+        setRememberMe(true);
+      }
+    } catch (error) {
+      console.error("Failed to load remembered email:", error);
+    }
+  }, []);
 
   const cardStyle: React.CSSProperties = {
     width: "100%",
@@ -141,7 +156,10 @@ export default function LoginPage({
       localStorage.setItem("mei_crm_is_authenticated", "true");
 
       if (rememberMe) {
-        localStorage.setItem("mei_crm_remembered_email", matchedUser.email);
+        localStorage.setItem(
+          "mei_crm_remembered_email",
+          email.trim().toLowerCase()
+        );
       } else {
         localStorage.removeItem("mei_crm_remembered_email");
       }

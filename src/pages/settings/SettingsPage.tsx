@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
@@ -13,6 +14,7 @@ export default function SettingsPage({
   onToggleTheme,
 }: SettingsPageProps) {
   const colors = getTheme(mode);
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState({
     fullName: "Balraj",
@@ -43,6 +45,18 @@ export default function SettingsPage({
 
   const handleSave = (sectionName: string) => {
     alert(`${sectionName} settings saved successfully.`);
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("mei-crm-auth");
+      sessionStorage.removeItem("mei-crm-auth");
+      localStorage.removeItem("mei_crm_current_user");
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Something went wrong while logging out.");
+    }
   };
 
   return (
@@ -315,6 +329,34 @@ export default function SettingsPage({
               Toggle Theme
             </button>
           </div>
+        </SectionCard>
+
+        <SectionCard title="Account Actions" colors={colors}>
+          <div
+            style={{
+              color: colors.subText,
+              fontSize: 14,
+              lineHeight: 1.6,
+            }}
+          >
+            Securely sign out from your current account session.
+          </div>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              border: `1px solid ${colors.danger}`,
+              background: colors.dangerBg,
+              color: colors.danger,
+              padding: "12px 18px",
+              borderRadius: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              justifySelf: "start",
+            }}
+          >
+            Logout
+          </button>
         </SectionCard>
       </div>
     </AppLayout>

@@ -12,12 +12,14 @@ import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
 
 const THEME_STORAGE_KEY = "mei-crm-theme";
 const AUTH_STORAGE_KEY = "mei-crm-auth";
+const ONBOARDING_STORAGE_KEY = "mei_crm_onboarding_completed";
 
 function getInitialTheme(): ThemeMode {
   try {
@@ -45,11 +47,22 @@ function isUserAuthenticated() {
   }
 }
 
+function isOnboardingCompleted() {
+  try {
+    return localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+  } catch (error) {
+    console.error("Failed to read onboarding state:", error);
+    return false;
+  }
+}
+
 export default function App() {
   const [mode, setMode] = useState<ThemeMode>(getInitialTheme);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() =>
     isUserAuthenticated()
   );
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] =
+    useState<boolean>(() => isOnboardingCompleted());
 
   const theme = useMemo(() => getTheme(mode), [mode]);
 
@@ -77,15 +90,16 @@ export default function App() {
   }, [mode, theme]);
 
   useEffect(() => {
-    const syncAuthState = () => {
+    const syncAppState = () => {
       setIsAuthenticated(isUserAuthenticated());
+      setHasCompletedOnboarding(isOnboardingCompleted());
     };
 
-    syncAuthState();
-    window.addEventListener("storage", syncAuthState);
+    syncAppState();
+    window.addEventListener("storage", syncAppState);
 
     return () => {
-      window.removeEventListener("storage", syncAuthState);
+      window.removeEventListener("storage", syncAppState);
     };
   }, []);
 
@@ -100,6 +114,8 @@ export default function App() {
       onLoginSuccess={() => setIsAuthenticated(true)}
     />
   );
+
+  const onboardingPageElement = <OnboardingWelcomePage mode={mode} />;
 
   const dashboardPageElement = (
     <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
@@ -136,9 +152,30 @@ export default function App() {
           path="/"
           element={
             <Navigate
-              to={isAuthenticated ? "/dashboard" : "/login"}
+              to={
+                isAuthenticated
+                  ? hasCompletedOnboarding
+                    ? "/dashboard"
+                    : "/onboarding"
+                  : "/login"
+              }
               replace
             />
+          }
+        />
+
+        <Route
+          path="/onboarding"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                onboardingPageElement
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
 
@@ -146,7 +183,10 @@ export default function App() {
           path="/signup"
           element={
             isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate
+                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
+                replace
+              />
             ) : (
               <SignupPage mode={mode} />
             )
@@ -157,7 +197,10 @@ export default function App() {
           path="/forgot-password"
           element={
             isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate
+                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
+                replace
+              />
             ) : (
               <ForgotPasswordPage mode={mode} />
             )
@@ -168,7 +211,10 @@ export default function App() {
           path="/reset-password"
           element={
             isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate
+                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
+                replace
+              />
             ) : (
               <ResetPasswordPage mode={mode} />
             )
@@ -179,7 +225,10 @@ export default function App() {
           path="/login"
           element={
             isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate
+                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
+                replace
+              />
             ) : (
               loginPageElement
             )
@@ -190,7 +239,11 @@ export default function App() {
           path="/dashboard"
           element={
             isAuthenticated ? (
-              dashboardPageElement
+              hasCompletedOnboarding ? (
+                dashboardPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -201,7 +254,11 @@ export default function App() {
           path="/leads"
           element={
             isAuthenticated ? (
-              leadsPageElement
+              hasCompletedOnboarding ? (
+                leadsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -212,7 +269,11 @@ export default function App() {
           path="/leads/:id"
           element={
             isAuthenticated ? (
-              leadDetailPageElement
+              hasCompletedOnboarding ? (
+                leadDetailPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -223,7 +284,11 @@ export default function App() {
           path="/contacts"
           element={
             isAuthenticated ? (
-              contactsPageElement
+              hasCompletedOnboarding ? (
+                contactsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -234,7 +299,11 @@ export default function App() {
           path="/deals"
           element={
             isAuthenticated ? (
-              dealsPageElement
+              hasCompletedOnboarding ? (
+                dealsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -245,7 +314,11 @@ export default function App() {
           path="/tasks"
           element={
             isAuthenticated ? (
-              tasksPageElement
+              hasCompletedOnboarding ? (
+                tasksPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -256,7 +329,11 @@ export default function App() {
           path="/settings"
           element={
             isAuthenticated ? (
-              settingsPageElement
+              hasCompletedOnboarding ? (
+                settingsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
@@ -267,7 +344,13 @@ export default function App() {
           path="*"
           element={
             <Navigate
-              to={isAuthenticated ? "/dashboard" : "/login"}
+              to={
+                isAuthenticated
+                  ? hasCompletedOnboarding
+                    ? "/dashboard"
+                    : "/onboarding"
+                  : "/login"
+              }
               replace
             />
           }
