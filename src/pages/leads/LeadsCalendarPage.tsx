@@ -214,6 +214,7 @@ export default function LeadsCalendarPage({
   const [storageEvents, setStorageEvents] = useState<LeadEvent[]>([]);
   const [eventOverrides, setEventOverrides] = useState<Record<number, Partial<LeadEvent>>>({});
   const [highlightedAgendaDate, setHighlightedAgendaDate] = useState<string | null>(null);
+  const [hoveredMonthDate, setHoveredMonthDate] = useState<string | null>(null);
 
   useEffect(() => {
     const syncStoredLeadEvents = () => {
@@ -298,6 +299,11 @@ export default function LeadsCalendarPage({
   const selectedDateEvents = useMemo(() => {
     return filteredEvents.filter((event) => event.date === selectedDate);
   }, [filteredEvents, selectedDate]);
+
+  const hoveredDateEvents = useMemo(() => {
+    if (!hoveredMonthDate) return [];
+    return filteredEvents.filter((event) => event.date === hoveredMonthDate);
+  }, [filteredEvents, hoveredMonthDate]);
 
   const currentMonthLabel = useMemo(() => {
     return currentMonthDate.toLocaleDateString("en-US", {
@@ -847,81 +853,207 @@ export default function LeadsCalendarPage({
                 >
                   {monthCells.map((cell) =>
                     cell.isoDate ? (
-                      <button
+                      <div
                         key={cell.key}
-                        onClick={() => handleMonthCellClick(cell.isoDate!)}
                         style={{
-                          minHeight: 150,
-                          border: `1px solid ${colors.borderSoft || colors.border}`,
-                          background: cell.isSelected
-                            ? colors.cardBgSoft
-                            : cell.isToday
-                            ? mode === "dark"
-                              ? "rgba(59,130,246,0.08)"
-                              : "rgba(59,130,246,0.05)"
-                            : colors.cardBg,
-                          padding: 10,
-                          textAlign: "left",
-                          cursor: "pointer",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 8,
+                          position: "relative",
                         }}
+                        onMouseEnter={() => setHoveredMonthDate(cell.isoDate)}
+                        onMouseLeave={() => setHoveredMonthDate((prev) => (prev === cell.isoDate ? null : prev))}
                       >
-                        <div
+                        <button
+                          onClick={() => handleMonthCellClick(cell.isoDate!)}
                           style={{
+                            width: "100%",
+                            minHeight: 150,
+                            border: `1px solid ${colors.borderSoft || colors.border}`,
+                            background: cell.isSelected
+                              ? colors.cardBgSoft
+                              : cell.isToday
+                              ? mode === "dark"
+                                ? "rgba(59,130,246,0.08)"
+                                : "rgba(59,130,246,0.05)"
+                              : colors.cardBg,
+                            padding: 10,
+                            textAlign: "left",
+                            cursor: "pointer",
                             display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
+                            flexDirection: "column",
+                            gap: 8,
                           }}
                         >
-                          <span
-                            style={{
-                              width: 30,
-                              height: 30,
-                              borderRadius: 999,
-                              display: "grid",
-                              placeItems: "center",
-                              background: cell.isToday ? colors.primary : "transparent",
-                              color: cell.isToday ? "#fff" : colors.text,
-                              fontWeight: 800,
-                              fontSize: 13,
-                            }}
-                          >
-                            {cell.day}
-                          </span>
-
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: colors.subText,
-                            }}
-                          >
-                            {cell.events.length} item{cell.events.length === 1 ? "" : "s"}
-                          </span>
-                        </div>
-
-                        {cell.events.slice(0, 3).map((event) => (
-                          <CalendarEventMiniCard
-                            key={`${event.id}-${event.date}-${event.time}`}
-                            event={event}
-                            mode={mode}
-                          />
-                        ))}
-
-                        {cell.events.length > 3 && (
                           <div
                             style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: colors.primary,
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
                             }}
                           >
-                            +{cell.events.length - 3} more
+                            <span
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 999,
+                                display: "grid",
+                                placeItems: "center",
+                                background: cell.isToday ? colors.primary : "transparent",
+                                color: cell.isToday ? "#fff" : colors.text,
+                                fontWeight: 800,
+                                fontSize: 13,
+                              }}
+                            >
+                              {cell.day}
+                            </span>
+
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: colors.subText,
+                              }}
+                            >
+                              {cell.events.length} item{cell.events.length === 1 ? "" : "s"}
+                            </span>
+                          </div>
+
+                          {cell.events.slice(0, 3).map((event) => (
+                            <CalendarEventMiniCard
+                              key={`${event.id}-${event.date}-${event.time}`}
+                              event={event}
+                              mode={mode}
+                            />
+                          ))}
+
+                          {cell.events.length > 3 && (
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: colors.primary,
+                              }}
+                            >
+                              +{cell.events.length - 3} more
+                            </div>
+                          )}
+                        </button>
+
+                        {hoveredMonthDate === cell.isoDate && hoveredDateEvents.length > 0 && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 8,
+                              left: "calc(100% - 10px)",
+                              width: 270,
+                              zIndex: 30,
+                              background: colors.cardBg,
+                              border: `1px solid ${colors.border}`,
+                              borderRadius: 16,
+                              boxShadow: colors.shadowSoft,
+                              padding: 14,
+                              display: "grid",
+                              gap: 10,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 800,
+                                  color: colors.text,
+                                }}
+                              >
+                                {formatPrettyDate(cell.isoDate)}
+                              </div>
+                              <span
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: 999,
+                                  background: colors.primary,
+                                  color: "#fff",
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {hoveredDateEvents.length}
+                              </span>
+                            </div>
+
+                            <div style={{ display: "grid", gap: 8 }}>
+                              {hoveredDateEvents.slice(0, 4).map((event) => (
+                                <div
+                                  key={`${event.id}-${event.date}-${event.time}-tooltip`}
+                                  style={{
+                                    border: `1px solid ${colors.border}`,
+                                    borderLeft: `4px solid ${getPriorityColor(event.priority, colors)}`,
+                                    borderRadius: 12,
+                                    padding: "8px 10px",
+                                    background: colors.cardBgSoft,
+                                    display: "grid",
+                                    gap: 4,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      gap: 10,
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: colors.text,
+                                      }}
+                                    >
+                                      {event.leadName}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        color: colors.subText,
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      {event.time}
+                                    </span>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      color: colors.subText,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {event.activityType} • {event.owner}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {hoveredDateEvents.length > 4 && (
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                  color: colors.primary,
+                                }}
+                              >
+                                +{hoveredDateEvents.length - 4} more events
+                              </div>
+                            )}
                           </div>
                         )}
-                      </button>
+                      </div>
                     ) : (
                       <div
                         key={cell.key}
