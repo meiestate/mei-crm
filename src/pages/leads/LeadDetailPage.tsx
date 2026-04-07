@@ -34,6 +34,34 @@ type TimelineItem = {
   tone?: TimelineTone;
 };
 
+type ExternalLeadActivityItem = {
+  id: string;
+  leadId: string;
+  type: "call_added" | "call_updated" | "call_deleted";
+  title: string;
+  description: string;
+  meta?: {
+    callId?: string;
+    contactName?: string;
+    phone?: string;
+    status?: string;
+    durationSec?: number;
+    assignedTo?: string;
+  };
+  createdAt: string;
+};
+
+type UnifiedTimelineItem = {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  tone?: TimelineTone;
+  source: "lead" | "call";
+  createdAtSortable: number;
+  metaLabel?: string;
+};
+
 type AttachmentItem = {
   id: string;
   name: string;
@@ -99,6 +127,7 @@ const LEAD_STORAGE_KEYS = [
 ];
 
 const DEAL_STORAGE_KEY = "mei-crm-deals";
+const LEAD_ACTIVITIES_STORAGE_KEY = "mei-crm-lead-activities";
 
 const OWNER_OPTIONS = [
   "Madhan",
@@ -232,6 +261,18 @@ function saveStoredDeals(deals: any[]) {
   }
 }
 
+function readStoredLeadActivities(): ExternalLeadActivityItem[] {
+  try {
+    const raw = localStorage.getItem(LEAD_ACTIVITIES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to read lead activities:", error);
+    return [];
+  }
+}
+
 function mapUnknownLead(item: any, index: number): Lead | null {
   if (!item || typeof item !== "object") return null;
 
@@ -355,6 +396,31 @@ function getTimelineToneColor(
   }
 }
 
+function mapExternalActivityTone(
+  activityType: ExternalLeadActivityItem["type"]
+): TimelineTone {
+  switch (activityType) {
+    case "call_added":
+      return "success";
+    case "call_updated":
+      return "primary";
+    case "call_deleted":
+      return "danger";
+    default:
+      return "info";
+  }
+}
+
+function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Info") return (tone || "info") === "info";
+  if (filter === "Success") return tone === "success";
+  if (filter === "Warning") return tone === "warning";
+  if (filter === "Danger") return tone === "danger";
+  if (filter === "Primary") return tone === "primary";
+  return true;
+}
+
 function getLeadHealthScore(lead: Lead) {
   let score = 40;
 
@@ -390,16 +456,6 @@ function getStageProbability(status: LeadStatus) {
   }
 }
 
-function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
-  if (filter === "All") return true;
-  if (filter === "Info") return (tone || "info") === "info";
-  if (filter === "Success") return tone === "success";
-  if (filter === "Warning") return tone === "warning";
-  if (filter === "Danger") return tone === "danger";
-  if (filter === "Primary") return tone === "primary";
-  return true;
-}
-
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
@@ -414,6 +470,10 @@ export default function LeadDetailPage({
   const locationState = (location.state || {}) as LeadDetailLocationState;
 
   const [allLeads, setAllLeads] = useState<Lead[]>(() => readStoredLeads());
+  const [externalActivities, setExternalActivities] = useState<ExternalLeadActivityItem[]>(
+    () => readStoredLeadActivities()
+  );
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [noteInput, setNoteInput] = useState("");
   const [callNote, setCallNote] = useState("");
@@ -426,12 +486,13 @@ export default function LeadDetailPage({
   const [attachmentSize, setAttachmentSize] = useState("");
 
   useEffect(() => {
-    const syncLeads = () => {
+    const syncStorage = () => {
       setAllLeads(readStoredLeads());
+      setExternalActivities(readStoredLeadActivities());
     };
 
-    window.addEventListener("storage", syncLeads);
-    return () => window.removeEventListener("storage", syncLeads);
+    window.addEventListener("storage", syncStorage);
+    return () => window.removeEventListener("storage", syncStorage);
   }, []);
 
   const initialLead = useMemo(
@@ -463,7 +524,7 @@ export default function LeadDetailPage({
     if (filteredLeadIdsFromState.length > 0) {
       const leadMap = new Map(allLeads.map((lead) => [lead.id, lead]));
       return filteredLeadIdsFromState
-        .map((id) => leadMap.get(id))
+        .map((itemId) => leadMap.get(itemId))
         .filter(Boolean) as Lead[];
     }
 
@@ -539,10 +600,44 @@ export default function LeadDetailPage({
   const lead = leadState;
   const overdue = isOverdue(lead.followUpDate, lead.status);
   const leadHealth = getLeadHealthScore(lead);
-  const filteredTimeline = lead.timeline.filter((item) =>
+  const pipelineIndex = PIPELINE_STEPS.indexOf(lead.status);
+
+  const unifiedTimeline = useMemo<UnifiedTimelineItem[]>(() => {
+    const internalTimeline: UnifiedTimelineItem[] = (lead.timeline || []).map((item, index) => ({
+      id: `lead-timeline-${index}`,
+      title: item.title,
+      description: item.description,
+      time: item.time,
+      tone: item.tone || "info",
+      source: "lead",
+      createdAtSortable: (lead.timeline.length - index) * 1000,
+      metaLabel: "LEAD",
+    }));
+
+    const linkedExternal: UnifiedTimelineItem[] = externalActivities
+      .filter((item) => Number(item.leadId) === lead.id)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        time: new Date(item.createdAt).toLocaleString("en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+        tone: mapExternalActivityTone(item.type),
+        source: "call",
+        createdAtSortable: new Date(item.createdAt).getTime(),
+        metaLabel: item.meta?.callId ? `CALL • ${item.meta.callId}` : "CALL",
+      }));
+
+    return [...linkedExternal, ...internalTimeline].sort(
+      (a, b) => b.createdAtSortable - a.createdAtSortable
+    );
+  }, [lead.timeline, externalActivities, lead.id]);
+
+  const filteredTimeline = unifiedTimeline.filter((item) =>
     toneMatchesFilter(item.tone, activityFilter)
   );
-  const pipelineIndex = PIPELINE_STEPS.indexOf(lead.status);
 
   const updateStatus = (nextStatus: LeadStatus) => {
     persistLeadUpdate((prev) => {
@@ -1002,7 +1097,7 @@ export default function LeadDetailPage({
           <MiniStatCard label="Stage Probability" value={getStageProbability(lead.status)} colors={colors} />
           <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
           <MiniStatCard label="Attachments" value={String(lead.attachments?.length || 0)} colors={colors} />
-          <MiniStatCard label="Timeline Events" value={String(lead.timeline.length)} colors={colors} />
+          <MiniStatCard label="Timeline Events" value={String(filteredTimeline.length)} colors={colors} />
           <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
         </section>
 
@@ -1301,14 +1396,57 @@ export default function LeadDetailPage({
                 </select>
               </div>
 
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginBottom: 14,
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: colors.cardBgSoft,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 999,
+                    padding: "8px 12px",
+                    color: colors.subText,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  Total Visible: {filteredTimeline.length}
+                </span>
+
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: colors.cardBgSoft,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 999,
+                    padding: "8px 12px",
+                    color: colors.subText,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  Lead Timeline + Call Activity Sync
+                </span>
+              </div>
+
               <div style={{ display: "grid", gap: 12 }}>
                 {filteredTimeline.length > 0 ? (
-                  filteredTimeline.map((item, index) => {
+                  filteredTimeline.map((item) => {
                     const dotColor = getTimelineToneColor(item.tone, colors);
 
                     return (
                       <div
-                        key={index}
+                        key={item.id}
                         style={{
                           display: "grid",
                           gridTemplateColumns: "14px 1fr",
@@ -1353,19 +1491,38 @@ export default function LeadDetailPage({
                               {item.title}
                             </div>
 
-                            <span
-                              style={{
-                                display: "inline-block",
-                                padding: "4px 10px",
-                                borderRadius: 999,
-                                fontSize: 11,
-                                fontWeight: 800,
-                                background: dotColor,
-                                color: "#ffffff",
-                              }}
-                            >
-                              {(item.tone || "info").toUpperCase()}
-                            </span>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {item.metaLabel ? (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    padding: "4px 10px",
+                                    borderRadius: 999,
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    background: colors.cardBg,
+                                    color: colors.subText,
+                                    border: `1px solid ${colors.border}`,
+                                  }}
+                                >
+                                  {item.metaLabel}
+                                </span>
+                              ) : null}
+
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "4px 10px",
+                                  borderRadius: 999,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  background: dotColor,
+                                  color: "#ffffff",
+                                }}
+                              >
+                                {(item.tone || "info").toUpperCase()}
+                              </span>
+                            </div>
                           </div>
 
                           <div
