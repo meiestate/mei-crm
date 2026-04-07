@@ -60,6 +60,8 @@ type UnifiedTimelineItem = {
   source: "lead" | "call";
   createdAtSortable: number;
   metaLabel?: string;
+  groupDateKey: string;
+  groupDateLabel: string;
 };
 
 type AttachmentItem = {
@@ -396,31 +398,6 @@ function getTimelineToneColor(
   }
 }
 
-function mapExternalActivityTone(
-  activityType: ExternalLeadActivityItem["type"]
-): TimelineTone {
-  switch (activityType) {
-    case "call_added":
-      return "success";
-    case "call_updated":
-      return "primary";
-    case "call_deleted":
-      return "danger";
-    default:
-      return "info";
-  }
-}
-
-function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
-  if (filter === "All") return true;
-  if (filter === "Info") return (tone || "info") === "info";
-  if (filter === "Success") return tone === "success";
-  if (filter === "Warning") return tone === "warning";
-  if (filter === "Danger") return tone === "danger";
-  if (filter === "Primary") return tone === "primary";
-  return true;
-}
-
 function getLeadHealthScore(lead: Lead) {
   let score = 40;
 
@@ -456,6 +433,75 @@ function getStageProbability(status: LeadStatus) {
   }
 }
 
+function toneMatchesFilter(tone: TimelineTone | undefined, filter: ActivityFilter) {
+  if (filter === "All") return true;
+  if (filter === "Info") return (tone || "info") === "info";
+  if (filter === "Success") return tone === "success";
+  if (filter === "Warning") return tone === "warning";
+  if (filter === "Danger") return tone === "danger";
+  if (filter === "Primary") return tone === "primary";
+  return true;
+}
+
+function mapExternalActivityTone(
+  activityType: ExternalLeadActivityItem["type"]
+): TimelineTone {
+  switch (activityType) {
+    case "call_added":
+      return "success";
+    case "call_updated":
+      return "primary";
+    case "call_deleted":
+      return "danger";
+    default:
+      return "info";
+  }
+}
+
+function toDateKeyFromTimestamp(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toDateLabelFromTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleDateString("en-IN", {
+    dateStyle: "full",
+  });
+}
+
+function parseLooseTimeToTimestamp(value: string, fallbackIndex: number) {
+  const parsed = Date.parse(value);
+  if (!Number.isNaN(parsed)) return parsed;
+  return Date.now() - fallbackIndex * 60000;
+}
+
+function downloadCsv(filename: string, rows: string[][]) {
+  const csvContent = rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          const safe = String(cell ?? "").replace(/"/g, '""');
+          return `"${safe}"`;
+        })
+        .join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function LeadDetailPage({
   mode,
   onToggleTheme,
@@ -485,14 +531,19 @@ export default function LeadDetailPage({
   const [attachmentType, setAttachmentType] = useState("Proposal");
   const [attachmentSize, setAttachmentSize] = useState("");
 
+  const [timelineSearch, setTimelineSearch] = useState("");
+  const [timelineDateFrom, setTimelineDateFrom] = useState("");
+  const [timelineDateTo, setTimelineDateTo] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
-    const syncStorage = () => {
+    const syncAll = () => {
       setAllLeads(readStoredLeads());
       setExternalActivities(readStoredLeadActivities());
     };
 
-    window.addEventListener("storage", syncStorage);
-    return () => window.removeEventListener("storage", syncStorage);
+    window.addEventListener("storage", syncAll);
+    return () => window.removeEventListener("storage", syncAll);
   }, []);
 
   const initialLead = useMemo(
@@ -603,41 +654,158 @@ export default function LeadDetailPage({
   const pipelineIndex = PIPELINE_STEPS.indexOf(lead.status);
 
   const unifiedTimeline = useMemo<UnifiedTimelineItem[]>(() => {
-    const internalTimeline: UnifiedTimelineItem[] = (lead.timeline || []).map((item, index) => ({
-      id: `lead-timeline-${index}`,
-      title: item.title,
-      description: item.description,
-      time: item.time,
-      tone: item.tone || "info",
-      source: "lead",
-      createdAtSortable: (lead.timeline.length - index) * 1000,
-      metaLabel: "LEAD",
-    }));
-
-    const linkedExternal: UnifiedTimelineItem[] = externalActivities
-      .filter((item) => Number(item.leadId) === lead.id)
-      .map((item) => ({
-        id: item.id,
+    const internalTimeline: UnifiedTimelineItem[] = (lead.timeline || []).map((item, index) => {
+      const sortable = parseLooseTimeToTimestamp(item.time, index);
+      return {
+        id: `lead-${lead.id}-timeline-${index}`,
         title: item.title,
         description: item.description,
-        time: new Date(item.createdAt).toLocaleString("en-IN", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        }),
-        tone: mapExternalActivityTone(item.type),
-        source: "call",
-        createdAtSortable: new Date(item.createdAt).getTime(),
-        metaLabel: item.meta?.callId ? `CALL • ${item.meta.callId}` : "CALL",
-      }));
+        time: item.time,
+        tone: item.tone || "info",
+        source: "lead",
+        createdAtSortable: sortable,
+        metaLabel: "LEAD",
+        groupDateKey: toDateKeyFromTimestamp(sortable),
+        groupDateLabel: toDateLabelFromTimestamp(sortable),
+      };
+    });
 
-    return [...linkedExternal, ...internalTimeline].sort(
+    const externalTimeline: UnifiedTimelineItem[] = externalActivities
+      .filter((item) => Number(item.leadId) === lead.id)
+      .map((item) => {
+        const sortable = new Date(item.createdAt).getTime();
+        return {
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          time: new Date(item.createdAt).toLocaleString("en-IN", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+          tone: mapExternalActivityTone(item.type),
+          source: "call",
+          createdAtSortable: sortable,
+          metaLabel: item.meta?.callId ? `CALL • ${item.meta.callId}` : "CALL",
+          groupDateKey: toDateKeyFromTimestamp(sortable),
+          groupDateLabel: toDateLabelFromTimestamp(sortable),
+        };
+      });
+
+    return [...externalTimeline, ...internalTimeline].sort(
       (a, b) => b.createdAtSortable - a.createdAtSortable
     );
   }, [lead.timeline, externalActivities, lead.id]);
 
-  const filteredTimeline = unifiedTimeline.filter((item) =>
-    toneMatchesFilter(item.tone, activityFilter)
-  );
+  const timelineFiltered = useMemo(() => {
+    const q = timelineSearch.trim().toLowerCase();
+
+    return unifiedTimeline.filter((item) => {
+      const matchesTone = toneMatchesFilter(item.tone, activityFilter);
+
+      const matchesSearch =
+        !q ||
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.metaLabel?.toLowerCase().includes(q);
+
+      const fromOk = timelineDateFrom
+        ? item.createdAtSortable >= new Date(`${timelineDateFrom}T00:00:00`).getTime()
+        : true;
+
+      const toOk = timelineDateTo
+        ? item.createdAtSortable <= new Date(`${timelineDateTo}T23:59:59`).getTime()
+        : true;
+
+      return matchesTone && matchesSearch && fromOk && toOk;
+    });
+  }, [unifiedTimeline, timelineSearch, activityFilter, timelineDateFrom, timelineDateTo]);
+
+  const groupedTimeline = useMemo(() => {
+    const map = new Map<
+      string,
+      { label: string; items: UnifiedTimelineItem[] }
+    >();
+
+    timelineFiltered.forEach((item) => {
+      if (!map.has(item.groupDateKey)) {
+        map.set(item.groupDateKey, {
+          label: item.groupDateLabel,
+          items: [],
+        });
+      }
+      map.get(item.groupDateKey)!.items.push(item);
+    });
+
+    return Array.from(map.entries())
+      .sort(([a], [b]) => (a < b ? 1 : -1))
+      .map(([key, value]) => ({
+        key,
+        label: value.label,
+        items: value.items,
+      }));
+  }, [timelineFiltered]);
+
+  const activityCounts = useMemo(() => {
+    return timelineFiltered.reduce(
+      (acc, item) => {
+        const tone = item.tone || "info";
+        acc.all += 1;
+        acc[tone] += 1;
+        return acc;
+      },
+      {
+        all: 0,
+        info: 0,
+        success: 0,
+        warning: 0,
+        danger: 0,
+        primary: 0,
+      }
+    );
+  }, [timelineFiltered]);
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const expandAllGroups = () => {
+    const next: Record<string, boolean> = {};
+    groupedTimeline.forEach((group) => {
+      next[group.key] = false;
+    });
+    setCollapsedGroups(next);
+  };
+
+  const collapseAllGroups = () => {
+    const next: Record<string, boolean> = {};
+    groupedTimeline.forEach((group) => {
+      next[group.key] = true;
+    });
+    setCollapsedGroups(next);
+  };
+
+  const exportTimelineHistory = () => {
+    const rows: string[][] = [
+      ["Date Group", "Time", "Title", "Description", "Tone", "Source", "Meta"],
+      ...timelineFiltered.map((item) => [
+        item.groupDateLabel,
+        item.time,
+        item.title,
+        item.description,
+        item.tone || "info",
+        item.source,
+        item.metaLabel || "",
+      ]),
+    ];
+
+    downloadCsv(
+      `lead-${lead.id}-activity-history-${new Date().toISOString().slice(0, 10)}.csv`,
+      rows
+    );
+  };
 
   const updateStatus = (nextStatus: LeadStatus) => {
     persistLeadUpdate((prev) => {
@@ -1097,7 +1265,7 @@ export default function LeadDetailPage({
           <MiniStatCard label="Stage Probability" value={getStageProbability(lead.status)} colors={colors} />
           <MiniStatCard label="Calls Logged" value={String(lead.callLogs.length)} colors={colors} />
           <MiniStatCard label="Attachments" value={String(lead.attachments?.length || 0)} colors={colors} />
-          <MiniStatCard label="Timeline Events" value={String(filteredTimeline.length)} colors={colors} />
+          <MiniStatCard label="Timeline Events" value={String(timelineFiltered.length)} colors={colors} />
           <MiniStatCard label="Current Stage" value={lead.status} colors={colors} />
         </section>
 
@@ -1382,6 +1550,49 @@ export default function LeadDetailPage({
                   Activity Timeline
                 </div>
 
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button onClick={expandAllGroups} style={secondaryButton(colors)}>
+                    Expand All
+                  </button>
+                  <button onClick={collapseAllGroups} style={secondaryButton(colors)}>
+                    Collapse All
+                  </button>
+                  <button onClick={exportTimelineHistory} style={primaryButton(colors)}>
+                    Export Activity
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                  gap: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <input
+                  type="text"
+                  value={timelineSearch}
+                  onChange={(e) => setTimelineSearch(e.target.value)}
+                  placeholder="Search timeline title, description, call label..."
+                  style={inputStyle(colors)}
+                />
+
+                <input
+                  type="date"
+                  value={timelineDateFrom}
+                  onChange={(e) => setTimelineDateFrom(e.target.value)}
+                  style={inputStyle(colors)}
+                />
+
+                <input
+                  type="date"
+                  value={timelineDateTo}
+                  onChange={(e) => setTimelineDateTo(e.target.value)}
+                  style={inputStyle(colors)}
+                />
+
                 <select
                   value={activityFilter}
                   onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
@@ -1401,152 +1612,204 @@ export default function LeadDetailPage({
                   display: "flex",
                   gap: 10,
                   flexWrap: "wrap",
-                  marginBottom: 14,
+                  marginBottom: 18,
                 }}
               >
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: colors.cardBgSoft,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 999,
-                    padding: "8px 12px",
-                    color: colors.subText,
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  Total Visible: {filteredTimeline.length}
-                </span>
-
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    background: colors.cardBgSoft,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: 999,
-                    padding: "8px 12px",
-                    color: colors.subText,
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  Lead Timeline + Call Activity Sync
-                </span>
+                <CountBadge label="All" value={activityCounts.all} colors={colors} />
+                <CountBadge label="Info" value={activityCounts.info} colors={colors} />
+                <CountBadge label="Success" value={activityCounts.success} colors={colors} />
+                <CountBadge label="Warning" value={activityCounts.warning} colors={colors} />
+                <CountBadge label="Danger" value={activityCounts.danger} colors={colors} />
+                <CountBadge label="Primary" value={activityCounts.primary} colors={colors} />
               </div>
 
-              <div style={{ display: "grid", gap: 12 }}>
-                {filteredTimeline.length > 0 ? (
-                  filteredTimeline.map((item) => {
-                    const dotColor = getTimelineToneColor(item.tone, colors);
+              <div style={{ display: "grid", gap: 14 }}>
+                {groupedTimeline.length > 0 ? (
+                  groupedTimeline.map((group) => {
+                    const collapsed = collapsedGroups[group.key] ?? false;
 
                     return (
                       <div
-                        key={item.id}
+                        key={group.key}
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "14px 1fr",
-                          gap: 12,
-                          alignItems: "start",
+                          background: colors.cardBgSoft,
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: 16,
+                          overflow: "hidden",
                         }}
                       >
-                        <div
+                        <button
+                          onClick={() => toggleGroup(group.key)}
                           style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: 999,
-                            background: dotColor,
-                            marginTop: 6,
-                          }}
-                        />
-
-                        <div
-                          style={{
-                            background: colors.cardBgSoft,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: 14,
-                            padding: 14,
+                            width: "100%",
+                            background: "transparent",
+                            border: "none",
+                            padding: "14px 16px",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
                           }}
                         >
                           <div
                             style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              gap: 8,
-                              flexWrap: "wrap",
+                              color: colors.text,
+                              fontWeight: 800,
+                              fontSize: 15,
+                              textAlign: "left",
                             }}
                           >
-                            <div
+                            {group.label}
+                          </div>
+
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <span
                               style={{
-                                color: colors.text,
-                                fontSize: 15,
-                                fontWeight: 700,
+                                display: "inline-block",
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                background: colors.cardBg,
+                                color: colors.subText,
+                                border: `1px solid ${colors.border}`,
                               }}
                             >
-                              {item.title}
-                            </div>
+                              {group.items.length} item{group.items.length > 1 ? "s" : ""}
+                            </span>
 
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              {item.metaLabel ? (
-                                <span
+                            <span
+                              style={{
+                                color: colors.subText,
+                                fontSize: 14,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {collapsed ? "＋" : "－"}
+                            </span>
+                          </div>
+                        </button>
+
+                        {!collapsed ? (
+                          <div
+                            style={{
+                              display: "grid",
+                              gap: 12,
+                              padding: "0 16px 16px",
+                            }}
+                          >
+                            {group.items.map((item) => {
+                              const dotColor = getTimelineToneColor(item.tone, colors);
+
+                              return (
+                                <div
+                                  key={item.id}
                                   style={{
-                                    display: "inline-block",
-                                    padding: "4px 10px",
-                                    borderRadius: 999,
-                                    fontSize: 11,
-                                    fontWeight: 800,
-                                    background: colors.cardBg,
-                                    color: colors.subText,
-                                    border: `1px solid ${colors.border}`,
+                                    display: "grid",
+                                    gridTemplateColumns: "14px 1fr",
+                                    gap: 12,
+                                    alignItems: "start",
                                   }}
                                 >
-                                  {item.metaLabel}
-                                </span>
-                              ) : null}
+                                  <div
+                                    style={{
+                                      width: 12,
+                                      height: 12,
+                                      borderRadius: 999,
+                                      background: dotColor,
+                                      marginTop: 6,
+                                    }}
+                                  />
 
-                              <span
-                                style={{
-                                  display: "inline-block",
-                                  padding: "4px 10px",
-                                  borderRadius: 999,
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  background: dotColor,
-                                  color: "#ffffff",
-                                }}
-                              >
-                                {(item.tone || "info").toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
+                                  <div
+                                    style={{
+                                      background: colors.cardBg,
+                                      border: `1px solid ${colors.border}`,
+                                      borderRadius: 14,
+                                      padding: 14,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          color: colors.text,
+                                          fontSize: 15,
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        {item.title}
+                                      </div>
 
-                          <div
-                            style={{
-                              marginTop: 6,
-                              color: colors.subText,
-                              lineHeight: 1.6,
-                              fontSize: 14,
-                            }}
-                          >
-                            {item.description}
-                          </div>
+                                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                        {item.metaLabel ? (
+                                          <span
+                                            style={{
+                                              display: "inline-block",
+                                              padding: "4px 10px",
+                                              borderRadius: 999,
+                                              fontSize: 11,
+                                              fontWeight: 800,
+                                              background: colors.cardBgSoft,
+                                              color: colors.subText,
+                                              border: `1px solid ${colors.border}`,
+                                            }}
+                                          >
+                                            {item.metaLabel}
+                                          </span>
+                                        ) : null}
 
-                          <div
-                            style={{
-                              marginTop: 8,
-                              color: colors.mutedText,
-                              fontSize: 12,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {item.time}
+                                        <span
+                                          style={{
+                                            display: "inline-block",
+                                            padding: "4px 10px",
+                                            borderRadius: 999,
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                            background: dotColor,
+                                            color: "#ffffff",
+                                          }}
+                                        >
+                                          {(item.tone || "info").toUpperCase()}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        marginTop: 6,
+                                        color: colors.subText,
+                                        lineHeight: 1.6,
+                                        fontSize: 14,
+                                      }}
+                                    >
+                                      {item.description}
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        marginTop: 8,
+                                        color: colors.mutedText,
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      {item.time}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        </div>
+                        ) : null}
                       </div>
                     );
                   })
@@ -2182,6 +2445,52 @@ export default function LeadDetailPage({
         </div>
       )}
     </AppLayout>
+  );
+}
+
+function CountBadge({
+  label,
+  value,
+  colors,
+}: {
+  label: string;
+  value: number;
+  colors: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 12px",
+        borderRadius: 999,
+        background: colors.cardBgSoft,
+        border: `1px solid ${colors.border}`,
+        color: colors.text,
+        fontSize: 12,
+        fontWeight: 800,
+      }}
+    >
+      {label}
+      <span
+        style={{
+          display: "inline-grid",
+          placeItems: "center",
+          minWidth: 22,
+          height: 22,
+          borderRadius: 999,
+          background: colors.cardBg,
+          border: `1px solid ${colors.border}`,
+          color: colors.subText,
+          fontSize: 11,
+          fontWeight: 800,
+          padding: "0 6px",
+        }}
+      >
+        {value}
+      </span>
+    </span>
   );
 }
 
