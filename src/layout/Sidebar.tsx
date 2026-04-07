@@ -6,13 +6,19 @@ const menuItems = [
   { name: "Contacts", path: "/contacts" },
   { name: "Deals", path: "/deals" },
   { name: "Tasks", path: "/tasks" },
+  { name: "Call Logs", path: "/calls" },
+  { name: "Help & Support", path: "/help-support" },
   { name: "Settings", path: "/settings" },
-  { label: "Call Logs", path: "/calls" }
 ];
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
 
   return (
     <aside
@@ -24,6 +30,8 @@ export default function Sidebar() {
         display: "flex",
         flexDirection: "column",
         gap: "24px",
+        minHeight: "100vh",
+        boxSizing: "border-box",
       }}
     >
       <div>
@@ -33,6 +41,7 @@ export default function Sidebar() {
             fontWeight: 800,
             color: "#f8fafc",
             marginBottom: "6px",
+            letterSpacing: "0.4px",
           }}
         >
           MEI
@@ -49,7 +58,7 @@ export default function Sidebar() {
 
       <nav style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {menuItems.map((item) => {
-          const active = location.pathname === item.path;
+          const active = isActive(item.path);
 
           return (
             <button
@@ -63,6 +72,9 @@ export default function Sidebar() {
                 padding: "12px 14px",
                 textAlign: "left",
                 cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: active ? 700 : 500,
+                transition: "all 0.2s ease",
               }}
             >
               {item.name}
@@ -80,8 +92,23 @@ export default function Sidebar() {
           padding: "16px",
         }}
       >
-        <div style={{ fontWeight: 700, marginBottom: "6px" }}>Workspace</div>
-        <div style={{ fontSize: "13px", color: "#94a3b8" }}>MEI CRM Core</div>
+        <div
+          style={{
+            fontWeight: 700,
+            marginBottom: "6px",
+            color: "#f8fafc",
+          }}
+        >
+          Workspace
+        </div>
+        <div
+          style={{
+            fontSize: "13px",
+            color: "#94a3b8",
+          }}
+        >
+          MEI CRM Core
+        </div>
       </div>
     </aside>
   );

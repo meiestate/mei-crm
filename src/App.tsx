@@ -19,6 +19,7 @@ import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
 import CallLogPage from "./pages/calls/CallLogPage";
 import BillingSubscriptionPage from "./pages/settings/BillingSubscriptionPage";
+import HelpSupportPage from "./pages/support/HelpSupportPage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -235,6 +236,7 @@ export default function App() {
             )
           }
         />
+        <Route path="/help-support" element={<HelpSupportPage mode={mode} />} />
 
         <Route
           path="/forgot-password"

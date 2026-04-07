@@ -399,10 +399,32 @@ function getStatusColors(
   );
 }
 
+function useViewport() {
+  const [width, setWidth] = useState<number>(
+    typeof window !== "undefined" ? window.innerWidth : 1440
+  );
+
+  useEffect(() => {
+    function onResize() {
+      setWidth(window.innerWidth);
+    }
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1100;
+  const isDesktop = width >= 1100;
+
+  return { width, isMobile, isTablet, isDesktop };
+}
+
 export default function BillingSubscriptionPage({
   mode,
 }: BillingSubscriptionPageProps) {
   const theme = getTheme(mode);
+  const { isMobile, isTablet } = useViewport();
 
   const [billingData, setBillingData] = useState<BillingState>(DEFAULT_STATE);
   const [invoiceSearch, setInvoiceSearch] = useState("");
@@ -499,32 +521,41 @@ export default function BillingSubscriptionPage({
 
   const statusTone = getStatusColors(billingData.subscriptionStatus, mode);
 
+  const pagePadding = isMobile ? 14 : isTablet ? 18 : 24;
+  const summaryGridColumns = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))";
+  const mainTwoColGrid = isMobile ? "1fr" : isTablet ? "1fr" : "1.6fr 1fr";
+  const bottomGrid = isMobile ? "1fr" : isTablet ? "1fr" : "1.55fr 1fr";
+  const planGridColumns = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))";
+
   const cardStyle: React.CSSProperties = {
     background: theme.cardBg,
     border: `1px solid ${theme.border}`,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: isMobile ? 16 : 20,
+    padding: isMobile ? 14 : 20,
     boxShadow:
       mode === "dark"
         ? "0 10px 30px rgba(0,0,0,0.24)"
         : "0 10px 30px rgba(15,23,42,0.06)",
+    minWidth: 0,
   };
 
   const subtleCardStyle: React.CSSProperties = {
     background: theme.sectionBg,
     border: `1px solid ${theme.borderSoft ?? theme.border}`,
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: isMobile ? 14 : 18,
+    padding: isMobile ? 12 : 16,
+    minWidth: 0,
   };
 
   const buttonBase: React.CSSProperties = {
     border: "none",
     borderRadius: 12,
-    padding: "10px 16px",
+    padding: isMobile ? "10px 12px" : "10px 16px",
     fontSize: 14,
     fontWeight: 700,
     cursor: "pointer",
     transition: "0.2s ease",
+    width: isMobile ? "100%" : undefined,
   };
 
   const primaryButton: React.CSSProperties = {
@@ -559,6 +590,7 @@ export default function BillingSubscriptionPage({
     padding: "12px 14px",
     outline: "none",
     fontSize: 14,
+    boxSizing: "border-box",
   };
 
   const tableCellStyle: React.CSSProperties = {
@@ -776,7 +808,7 @@ This is a UI-side GST invoice preview export.
         minHeight: "100%",
         background: theme.pageBg,
         color: theme.text,
-        padding: 24,
+        padding: pagePadding,
         position: "relative",
       }}
     >
@@ -784,8 +816,9 @@ This is a UI-side GST invoice preview export.
         <div
           style={{
             position: "fixed",
-            right: 20,
-            bottom: 20,
+            right: isMobile ? 12 : 20,
+            left: isMobile ? 12 : "auto",
+            bottom: isMobile ? 12 : 20,
             zIndex: 100,
             background: theme.cardBg,
             color: theme.text,
@@ -805,21 +838,23 @@ This is a UI-side GST invoice preview export.
       <div
         style={{
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
           gap: 16,
-          alignItems: "flex-start",
+          alignItems: isMobile ? "stretch" : "flex-start",
           flexWrap: "wrap",
           marginBottom: 24,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <h1
             style={{
               margin: 0,
-              fontSize: 28,
+              fontSize: isMobile ? 24 : 28,
               fontWeight: 800,
               color: theme.text,
               letterSpacing: -0.4,
+              lineHeight: 1.2,
             }}
           >
             Billing & Subscription
@@ -829,7 +864,7 @@ This is a UI-side GST invoice preview export.
               marginTop: 8,
               marginBottom: 0,
               color: theme.subText,
-              fontSize: 15,
+              fontSize: isMobile ? 14 : 15,
               lineHeight: 1.6,
               maxWidth: 780,
             }}
@@ -842,9 +877,11 @@ This is a UI-side GST invoice preview export.
         <div
           style={{
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             gap: 10,
             flexWrap: "wrap",
-            alignItems: "center",
+            alignItems: "stretch",
+            width: isMobile ? "100%" : "auto",
           }}
         >
           <button style={secondaryButton} onClick={downloadLatestInvoice}>
@@ -878,13 +915,14 @@ This is a UI-side GST invoice preview export.
             background:
               mode === "dark" ? "rgba(127,29,29,0.22)" : "rgba(254,242,242,1)",
             display: "flex",
+            flexDirection: isMobile ? "column" : "row",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
             gap: 12,
             flexWrap: "wrap",
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 fontSize: 15,
@@ -895,14 +933,22 @@ This is a UI-side GST invoice preview export.
             >
               Payment Failed Alert
             </div>
-            <div style={{ fontSize: 14, color: theme.text }}>
+            <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
               Invoice <strong>{failedInvoice.invoiceNo}</strong> failed on{" "}
               <strong>{formatDate(failedInvoice.date)}</strong>. Retry payment to
               keep the subscription active.
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              gap: 10,
+              flexWrap: "wrap",
+              width: isMobile ? "100%" : "auto",
+            }}
+          >
             <button style={secondaryButton} onClick={() => setSelectedInvoice(failedInvoice)}>
               View Invoice
             </button>
@@ -918,15 +964,16 @@ This is a UI-side GST invoice preview export.
           ...subtleCardStyle,
           marginBottom: 24,
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: isMobile ? "stretch" : "center",
           gap: 12,
           flexWrap: "wrap",
           border: `1px solid ${statusTone.border}`,
           background: statusTone.bg,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
               fontSize: 14,
@@ -937,7 +984,7 @@ This is a UI-side GST invoice preview export.
           >
             Subscription Status
           </div>
-          <div style={{ fontSize: 14, color: theme.text }}>
+          <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
             Your current plan is <strong>{billingData.currentPlan}</strong>. Next
             renewal is scheduled for <strong>{formatDate(billingData.renewalDate)}</strong>.
           </div>
@@ -945,6 +992,7 @@ This is a UI-side GST invoice preview export.
 
         <div
           style={{
+            alignSelf: isMobile ? "flex-start" : "auto",
             padding: "8px 12px",
             borderRadius: 999,
             border: `1px solid ${statusTone.border}`,
@@ -961,7 +1009,7 @@ This is a UI-side GST invoice preview export.
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: summaryGridColumns,
           gap: 16,
           marginBottom: 24,
         }}
@@ -973,7 +1021,8 @@ This is a UI-side GST invoice preview export.
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: isMobile ? "flex-start" : "center",
+              flexDirection: isMobile ? "column" : "row",
               justifyContent: "space-between",
               gap: 12,
               marginBottom: 12,
@@ -981,7 +1030,7 @@ This is a UI-side GST invoice preview export.
           >
             <div
               style={{
-                fontSize: 24,
+                fontSize: isMobile ? 22 : 24,
                 fontWeight: 800,
                 letterSpacing: -0.3,
                 color: theme.text,
@@ -1021,16 +1070,17 @@ This is a UI-side GST invoice preview export.
           </div>
           <div
             style={{
-              fontSize: 24,
+              fontSize: isMobile ? 22 : 24,
               fontWeight: 800,
               letterSpacing: -0.3,
               color: theme.text,
               marginBottom: 10,
+              wordBreak: "break-word",
             }}
           >
             {formatCurrency(total)}
           </div>
-          <div style={{ fontSize: 14, color: theme.subText, marginBottom: 8 }}>
+          <div style={{ fontSize: 14, color: theme.subText, marginBottom: 8, lineHeight: 1.6 }}>
             Includes plan + seats + add-ons + GST
           </div>
           <div style={{ fontSize: 14, color: theme.subText }}>
@@ -1047,10 +1097,12 @@ This is a UI-side GST invoice preview export.
           </div>
           <div
             style={{
-              fontSize: 18,
+              fontSize: isMobile ? 16 : 18,
               fontWeight: 800,
               color: theme.text,
               marginBottom: 8,
+              lineHeight: 1.4,
+              wordBreak: "break-word",
             }}
           >
             {billingData.paymentMethodLabel}
@@ -1065,17 +1117,19 @@ This is a UI-side GST invoice preview export.
           <label
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: "flex-start",
               gap: 10,
               fontSize: 14,
               color: theme.text,
               cursor: "pointer",
+              lineHeight: 1.5,
             }}
           >
             <input
               type="checkbox"
               checked={billingData.autoRenew}
               onChange={() => updateBillingData("autoRenew", !billingData.autoRenew)}
+              style={{ marginTop: 3 }}
             />
             Enable auto-renewal
           </label>
@@ -1085,7 +1139,7 @@ This is a UI-side GST invoice preview export.
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1.6fr 1fr",
+          gridTemplateColumns: mainTwoColGrid,
           gap: 16,
           marginBottom: 24,
         }}
@@ -1094,14 +1148,15 @@ This is a UI-side GST invoice preview export.
           <div
             style={{
               display: "flex",
+              flexDirection: isMobile ? "column" : "row",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: isMobile ? "stretch" : "center",
               gap: 12,
               flexWrap: "wrap",
               marginBottom: 18,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2
                 style={{
                   margin: 0,
@@ -1118,6 +1173,7 @@ This is a UI-side GST invoice preview export.
                   marginBottom: 0,
                   fontSize: 14,
                   color: theme.subText,
+                  lineHeight: 1.6,
                 }}
               >
                 Compare features, choose a higher tier, and connect payment provider flow.
@@ -1127,6 +1183,7 @@ This is a UI-side GST invoice preview export.
             <div
               style={{
                 display: "inline-flex",
+                width: isMobile ? "100%" : "auto",
                 background: theme.sectionBg,
                 border: `1px solid ${theme.border}`,
                 borderRadius: 12,
@@ -1138,6 +1195,7 @@ This is a UI-side GST invoice preview export.
                 onClick={() => updateBillingData("billingCycle", "Monthly")}
                 style={{
                   ...buttonBase,
+                  width: "100%",
                   padding: "8px 12px",
                   background:
                     billingData.billingCycle === "Monthly"
@@ -1155,6 +1213,7 @@ This is a UI-side GST invoice preview export.
                 onClick={() => updateBillingData("billingCycle", "Yearly")}
                 style={{
                   ...buttonBase,
+                  width: "100%",
                   padding: "8px 12px",
                   background:
                     billingData.billingCycle === "Yearly"
@@ -1174,7 +1233,7 @@ This is a UI-side GST invoice preview export.
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gridTemplateColumns: planGridColumns,
               gap: 14,
             }}
           >
@@ -1192,8 +1251,9 @@ This is a UI-side GST invoice preview export.
                     border: `1px solid ${isCurrent ? theme.primary : theme.border}`,
                     background: isCurrent ? theme.cardBgSoft : theme.cardBg,
                     borderRadius: 18,
-                    padding: 16,
+                    padding: isMobile ? 14 : 16,
                     position: "relative",
+                    minWidth: 0,
                   }}
                 >
                   {plan.recommended && (
@@ -1220,6 +1280,7 @@ This is a UI-side GST invoice preview export.
                       fontWeight: 800,
                       color: theme.text,
                       marginBottom: 8,
+                      paddingRight: plan.recommended ? 80 : 0,
                     }}
                   >
                     {plan.name}
@@ -1227,7 +1288,7 @@ This is a UI-side GST invoice preview export.
 
                   <div
                     style={{
-                      fontSize: 24,
+                      fontSize: isMobile ? 22 : 24,
                       fontWeight: 900,
                       color: theme.text,
                       marginBottom: 4,
@@ -1241,6 +1302,7 @@ This is a UI-side GST invoice preview export.
                       fontSize: 13,
                       color: theme.subText,
                       marginBottom: 16,
+                      lineHeight: 1.5,
                     }}
                   >
                     {plan.name === "Enterprise"
@@ -1263,11 +1325,12 @@ This is a UI-side GST invoice preview export.
                           fontSize: 13,
                           color: feature.included ? theme.text : theme.mutedText,
                           display: "flex",
-                          alignItems: "center",
+                          alignItems: "flex-start",
                           gap: 8,
+                          lineHeight: 1.5,
                         }}
                       >
-                        <span>{feature.included ? "✓" : "—"}</span>
+                        <span style={{ flexShrink: 0 }}>{feature.included ? "✓" : "—"}</span>
                         <span>{feature.label}</span>
                       </div>
                     ))}
@@ -1321,7 +1384,9 @@ This is a UI-side GST invoice preview export.
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        gap: 10,
+                        alignItems: isMobile ? "flex-start" : "center",
+                        flexDirection: isMobile ? "column" : "row",
+                        gap: 6,
                         marginBottom: 8,
                         fontSize: 14,
                       }}
@@ -1387,23 +1452,36 @@ This is a UI-side GST invoice preview export.
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: isMobile ? "stretch" : "center",
+                  flexDirection: isMobile ? "column" : "row",
                   gap: 12,
-                  alignItems: "center",
                   marginBottom: 8,
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>
                     Team Seats
                   </div>
-                  <div style={{ fontSize: 13, color: theme.subText }}>
+                  <div style={{ fontSize: 13, color: theme.subText, lineHeight: 1.6 }}>
                     Included seats: {billingData.baseIncludedSeats} · Extra seats: {extraSeatCount}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "center",
+                    alignSelf: isMobile ? "flex-start" : "auto",
+                  }}
+                >
                   <button
-                    style={secondaryButton}
+                    style={{
+                      ...secondaryButton,
+                      width: 40,
+                      minWidth: 40,
+                      padding: "10px 0",
+                    }}
                     onClick={() => adjustSeats("decrement")}
                   >
                     -
@@ -1419,7 +1497,12 @@ This is a UI-side GST invoice preview export.
                     {billingData.teamSeats}
                   </div>
                   <button
-                    style={secondaryButton}
+                    style={{
+                      ...secondaryButton,
+                      width: 40,
+                      minWidth: 40,
+                      padding: "10px 0",
+                    }}
                     onClick={() => adjustSeats("increment")}
                   >
                     +
@@ -1427,7 +1510,7 @@ This is a UI-side GST invoice preview export.
                 </div>
               </div>
 
-              <div style={{ fontSize: 13, color: theme.subText }}>
+              <div style={{ fontSize: 13, color: theme.subText, lineHeight: 1.6 }}>
                 Extra seat pricing: {formatCurrency(seatPrice)} /{" "}
                 {billingData.billingCycle === "Monthly" ? "seat / month" : "seat / year"}
               </div>
@@ -1440,30 +1523,40 @@ This is a UI-side GST invoice preview export.
                   style={{
                     ...subtleCardStyle,
                     display: "flex",
+                    flexDirection: isMobile ? "column" : "row",
                     gap: 12,
-                    alignItems: "flex-start",
+                    alignItems: isMobile ? "stretch" : "flex-start",
                     cursor: "pointer",
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={item.selected}
-                    onChange={() => toggleAddOn(item.key)}
-                    style={{ marginTop: 4 }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>
-                      {item.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: theme.subText,
-                        marginTop: 4,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {item.description}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      alignItems: "flex-start",
+                      width: "100%",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.selected}
+                      onChange={() => toggleAddOn(item.key)}
+                      style={{ marginTop: 4 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: theme.text }}>
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: theme.subText,
+                          marginTop: 4,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {item.description}
+                      </div>
                     </div>
                   </div>
                   <div
@@ -1471,7 +1564,8 @@ This is a UI-side GST invoice preview export.
                       fontSize: 13,
                       fontWeight: 700,
                       color: theme.text,
-                      whiteSpace: "nowrap",
+                      whiteSpace: isMobile ? "normal" : "nowrap",
+                      paddingLeft: isMobile ? 28 : 0,
                     }}
                   >
                     {formatCurrency(
@@ -1490,7 +1584,7 @@ This is a UI-side GST invoice preview export.
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1.55fr 1fr",
+          gridTemplateColumns: bottomGrid,
           gap: 16,
           marginBottom: 24,
         }}
@@ -1499,14 +1593,15 @@ This is a UI-side GST invoice preview export.
           <div
             style={{
               display: "flex",
+              flexDirection: isMobile ? "column" : "row",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: isMobile ? "stretch" : "center",
               gap: 12,
               flexWrap: "wrap",
               marginBottom: 16,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2
                 style={{
                   margin: 0,
@@ -1523,13 +1618,14 @@ This is a UI-side GST invoice preview export.
                   marginBottom: 0,
                   fontSize: 14,
                   color: theme.subText,
+                  lineHeight: 1.6,
                 }}
               >
                 Review invoices, open detail drawer, and download GST invoice exports.
               </p>
             </div>
 
-            <div style={{ width: 260 }}>
+            <div style={{ width: isMobile ? "100%" : 260 }}>
               <input
                 value={invoiceSearch}
                 onChange={(e) => setInvoiceSearch(e.target.value)}
@@ -1539,108 +1635,199 @@ This is a UI-side GST invoice preview export.
             </div>
           </div>
 
-          <div
-            style={{
-              overflowX: "auto",
-              border: `1px solid ${theme.border}`,
-              borderRadius: 16,
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                background: theme.cardBg,
-              }}
-            >
-              <thead
-                style={{
-                  background: theme.tableHeadBg ?? theme.sectionBg,
-                }}
-              >
-                <tr>
-                  <th style={tableCellStyle}>Invoice No</th>
-                  <th style={tableCellStyle}>Date</th>
-                  <th style={tableCellStyle}>Amount</th>
-                  <th style={tableCellStyle}>Status</th>
-                  <th style={tableCellStyle}>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredInvoices.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        ...tableCellStyle,
-                        textAlign: "center",
-                        color: theme.subText,
-                        padding: 24,
-                      }}
-                    >
-                      No invoices found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInvoices.map((invoice) => {
-                    const invoiceTone = getStatusColors(invoice.status, mode);
-
-                    return (
-                      <tr key={invoice.id}>
-                        <td style={tableCellStyle}>
-                          <div style={{ fontWeight: 700 }}>{invoice.invoiceNo}</div>
+          {isMobile ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              {filteredInvoices.length === 0 ? (
+                <div style={subtleCardStyle}>
+                  <div style={{ fontSize: 14, color: theme.subText }}>No invoices found.</div>
+                </div>
+              ) : (
+                filteredInvoices.map((invoice) => {
+                  const invoiceTone = getStatusColors(invoice.status, mode);
+                  return (
+                    <div key={invoice.id} style={subtleCardStyle}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          alignItems: "flex-start",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800, color: theme.text, lineHeight: 1.4 }}>
+                            {invoice.invoiceNo}
+                          </div>
                           <div style={{ fontSize: 12, color: theme.subText, marginTop: 4 }}>
                             {invoice.planName} · {invoice.paidVia}
                           </div>
-                        </td>
-                        <td style={tableCellStyle}>{formatDate(invoice.date)}</td>
-                        <td style={tableCellStyle}>
-                          <div style={{ fontWeight: 700 }}>{formatCurrency(invoice.total)}</div>
-                          <div style={{ fontSize: 12, color: theme.subText, marginTop: 4 }}>
-                            Base {formatCurrency(invoice.amount)} + Tax {formatCurrency(invoice.tax)}
-                          </div>
-                        </td>
-                        <td style={tableCellStyle}>
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              padding: "6px 10px",
-                              borderRadius: 999,
-                              fontSize: 12,
-                              fontWeight: 700,
-                              background: invoiceTone.bg,
-                              color: invoiceTone.text,
-                              border: `1px solid ${invoiceTone.border}`,
-                            }}
-                          >
-                            {invoice.status}
+                        </div>
+
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "6px 10px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: invoiceTone.bg,
+                            color: invoiceTone.text,
+                            border: `1px solid ${invoiceTone.border}`,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {invoice.status}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                          <span style={{ fontSize: 13, color: theme.subText }}>Date</span>
+                          <span style={{ fontSize: 13, color: theme.text }}>{formatDate(invoice.date)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                          <span style={{ fontSize: 13, color: theme.subText }}>Total</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: theme.text }}>
+                            {formatCurrency(invoice.total)}
                           </span>
-                        </td>
-                        <td style={tableCellStyle}>
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            <button
-                              style={secondaryButton}
-                              onClick={() => setSelectedInvoice(invoice)}
+                        </div>
+                        <div style={{ fontSize: 12, color: theme.subText, lineHeight: 1.5 }}>
+                          Base {formatCurrency(invoice.amount)} + Tax {formatCurrency(invoice.tax)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <button
+                          style={secondaryButton}
+                          onClick={() => setSelectedInvoice(invoice)}
+                        >
+                          View
+                        </button>
+                        <button
+                          style={secondaryButton}
+                          onClick={() => downloadInvoicePdf(invoice)}
+                        >
+                          Download GST
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                overflowX: "auto",
+                border: `1px solid ${theme.border}`,
+                borderRadius: 16,
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  minWidth: 720,
+                  borderCollapse: "collapse",
+                  background: theme.cardBg,
+                }}
+              >
+                <thead
+                  style={{
+                    background: theme.tableHeadBg ?? theme.sectionBg,
+                  }}
+                >
+                  <tr>
+                    <th style={tableCellStyle}>Invoice No</th>
+                    <th style={tableCellStyle}>Date</th>
+                    <th style={tableCellStyle}>Amount</th>
+                    <th style={tableCellStyle}>Status</th>
+                    <th style={tableCellStyle}>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredInvoices.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        style={{
+                          ...tableCellStyle,
+                          textAlign: "center",
+                          color: theme.subText,
+                          padding: 24,
+                        }}
+                      >
+                        No invoices found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredInvoices.map((invoice) => {
+                      const invoiceTone = getStatusColors(invoice.status, mode);
+
+                      return (
+                        <tr key={invoice.id}>
+                          <td style={tableCellStyle}>
+                            <div style={{ fontWeight: 700 }}>{invoice.invoiceNo}</div>
+                            <div style={{ fontSize: 12, color: theme.subText, marginTop: 4 }}>
+                              {invoice.planName} · {invoice.paidVia}
+                            </div>
+                          </td>
+                          <td style={tableCellStyle}>{formatDate(invoice.date)}</td>
+                          <td style={tableCellStyle}>
+                            <div style={{ fontWeight: 700 }}>{formatCurrency(invoice.total)}</div>
+                            <div style={{ fontSize: 12, color: theme.subText, marginTop: 4 }}>
+                              Base {formatCurrency(invoice.amount)} + Tax {formatCurrency(invoice.tax)}
+                            </div>
+                          </td>
+                          <td style={tableCellStyle}>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                padding: "6px 10px",
+                                borderRadius: 999,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                background: invoiceTone.bg,
+                                color: invoiceTone.text,
+                                border: `1px solid ${invoiceTone.border}`,
+                              }}
                             >
-                              View
-                            </button>
-                            <button
-                              style={secondaryButton}
-                              onClick={() => downloadInvoicePdf(invoice)}
-                            >
-                              Download GST
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                              {invoice.status}
+                            </span>
+                          </td>
+                          <td style={tableCellStyle}>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button
+                                style={{
+                                  ...secondaryButton,
+                                  width: "auto",
+                                }}
+                                onClick={() => setSelectedInvoice(invoice)}
+                              >
+                                View
+                              </button>
+                              <button
+                                style={{
+                                  ...secondaryButton,
+                                  width: "auto",
+                                }}
+                                onClick={() => downloadInvoicePdf(invoice)}
+                              >
+                                Download GST
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "grid", gap: 16 }}>
@@ -1658,31 +1845,31 @@ This is a UI-side GST invoice preview export.
             </h2>
 
             <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: theme.subText }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
                 <span>Plan Amount</span>
-                <span style={{ color: theme.text }}>{formatCurrency(planAmount)}</span>
+                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(planAmount)}</span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: theme.subText }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
                 <span>Extra Seats</span>
-                <span style={{ color: theme.text }}>{formatCurrency(seatsCost)}</span>
+                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(seatsCost)}</span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: theme.subText }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
                 <span>Add-ons</span>
-                <span style={{ color: theme.text }}>{formatCurrency(addOnCost)}</span>
+                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(addOnCost)}</span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: theme.subText }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
                 <span>Discount</span>
-                <span style={{ color: discount > 0 ? theme.success : theme.text }}>
+                <span style={{ color: discount > 0 ? theme.success : theme.text, textAlign: "right" }}>
                   - {formatCurrency(discount)}
                 </span>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: theme.subText }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
                 <span>GST (18%)</span>
-                <span style={{ color: theme.text }}>{formatCurrency(gst)}</span>
+                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(gst)}</span>
               </div>
 
               <div
@@ -1697,13 +1884,14 @@ This is a UI-side GST invoice preview export.
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
+                  gap: 12,
                   fontSize: 16,
                   fontWeight: 800,
                   color: theme.text,
                 }}
               >
                 <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+                <span style={{ textAlign: "right" }}>{formatCurrency(total)}</span>
               </div>
             </div>
 
@@ -1719,14 +1907,26 @@ This is a UI-side GST invoice preview export.
               >
                 Coupon Code
               </label>
-              <div style={{ display: "flex", gap: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: 10,
+                }}
+              >
                 <input
                   value={billingData.couponCode}
                   onChange={(e) => updateBillingData("couponCode", e.target.value)}
                   placeholder="Enter coupon code"
                   style={inputStyle}
                 />
-                <button style={secondaryButton} onClick={applyCoupon}>
+                <button
+                  style={{
+                    ...secondaryButton,
+                    width: isMobile ? "100%" : "auto",
+                  }}
+                  onClick={applyCoupon}
+                >
                   Apply
                 </button>
               </div>
@@ -1770,7 +1970,7 @@ This is a UI-side GST invoice preview export.
                 <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Company
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: theme.text }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: theme.text, lineHeight: 1.5 }}>
                   {billingData.billingAddress.companyName}
                 </div>
               </div>
@@ -1779,7 +1979,7 @@ This is a UI-side GST invoice preview export.
                 <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Billing Address
                 </div>
-                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.7 }}>
                   {billingData.billingAddress.addressLine1},
                   <br />
                   {billingData.billingAddress.addressLine2},
@@ -1795,7 +1995,7 @@ This is a UI-side GST invoice preview export.
                 <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   GSTIN
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: theme.text }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, wordBreak: "break-word" }}>
                   {billingData.billingAddress.gstin}
                 </div>
               </div>
@@ -1804,7 +2004,7 @@ This is a UI-side GST invoice preview export.
                 <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
                   Billing Email
                 </div>
-                <div style={{ fontSize: 14, color: theme.text }}>
+                <div style={{ fontSize: 14, color: theme.text, wordBreak: "break-word" }}>
                   {billingData.billingAddress.billingEmail}
                 </div>
               </div>
@@ -1862,39 +2062,42 @@ This is a UI-side GST invoice preview export.
             background: "rgba(0,0,0,0.48)",
             display: "flex",
             justifyContent: "center",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-end" : "center",
             zIndex: 70,
-            padding: 20,
+            padding: isMobile ? 0 : 20,
           }}
         >
           <div
             style={{
               width: "100%",
-              maxWidth: 620,
+              maxWidth: isMobile ? "100%" : 620,
+              maxHeight: isMobile ? "92vh" : "calc(100vh - 40px)",
+              overflowY: "auto",
               background: theme.cardBg,
-              borderRadius: 24,
+              borderRadius: isMobile ? "20px 20px 0 0" : 24,
               border: `1px solid ${theme.border}`,
               boxShadow:
                 mode === "dark"
                   ? "0 18px 48px rgba(0,0,0,0.38)"
                   : "0 18px 48px rgba(15,23,42,0.18)",
-              padding: 24,
+              padding: isMobile ? 16 : 24,
             }}
           >
             <div
               style={{
                 display: "flex",
+                flexDirection: isMobile ? "column" : "row",
                 justifyContent: "space-between",
                 gap: 12,
-                alignItems: "flex-start",
+                alignItems: isMobile ? "stretch" : "flex-start",
                 marginBottom: 18,
               }}
             >
               <div>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: theme.text }}>
+                <h2 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 800, color: theme.text }}>
                   Upgrade Subscription
                 </h2>
-                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText }}>
+                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText, lineHeight: 1.6 }}>
                   Pick plan and payment provider. This modal is backend integration-ready.
                 </p>
               </div>
@@ -1925,7 +2128,14 @@ This is a UI-side GST invoice preview export.
                 <label style={{ display: "block", fontSize: 13, color: theme.subText, marginBottom: 8 }}>
                   Payment Provider
                 </label>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: isMobile ? "column" : "row",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <button
                     style={selectedProvider === "Razorpay" ? primaryButton : secondaryButton}
                     onClick={() => setSelectedProvider("Razorpay")}
@@ -1946,17 +2156,17 @@ This is a UI-side GST invoice preview export.
                   Upgrade Summary
                 </div>
                 <div style={{ display: "grid", gap: 8, fontSize: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: theme.subText }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
                     <span>Target Plan</span>
-                    <strong style={{ color: theme.text }}>{selectedUpgradePlan}</strong>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{selectedUpgradePlan}</strong>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: theme.subText }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
                     <span>Cycle</span>
-                    <strong style={{ color: theme.text }}>{billingData.billingCycle}</strong>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{billingData.billingCycle}</strong>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: theme.subText }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
                     <span>Plan Amount</span>
-                    <strong style={{ color: theme.text }}>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>
                       {selectedUpgradePlan === "Enterprise"
                         ? "Custom"
                         : formatCurrency(
@@ -1966,14 +2176,22 @@ This is a UI-side GST invoice preview export.
                           )}
                     </strong>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: theme.subText }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
                     <span>Provider</span>
-                    <strong style={{ color: theme.text }}>{selectedProvider}</strong>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{selectedProvider}</strong>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: 12,
+                  justifyContent: "flex-end",
+                  flexWrap: "wrap",
+                }}
+              >
                 <button style={secondaryButton} onClick={() => setIsUpgradeModalOpen(false)}>
                   Cancel
                 </button>
@@ -1987,122 +2205,146 @@ This is a UI-side GST invoice preview export.
       ) : null}
 
       {selectedInvoice ? (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            width: "100%",
-            maxWidth: 440,
-            height: "100vh",
-            background: theme.cardBg,
-            borderLeft: `1px solid ${theme.border}`,
-            boxShadow:
-              mode === "dark"
-                ? "-14px 0 32px rgba(0,0,0,0.36)"
-                : "-14px 0 32px rgba(15,23,42,0.14)",
-            zIndex: 75,
-            padding: 24,
-            overflowY: "auto",
-          }}
-        >
+        <>
+          <div
+            onClick={() => setSelectedInvoice(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.34)",
+              zIndex: 74,
+            }}
+          />
+
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              alignItems: "flex-start",
-              marginBottom: 16,
+              position: "fixed",
+              top: isMobile ? "auto" : 0,
+              bottom: 0,
+              right: 0,
+              width: isMobile ? "100%" : isTablet ? "78%" : "100%",
+              maxWidth: isMobile ? "100%" : isTablet ? 560 : 440,
+              height: isMobile ? "86vh" : "100vh",
+              background: theme.cardBg,
+              borderLeft: isMobile ? "none" : `1px solid ${theme.border}`,
+              borderTop: isMobile ? `1px solid ${theme.border}` : "none",
+              borderRadius: isMobile ? "20px 20px 0 0" : 0,
+              boxShadow:
+                mode === "dark"
+                  ? "-14px 0 32px rgba(0,0,0,0.36)"
+                  : "-14px 0 32px rgba(15,23,42,0.14)",
+              zIndex: 75,
+              padding: isMobile ? 16 : 24,
+              overflowY: "auto",
+              boxSizing: "border-box",
             }}
           >
-            <div>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: theme.text }}>
-                Invoice Details
-              </h2>
-              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText }}>
-                Drawer preview for invoice metadata and GST summary.
-              </p>
-            </div>
-            <button style={secondaryButton} onClick={() => setSelectedInvoice(null)}>
-              Close
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Invoice No</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: theme.text }}>
-                {selectedInvoice.invoiceNo}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: isMobile ? "column" : "row",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: isMobile ? "stretch" : "flex-start",
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <h2 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 800, color: theme.text }}>
+                  Invoice Details
+                </h2>
+                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText, lineHeight: 1.6 }}>
+                  Drawer preview for invoice metadata and GST summary.
+                </p>
               </div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Date</div>
-              <div style={{ fontSize: 14, color: theme.text }}>{formatDate(selectedInvoice.date)}</div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Plan</div>
-              <div style={{ fontSize: 14, color: theme.text }}>
-                {selectedInvoice.planName} · {selectedInvoice.billingCycle}
-              </div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Payment Provider</div>
-              <div style={{ fontSize: 14, color: theme.text }}>{selectedInvoice.paidVia}</div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Description</div>
-              <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
-                {selectedInvoice.description ?? "No description"}
-              </div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                  <span style={{ color: theme.subText }}>Base Amount</span>
-                  <strong style={{ color: theme.text }}>{formatCurrency(selectedInvoice.amount)}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                  <span style={{ color: theme.subText }}>GST</span>
-                  <strong style={{ color: theme.text }}>{formatCurrency(selectedInvoice.tax)}</strong>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15 }}>
-                  <span style={{ color: theme.subText }}>Total</span>
-                  <strong style={{ color: theme.text }}>{formatCurrency(selectedInvoice.total)}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div style={subtleCardStyle}>
-              <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Billing Party</div>
-              <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
-                {billingData.billingAddress.companyName}
-                <br />
-                GSTIN: {billingData.billingAddress.gstin}
-                <br />
-                {billingData.billingAddress.billingEmail}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                style={primaryButton}
-                onClick={() => downloadInvoicePdf(selectedInvoice)}
-              >
-                Download GST
+              <button style={secondaryButton} onClick={() => setSelectedInvoice(null)}>
+                Close
               </button>
-              {selectedInvoice.status === "Failed" || selectedInvoice.status === "Overdue" ? (
-                <button style={secondaryButton} onClick={retryFailedPayment}>
-                  Retry Payment
+            </div>
+
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Invoice No</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: theme.text, lineHeight: 1.4 }}>
+                  {selectedInvoice.invoiceNo}
+                </div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Date</div>
+                <div style={{ fontSize: 14, color: theme.text }}>{formatDate(selectedInvoice.date)}</div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Plan</div>
+                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.5 }}>
+                  {selectedInvoice.planName} · {selectedInvoice.billingCycle}
+                </div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Payment Provider</div>
+                <div style={{ fontSize: 14, color: theme.text }}>{selectedInvoice.paidVia}</div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Description</div>
+                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
+                  {selectedInvoice.description ?? "No description"}
+                </div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
+                    <span style={{ color: theme.subText }}>Base Amount</span>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.amount)}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
+                    <span style={{ color: theme.subText }}>GST</span>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.tax)}</strong>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 15 }}>
+                    <span style={{ color: theme.subText }}>Total</span>
+                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.total)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div style={subtleCardStyle}>
+                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Billing Party</div>
+                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6, wordBreak: "break-word" }}>
+                  {billingData.billingAddress.companyName}
+                  <br />
+                  GSTIN: {billingData.billingAddress.gstin}
+                  <br />
+                  {billingData.billingAddress.billingEmail}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  style={primaryButton}
+                  onClick={() => downloadInvoicePdf(selectedInvoice)}
+                >
+                  Download GST
                 </button>
-              ) : null}
+                {selectedInvoice.status === "Failed" || selectedInvoice.status === "Overdue" ? (
+                  <button style={secondaryButton} onClick={retryFailedPayment}>
+                    Retry Payment
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   );
