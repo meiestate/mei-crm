@@ -17,6 +17,7 @@ import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
+import CallLogPage from "./pages/calls/CallLogPage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -182,6 +183,7 @@ export default function App() {
   const settingsPageElement = (
     <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
   );
+  <Route path="/calls" element={<CallLogPage mode={mode} />} />
 
   return (
     <BrowserRouter>

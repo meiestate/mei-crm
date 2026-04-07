@@ -7,6 +7,7 @@ const menuItems = [
   { name: "Deals", path: "/deals" },
   { name: "Tasks", path: "/tasks" },
   { name: "Settings", path: "/settings" },
+  { label: "Call Logs", path: "/calls" }
 ];
 
 export default function Sidebar() {
