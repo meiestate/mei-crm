@@ -215,6 +215,7 @@ export default function LeadsCalendarPage({
   const [eventOverrides, setEventOverrides] = useState<Record<number, Partial<LeadEvent>>>({});
   const [highlightedAgendaDate, setHighlightedAgendaDate] = useState<string | null>(null);
   const [hoveredMonthDate, setHoveredMonthDate] = useState<string | null>(null);
+  const [collapsedAgendaDates, setCollapsedAgendaDates] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const syncStoredLeadEvents = () => {
@@ -359,6 +360,11 @@ export default function LeadsCalendarPage({
 
   useEffect(() => {
     if (viewMode !== "Agenda" || !highlightedAgendaDate) return;
+
+    setCollapsedAgendaDates((prev) => ({
+      ...prev,
+      [highlightedAgendaDate]: false,
+    }));
 
     const target = agendaGroupRefs.current[highlightedAgendaDate];
     if (target) {
@@ -534,6 +540,13 @@ export default function LeadsCalendarPage({
     setSelectedDate(isoDate);
     setViewMode("Agenda");
     setHighlightedAgendaDate(isoDate);
+  };
+
+  const toggleAgendaGroup = (date: string) => {
+    setCollapsedAgendaDates((prev) => ({
+      ...prev,
+      [date]: !prev[date],
+    }));
   };
 
   return (
@@ -855,11 +868,11 @@ export default function LeadsCalendarPage({
                     cell.isoDate ? (
                       <div
                         key={cell.key}
-                        style={{
-                          position: "relative",
-                        }}
+                        style={{ position: "relative" }}
                         onMouseEnter={() => setHoveredMonthDate(cell.isoDate)}
-                        onMouseLeave={() => setHoveredMonthDate((prev) => (prev === cell.isoDate ? null : prev))}
+                        onMouseLeave={() =>
+                          setHoveredMonthDate((prev) => (prev === cell.isoDate ? null : prev))
+                        }
                       >
                         <button
                           onClick={() => handleMonthCellClick(cell.isoDate!)}
@@ -1126,6 +1139,7 @@ export default function LeadsCalendarPage({
                     {agendaGroups.map(([date, events]) => {
                       const isHighlighted = highlightedAgendaDate === date;
                       const isSelectedDateGroup = selectedDate === date;
+                      const isCollapsed = collapsedAgendaDates[date] ?? false;
 
                       return (
                         <div
@@ -1160,7 +1174,9 @@ export default function LeadsCalendarPage({
                               paddingBottom: 4,
                             }}
                           >
-                            <div
+                            <button
+                              type="button"
+                              onClick={() => toggleAgendaGroup(date)}
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -1180,8 +1196,10 @@ export default function LeadsCalendarPage({
                                   isHighlighted || isSelectedDateGroup ? "#fff" : colors.text,
                                 fontSize: 13,
                                 fontWeight: 800,
+                                cursor: "pointer",
                               }}
                             >
+                              <span>{isCollapsed ? "▸" : "▾"}</span>
                               <span>{formatPrettyDate(date)}</span>
                               <span
                                 style={{
@@ -1197,130 +1215,132 @@ export default function LeadsCalendarPage({
                               >
                                 {events.length}
                               </span>
-                            </div>
+                            </button>
                           </div>
 
-                          <div style={{ display: "grid", gap: 12 }}>
-                            {events.map((event) => (
-                              <div
-                                key={`${event.id}-${event.date}-${event.time}-agenda`}
-                                style={{
-                                  border: `1px solid ${colors.border}`,
-                                  borderLeft: `5px solid ${getPriorityColor(event.priority, colors)}`,
-                                  borderRadius: 16,
-                                  padding: 16,
-                                  background: colors.cardBgSoft,
-                                  display: "grid",
-                                  gap: 10,
-                                }}
-                              >
+                          {!isCollapsed && (
+                            <div style={{ display: "grid", gap: 12 }}>
+                              {events.map((event) => (
                                 <div
+                                  key={`${event.id}-${event.date}-${event.time}-agenda`}
                                   style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div>
-                                    <div
-                                      style={{
-                                        fontSize: 16,
-                                        fontWeight: 800,
-                                        color: colors.text,
-                                      }}
-                                    >
-                                      {event.leadName}
-                                    </div>
-                                    <div
-                                      style={{
-                                        marginTop: 4,
-                                        fontSize: 13,
-                                        color: colors.subText,
-                                      }}
-                                    >
-                                      {event.time} • {event.owner} • {event.city}
-                                    </div>
-                                  </div>
-
-                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                    <span
-                                      style={{
-                                        padding: "6px 10px",
-                                        borderRadius: 999,
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        color: "#fff",
-                                        background: getActivityTypeColor(event.activityType, colors),
-                                      }}
-                                    >
-                                      {event.activityType}
-                                    </span>
-
-                                    <span
-                                      style={{
-                                        padding: "6px 10px",
-                                        borderRadius: 999,
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        color: "#fff",
-                                        background: getStatusPillColor(event.activityStatus, colors),
-                                      }}
-                                    >
-                                      {event.activityStatus}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div
-                                  style={{
-                                    fontSize: 13,
-                                    color: colors.text,
-                                    lineHeight: 1.7,
-                                  }}
-                                >
-                                  {event.note}
-                                </div>
-
-                                <div
-                                  style={{
+                                    border: `1px solid ${colors.border}`,
+                                    borderLeft: `5px solid ${getPriorityColor(event.priority, colors)}`,
+                                    borderRadius: 16,
+                                    padding: 16,
+                                    background: colors.cardBgSoft,
                                     display: "grid",
-                                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
                                     gap: 10,
                                   }}
                                 >
-                                  <AgendaInfo label="Phone" value={event.phone} colors={colors} />
-                                  <AgendaInfo label="Budget" value={event.budget} colors={colors} />
-                                  <AgendaInfo label="Location" value={event.location} colors={colors} />
-                                  <AgendaInfo label="Status" value={event.leadStatus} colors={colors} />
-                                </div>
-
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  <QuickActionChip
-                                    label="Open Lead"
-                                    colors={colors}
-                                    onClick={() => {
-                                      if (event.leadId) {
-                                        navigate(`/leads/${event.leadId}`);
-                                      }
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      gap: 12,
+                                      flexWrap: "wrap",
                                     }}
-                                  />
-                                  <QuickActionChip
-                                    label="Mark Done"
-                                    colors={colors}
-                                    onClick={() => handleMarkDone(event.id)}
-                                  />
-                                  <QuickActionChip
-                                    label="Reschedule"
-                                    colors={colors}
-                                    onClick={() => handleReschedule(event)}
-                                  />
-                                  <QuickActionChip label="WhatsApp" colors={colors} />
+                                  >
+                                    <div>
+                                      <div
+                                        style={{
+                                          fontSize: 16,
+                                          fontWeight: 800,
+                                          color: colors.text,
+                                        }}
+                                      >
+                                        {event.leadName}
+                                      </div>
+                                      <div
+                                        style={{
+                                          marginTop: 4,
+                                          fontSize: 13,
+                                          color: colors.subText,
+                                        }}
+                                      >
+                                        {event.time} • {event.owner} • {event.city}
+                                      </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      <span
+                                        style={{
+                                          padding: "6px 10px",
+                                          borderRadius: 999,
+                                          fontSize: 11,
+                                          fontWeight: 800,
+                                          color: "#fff",
+                                          background: getActivityTypeColor(event.activityType, colors),
+                                        }}
+                                      >
+                                        {event.activityType}
+                                      </span>
+
+                                      <span
+                                        style={{
+                                          padding: "6px 10px",
+                                          borderRadius: 999,
+                                          fontSize: 11,
+                                          fontWeight: 800,
+                                          color: "#fff",
+                                          background: getStatusPillColor(event.activityStatus, colors),
+                                        }}
+                                      >
+                                        {event.activityStatus}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      color: colors.text,
+                                      lineHeight: 1.7,
+                                    }}
+                                  >
+                                    {event.note}
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                                      gap: 10,
+                                    }}
+                                  >
+                                    <AgendaInfo label="Phone" value={event.phone} colors={colors} />
+                                    <AgendaInfo label="Budget" value={event.budget} colors={colors} />
+                                    <AgendaInfo label="Location" value={event.location} colors={colors} />
+                                    <AgendaInfo label="Status" value={event.leadStatus} colors={colors} />
+                                  </div>
+
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <QuickActionChip
+                                      label="Open Lead"
+                                      colors={colors}
+                                      onClick={() => {
+                                        if (event.leadId) {
+                                          navigate(`/leads/${event.leadId}`);
+                                        }
+                                      }}
+                                    />
+                                    <QuickActionChip
+                                      label="Mark Done"
+                                      colors={colors}
+                                      onClick={() => handleMarkDone(event.id)}
+                                    />
+                                    <QuickActionChip
+                                      label="Reschedule"
+                                      colors={colors}
+                                      onClick={() => handleReschedule(event)}
+                                    />
+                                    <QuickActionChip label="WhatsApp" colors={colors} />
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
