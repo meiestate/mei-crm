@@ -46,6 +46,7 @@ export default function Sidebar() {
         >
           MEI
         </div>
+
         <div
           style={{
             fontSize: "13px",
@@ -101,6 +102,7 @@ export default function Sidebar() {
         >
           Workspace
         </div>
+
         <div
           style={{
             fontSize: "13px",

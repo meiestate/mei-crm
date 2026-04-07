@@ -185,8 +185,14 @@ export default function App() {
   const settingsPageElement = (
     <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
   );
-  <Route path="/calls" element={<CallLogPage mode={mode} />} />
 
+  const callLogPageElement = <CallLogPage mode={mode} />;
+
+  const billingSubscriptionPageElement = (
+    <BillingSubscriptionPage mode={mode} />
+  );
+
+  const helpSupportPageElement = <HelpSupportPage mode={mode} />;
 
   return (
     <BrowserRouter>
@@ -221,7 +227,6 @@ export default function App() {
             )
           }
         />
-          <Route path="/settings/billing" element={<BillingSubscriptionPage mode={mode} />} />
 
         <Route
           path="/signup"
@@ -236,7 +241,6 @@ export default function App() {
             )
           }
         />
-        <Route path="/help-support" element={<HelpSupportPage mode={mode} />} />
 
         <Route
           path="/forgot-password"
@@ -431,11 +435,56 @@ export default function App() {
         />
 
         <Route
+          path="/calls"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                callLogPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/help-support"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                helpSupportPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
           path="/settings"
           element={
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 settingsPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/settings/billing"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                billingSubscriptionPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )

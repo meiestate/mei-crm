@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import type { CSSProperties } from "react";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
-import type { CSSProperties } from "react";
 
 type HelpSupportPageProps = {
   mode: ThemeMode;
@@ -203,7 +203,7 @@ const guides: GuideItem[] = [
   },
 ];
 
-const baseTickets: TicketItem[] = [
+const initialTickets: TicketItem[] = [
   {
     id: "#SUP-1048",
     title: "Invoice download is not working",
@@ -254,6 +254,14 @@ const tutorials: TutorialItem[] = [
   },
 ];
 
+const initialTicketForm: TicketFormState = {
+  issueTitle: "",
+  category: "",
+  priority: "",
+  relatedModule: "",
+  description: "",
+};
+
 function SectionTitle({
   title,
   subtitle,
@@ -288,6 +296,7 @@ function SectionTitle({
         >
           {title}
         </h2>
+
         {subtitle ? (
           <p
             style={{
@@ -321,14 +330,6 @@ function SectionTitle({
   );
 }
 
-const initialTicketForm: TicketFormState = {
-  issueTitle: "",
-  category: "",
-  priority: "",
-  relatedModule: "",
-  description: "",
-};
-
 export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const theme = getTheme(mode);
   const location = useLocation();
@@ -346,10 +347,11 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [showTicketToast, setShowTicketToast] = useState(false);
   const [ticketToastMessage, setTicketToastMessage] = useState("");
-  const [tickets, setTickets] = useState<TicketItem[]>(baseTickets);
+  const [tickets, setTickets] = useState<TicketItem[]>(initialTickets);
 
   const filteredCategories = useMemo(() => {
     if (!searchTerm.trim()) return helpCategories;
+
     return helpCategories.filter((item) =>
       `${item.title} ${item.description}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -357,6 +359,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
 
   const filteredFaqs = useMemo(() => {
     if (!searchTerm.trim()) return faqItems;
+
     return faqItems.filter((item) =>
       `${item.question} ${item.answer}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -395,6 +398,18 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   }, [locationState?.openRaiseTicketForm]);
 
   useEffect(() => {
+    const savedDraft = localStorage.getItem("mei-help-ticket-draft");
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft) as TicketFormState;
+        setTicketForm(parsedDraft);
+      } catch {
+        localStorage.removeItem("mei-help-ticket-draft");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!showTicketToast) return;
 
     const timer = window.setTimeout(() => {
@@ -405,10 +420,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
     return () => window.clearTimeout(timer);
   }, [showTicketToast]);
 
-  const handleTicketFieldChange = (
-    field: keyof TicketFormState,
-    value: string
-  ) => {
+  const handleTicketFieldChange = (field: keyof TicketFormState, value: string) => {
     setTicketForm((prev) => ({
       ...prev,
       [field]: value,
@@ -471,8 +483,8 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const month = monthNames[now.getMonth()];
       const year = now.getFullYear();
-
       const formattedDate = `${day} ${month} ${year}`;
+
       const nextId = `#SUP-${1050 + tickets.length}`;
 
       const newTicket: TicketItem = {
@@ -494,20 +506,9 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
       setTicketFilter("All");
       setTicketToastMessage(`Support ticket ${nextId} submitted successfully`);
       setShowTicketToast(true);
+      scrollToRaiseTicketForm();
     }, 900);
   };
-
-  useEffect(() => {
-    const savedDraft = localStorage.getItem("mei-help-ticket-draft");
-    if (savedDraft) {
-      try {
-        const parsedDraft = JSON.parse(savedDraft) as TicketFormState;
-        setTicketForm(parsedDraft);
-      } catch {
-        localStorage.removeItem("mei-help-ticket-draft");
-      }
-    }
-  }, []);
 
   const getPriorityBadge = (priority: TicketItem["priority"]) => {
     switch (priority) {
@@ -671,6 +672,20 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               }}
             >
               <button
+                style={{
+                  background: theme.cardBg,
+                  color: theme.text,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                HelpSupport
+              </button>
+
+              <button
                 onClick={scrollToRaiseTicketForm}
                 style={{
                   background: theme.primary,
@@ -697,20 +712,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                 }}
               >
                 Contact Support
-              </button>
-
-              <button
-                style={{
-                  background: theme.cardBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "12px 18px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                View My Tickets
               </button>
             </div>
           </div>
@@ -875,6 +876,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                   >
                     {service.name}
                   </div>
+
                   <span
                     style={{
                       display: "inline-flex",
@@ -943,6 +945,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                   >
                     {item.label}
                   </div>
+
                   <div
                     style={{
                       fontSize: 24,
@@ -997,6 +1000,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                   }}
                 >
                   <span style={{ fontSize: 28 }}>{category.icon}</span>
+
                   <span
                     style={{
                       fontSize: 12,
@@ -1336,9 +1340,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               <div>
                 <input
                   value={ticketForm.issueTitle}
-                  onChange={(e) =>
-                    handleTicketFieldChange("issueTitle", e.target.value)
-                  }
+                  onChange={(e) => handleTicketFieldChange("issueTitle", e.target.value)}
                   placeholder="Issue title"
                   style={getFieldStyle(!!ticketErrors.issueTitle)}
                 />
@@ -1350,9 +1352,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               <div>
                 <select
                   value={ticketForm.category}
-                  onChange={(e) =>
-                    handleTicketFieldChange("category", e.target.value)
-                  }
+                  onChange={(e) => handleTicketFieldChange("category", e.target.value)}
                   style={getFieldStyle(!!ticketErrors.category)}
                 >
                   <option value="">Choose category</option>
@@ -1370,9 +1370,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               <div>
                 <select
                   value={ticketForm.priority}
-                  onChange={(e) =>
-                    handleTicketFieldChange("priority", e.target.value)
-                  }
+                  onChange={(e) => handleTicketFieldChange("priority", e.target.value)}
                   style={getFieldStyle(!!ticketErrors.priority)}
                 >
                   <option value="">Select priority</option>
@@ -1389,9 +1387,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               <div>
                 <input
                   value={ticketForm.relatedModule}
-                  onChange={(e) =>
-                    handleTicketFieldChange("relatedModule", e.target.value)
-                  }
+                  onChange={(e) => handleTicketFieldChange("relatedModule", e.target.value)}
                   placeholder="Related page / module"
                   style={getFieldStyle(!!ticketErrors.relatedModule)}
                 />
@@ -1403,9 +1399,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               <div style={{ gridColumn: "1 / -1" }}>
                 <textarea
                   value={ticketForm.description}
-                  onChange={(e) =>
-                    handleTicketFieldChange("description", e.target.value)
-                  }
+                  onChange={(e) => handleTicketFieldChange("description", e.target.value)}
                   placeholder="Describe the issue, expected result, and what actually happened..."
                   rows={6}
                   style={{
@@ -1468,6 +1462,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                 >
                   Save Draft
                 </button>
+
                 <button
                   onClick={handleSubmitTicket}
                   disabled={isSubmittingTicket}
