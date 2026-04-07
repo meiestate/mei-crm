@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
@@ -46,6 +47,10 @@ type TutorialItem = {
   title: string;
   description: string;
   duration: string;
+};
+
+type HelpSupportLocationState = {
+  openRaiseTicketForm?: boolean;
 };
 
 const quickActions: QuickAction[] = [
@@ -242,10 +247,14 @@ function SectionTitle({
   title,
   subtitle,
   actionLabel,
+  onActionClick,
+  actionButtonStyle,
 }: {
   title: string;
   subtitle?: string;
   actionLabel?: string;
+  onActionClick?: () => void;
+  actionButtonStyle?: React.CSSProperties;
 }) {
   return (
     <div
@@ -284,12 +293,14 @@ function SectionTitle({
 
       {actionLabel ? (
         <button
+          onClick={onActionClick}
           style={{
             border: "none",
             borderRadius: 12,
             padding: "10px 14px",
             fontWeight: 700,
             cursor: "pointer",
+            ...actionButtonStyle,
           }}
         >
           {actionLabel}
@@ -301,10 +312,15 @@ function SectionTitle({
 
 export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const theme = getTheme(mode);
+  const location = useLocation();
+  const locationState = (location.state as HelpSupportLocationState | null) ?? null;
+
+  const raiseTicketRef = useRef<HTMLDivElement | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [ticketFilter, setTicketFilter] = useState("All");
+  const [highlightRaiseTicket, setHighlightRaiseTicket] = useState(false);
 
   const filteredCategories = useMemo(() => {
     if (!searchTerm.trim()) return helpCategories;
@@ -326,6 +342,34 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
     if (ticketFilter === "All") return tickets;
     return tickets.filter((ticket) => ticket.status === ticketFilter);
   }, [ticketFilter]);
+
+  const scrollToRaiseTicketForm = () => {
+    raiseTicketRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    setHighlightRaiseTicket(true);
+
+    window.setTimeout(() => {
+      setHighlightRaiseTicket(false);
+    }, 2200);
+  };
+
+  useEffect(() => {
+    if (locationState?.openRaiseTicketForm) {
+      const timer = window.setTimeout(() => {
+        scrollToRaiseTicketForm();
+
+        window.history.replaceState(
+          { ...(window.history.state || {}), usr: {} },
+          document.title
+        );
+      }, 120);
+
+      return () => window.clearTimeout(timer);
+    }
+  }, [locationState?.openRaiseTicketForm]);
 
   const getPriorityBadge = (priority: TicketItem["priority"]) => {
     switch (priority) {
@@ -375,7 +419,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           gap: 24,
         }}
       >
-        {/* Header */}
         <section
           style={{
             background: `linear-gradient(135deg, ${theme.cardBg} 0%, ${theme.cardBgSoft} 100%)`,
@@ -446,6 +489,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               }}
             >
               <button
+                onClick={scrollToRaiseTicketForm}
                 style={{
                   background: theme.primary,
                   color: theme.inverseText,
@@ -489,7 +533,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
             </div>
           </div>
 
-          {/* Search Bar */}
           <div
             style={{
               marginTop: 22,
@@ -536,7 +579,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Quick Actions */}
         <section
           style={{
             background: theme.cardBg,
@@ -560,6 +602,11 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
             {quickActions.map((action) => (
               <div
                 key={action.title}
+                onClick={() => {
+                  if (action.title === "Raise a Ticket") {
+                    scrollToRaiseTicketForm();
+                  }
+                }}
                 style={{
                   background: theme.cardBgSoft,
                   border: `1px solid ${theme.borderSoft}`,
@@ -594,7 +641,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Status + Support Metrics */}
         <section
           style={{
             display: "grid",
@@ -730,7 +776,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Categories */}
         <section
           style={{
             background: theme.cardBg,
@@ -810,7 +855,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* FAQ + Guides */}
         <section
           style={{
             display: "grid",
@@ -830,6 +874,11 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
               title="Frequently Asked Questions"
               subtitle="Fast answers to the most common user questions."
               actionLabel="View All FAQs"
+              actionButtonStyle={{
+                background: theme.cardBgSoft,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+              }}
             />
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -979,7 +1028,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Contact + Raise Ticket */}
         <section
           style={{
             display: "grid",
@@ -1078,11 +1126,18 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
 
           <div
+            ref={raiseTicketRef}
             style={{
               background: theme.cardBg,
-              border: `1px solid ${theme.border}`,
+              border: highlightRaiseTicket
+                ? `2px solid ${theme.primary}`
+                : `1px solid ${theme.border}`,
               borderRadius: 22,
               padding: 22,
+              boxShadow: highlightRaiseTicket
+                ? `0 0 0 4px ${theme.primary}22, 0 16px 40px rgba(0,0,0,0.08)`
+                : "none",
+              transition: "all 0.25s ease",
             }}
           >
             <SectionTitle
@@ -1237,7 +1292,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Tickets Table */}
         <section
           style={{
             background: theme.cardBg,
@@ -1445,7 +1499,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
           </div>
         </section>
 
-        {/* Tutorials + Feedback */}
         <section
           style={{
             display: "grid",
