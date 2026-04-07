@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
+import type { CSSProperties } from "react";
 
 type HelpSupportPageProps = {
   mode: ThemeMode;
@@ -52,6 +53,16 @@ type TutorialItem = {
 type HelpSupportLocationState = {
   openRaiseTicketForm?: boolean;
 };
+
+type TicketFormState = {
+  issueTitle: string;
+  category: string;
+  priority: string;
+  relatedModule: string;
+  description: string;
+};
+
+type TicketFormErrors = Partial<Record<keyof TicketFormState, string>>;
 
 const quickActions: QuickAction[] = [
   {
@@ -192,7 +203,7 @@ const guides: GuideItem[] = [
   },
 ];
 
-const tickets: TicketItem[] = [
+const baseTickets: TicketItem[] = [
   {
     id: "#SUP-1048",
     title: "Invoice download is not working",
@@ -254,7 +265,7 @@ function SectionTitle({
   subtitle?: string;
   actionLabel?: string;
   onActionClick?: () => void;
-  actionButtonStyle?: React.CSSProperties;
+  actionButtonStyle?: CSSProperties;
 }) {
   return (
     <div
@@ -310,6 +321,14 @@ function SectionTitle({
   );
 }
 
+const initialTicketForm: TicketFormState = {
+  issueTitle: "",
+  category: "",
+  priority: "",
+  relatedModule: "",
+  description: "",
+};
+
 export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const theme = getTheme(mode);
   const location = useLocation();
@@ -322,9 +341,15 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const [ticketFilter, setTicketFilter] = useState("All");
   const [highlightRaiseTicket, setHighlightRaiseTicket] = useState(false);
 
+  const [ticketForm, setTicketForm] = useState<TicketFormState>(initialTicketForm);
+  const [ticketErrors, setTicketErrors] = useState<TicketFormErrors>({});
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+  const [showTicketToast, setShowTicketToast] = useState(false);
+  const [ticketToastMessage, setTicketToastMessage] = useState("");
+  const [tickets, setTickets] = useState<TicketItem[]>(baseTickets);
+
   const filteredCategories = useMemo(() => {
     if (!searchTerm.trim()) return helpCategories;
-
     return helpCategories.filter((item) =>
       `${item.title} ${item.description}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -332,7 +357,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
 
   const filteredFaqs = useMemo(() => {
     if (!searchTerm.trim()) return faqItems;
-
     return faqItems.filter((item) =>
       `${item.question} ${item.answer}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -341,7 +365,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
   const filteredTickets = useMemo(() => {
     if (ticketFilter === "All") return tickets;
     return tickets.filter((ticket) => ticket.status === ticketFilter);
-  }, [ticketFilter]);
+  }, [ticketFilter, tickets]);
 
   const scrollToRaiseTicketForm = () => {
     raiseTicketRef.current?.scrollIntoView({
@@ -360,7 +384,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
     if (locationState?.openRaiseTicketForm) {
       const timer = window.setTimeout(() => {
         scrollToRaiseTicketForm();
-
         window.history.replaceState(
           { ...(window.history.state || {}), usr: {} },
           document.title
@@ -370,6 +393,121 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
       return () => window.clearTimeout(timer);
     }
   }, [locationState?.openRaiseTicketForm]);
+
+  useEffect(() => {
+    if (!showTicketToast) return;
+
+    const timer = window.setTimeout(() => {
+      setShowTicketToast(false);
+      setTicketToastMessage("");
+    }, 2600);
+
+    return () => window.clearTimeout(timer);
+  }, [showTicketToast]);
+
+  const handleTicketFieldChange = (
+    field: keyof TicketFormState,
+    value: string
+  ) => {
+    setTicketForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setTicketErrors((prev) => ({
+      ...prev,
+      [field]: "",
+    }));
+  };
+
+  const validateTicketForm = () => {
+    const errors: TicketFormErrors = {};
+
+    if (!ticketForm.issueTitle.trim()) {
+      errors.issueTitle = "Issue title is required";
+    } else if (ticketForm.issueTitle.trim().length < 5) {
+      errors.issueTitle = "Issue title must be at least 5 characters";
+    }
+
+    if (!ticketForm.category.trim()) {
+      errors.category = "Please choose a category";
+    }
+
+    if (!ticketForm.priority.trim()) {
+      errors.priority = "Please select a priority";
+    }
+
+    if (!ticketForm.relatedModule.trim()) {
+      errors.relatedModule = "Related page or module is required";
+    }
+
+    if (!ticketForm.description.trim()) {
+      errors.description = "Issue description is required";
+    } else if (ticketForm.description.trim().length < 20) {
+      errors.description = "Description must be at least 20 characters";
+    }
+
+    setTicketErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSaveDraft = () => {
+    localStorage.setItem("mei-help-ticket-draft", JSON.stringify(ticketForm));
+    setTicketToastMessage("Ticket draft saved successfully");
+    setShowTicketToast(true);
+  };
+
+  const handleSubmitTicket = () => {
+    if (!validateTicketForm()) {
+      scrollToRaiseTicketForm();
+      return;
+    }
+
+    setIsSubmittingTicket(true);
+
+    window.setTimeout(() => {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = monthNames[now.getMonth()];
+      const year = now.getFullYear();
+
+      const formattedDate = `${day} ${month} ${year}`;
+      const nextId = `#SUP-${1050 + tickets.length}`;
+
+      const newTicket: TicketItem = {
+        id: nextId,
+        title: ticketForm.issueTitle.trim(),
+        category: ticketForm.category,
+        priority: ticketForm.priority as TicketItem["priority"],
+        status: "Open",
+        submittedAt: formattedDate,
+        updatedAt: formattedDate,
+        agent: "Unassigned",
+      };
+
+      setTickets((prev) => [newTicket, ...prev]);
+      setTicketForm(initialTicketForm);
+      setTicketErrors({});
+      localStorage.removeItem("mei-help-ticket-draft");
+      setIsSubmittingTicket(false);
+      setTicketFilter("All");
+      setTicketToastMessage(`Support ticket ${nextId} submitted successfully`);
+      setShowTicketToast(true);
+    }, 900);
+  };
+
+  useEffect(() => {
+    const savedDraft = localStorage.getItem("mei-help-ticket-draft");
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft) as TicketFormState;
+        setTicketForm(parsedDraft);
+      } catch {
+        localStorage.removeItem("mei-help-ticket-draft");
+      }
+    }
+  }, []);
 
   const getPriorityBadge = (priority: TicketItem["priority"]) => {
     switch (priority) {
@@ -401,6 +539,29 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
     }
   };
 
+  const inputStyle: CSSProperties = {
+    background: theme.inputBg,
+    color: theme.text,
+    border: `1px solid ${theme.border}`,
+    borderRadius: 12,
+    padding: "13px 14px",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
+  const errorTextStyle: CSSProperties = {
+    fontSize: 12,
+    color: "#ef4444",
+    marginTop: 6,
+    fontWeight: 600,
+  };
+
+  const getFieldStyle = (hasError?: boolean): CSSProperties => ({
+    ...inputStyle,
+    border: hasError ? "1px solid #ef4444" : `1px solid ${theme.border}`,
+  });
+
   return (
     <div
       style={{
@@ -408,8 +569,29 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
         minHeight: "100vh",
         padding: 24,
         color: theme.text,
+        position: "relative",
       }}
     >
+      {showTicketToast ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            right: 24,
+            zIndex: 1000,
+            background: "#16a34a",
+            color: "#ffffff",
+            borderRadius: 14,
+            padding: "14px 18px",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          ✅ {ticketToastMessage}
+        </div>
+      ) : null}
+
       <div
         style={{
           maxWidth: 1440,
@@ -612,7 +794,6 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                   border: `1px solid ${theme.borderSoft}`,
                   borderRadius: 18,
                   padding: 18,
-                  transition: "0.2s ease",
                   cursor: "pointer",
                 }}
               >
@@ -1152,79 +1333,91 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                 gap: 14,
               }}
             >
-              <input
-                placeholder="Issue title"
-                style={{
-                  background: theme.inputBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "13px 14px",
-                  outline: "none",
-                }}
-              />
-              <select
-                style={{
-                  background: theme.inputBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "13px 14px",
-                  outline: "none",
-                }}
-              >
-                <option>Choose category</option>
-                <option>Account & Login</option>
-                <option>Billing</option>
-                <option>Leads</option>
-                <option>Tasks</option>
-                <option>Integrations</option>
-              </select>
+              <div>
+                <input
+                  value={ticketForm.issueTitle}
+                  onChange={(e) =>
+                    handleTicketFieldChange("issueTitle", e.target.value)
+                  }
+                  placeholder="Issue title"
+                  style={getFieldStyle(!!ticketErrors.issueTitle)}
+                />
+                {ticketErrors.issueTitle ? (
+                  <div style={errorTextStyle}>{ticketErrors.issueTitle}</div>
+                ) : null}
+              </div>
 
-              <select
-                style={{
-                  background: theme.inputBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "13px 14px",
-                  outline: "none",
-                }}
-              >
-                <option>Select priority</option>
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
-              </select>
+              <div>
+                <select
+                  value={ticketForm.category}
+                  onChange={(e) =>
+                    handleTicketFieldChange("category", e.target.value)
+                  }
+                  style={getFieldStyle(!!ticketErrors.category)}
+                >
+                  <option value="">Choose category</option>
+                  <option value="Account & Login">Account & Login</option>
+                  <option value="Billing">Billing</option>
+                  <option value="Leads">Leads</option>
+                  <option value="Tasks">Tasks</option>
+                  <option value="Integrations">Integrations</option>
+                </select>
+                {ticketErrors.category ? (
+                  <div style={errorTextStyle}>{ticketErrors.category}</div>
+                ) : null}
+              </div>
 
-              <input
-                placeholder="Related page / module"
-                style={{
-                  background: theme.inputBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "13px 14px",
-                  outline: "none",
-                }}
-              />
+              <div>
+                <select
+                  value={ticketForm.priority}
+                  onChange={(e) =>
+                    handleTicketFieldChange("priority", e.target.value)
+                  }
+                  style={getFieldStyle(!!ticketErrors.priority)}
+                >
+                  <option value="">Select priority</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+                {ticketErrors.priority ? (
+                  <div style={errorTextStyle}>{ticketErrors.priority}</div>
+                ) : null}
+              </div>
 
-              <textarea
-                placeholder="Describe the issue, expected result, and what actually happened..."
-                rows={6}
-                style={{
-                  gridColumn: "1 / -1",
-                  resize: "vertical",
-                  background: theme.inputBg,
-                  color: theme.text,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 12,
-                  padding: "13px 14px",
-                  outline: "none",
-                  fontFamily: "inherit",
-                }}
-              />
+              <div>
+                <input
+                  value={ticketForm.relatedModule}
+                  onChange={(e) =>
+                    handleTicketFieldChange("relatedModule", e.target.value)
+                  }
+                  placeholder="Related page / module"
+                  style={getFieldStyle(!!ticketErrors.relatedModule)}
+                />
+                {ticketErrors.relatedModule ? (
+                  <div style={errorTextStyle}>{ticketErrors.relatedModule}</div>
+                ) : null}
+              </div>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <textarea
+                  value={ticketForm.description}
+                  onChange={(e) =>
+                    handleTicketFieldChange("description", e.target.value)
+                  }
+                  placeholder="Describe the issue, expected result, and what actually happened..."
+                  rows={6}
+                  style={{
+                    ...getFieldStyle(!!ticketErrors.description),
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                  }}
+                />
+                {ticketErrors.description ? (
+                  <div style={errorTextStyle}>{ticketErrors.description}</div>
+                ) : null}
+              </div>
 
               <div
                 style={{
@@ -1262,6 +1455,7 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button
+                  onClick={handleSaveDraft}
                   style={{
                     background: theme.cardBg,
                     color: theme.text,
@@ -1275,6 +1469,8 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                   Save Draft
                 </button>
                 <button
+                  onClick={handleSubmitTicket}
+                  disabled={isSubmittingTicket}
                   style={{
                     background: theme.primary,
                     color: theme.inverseText,
@@ -1282,10 +1478,11 @@ export default function HelpSupportPage({ mode }: HelpSupportPageProps) {
                     borderRadius: 12,
                     padding: "10px 14px",
                     fontWeight: 800,
-                    cursor: "pointer",
+                    cursor: isSubmittingTicket ? "not-allowed" : "pointer",
+                    opacity: isSubmittingTicket ? 0.7 : 1,
                   }}
                 >
-                  Submit Ticket
+                  {isSubmittingTicket ? "Submitting..." : "Submit Ticket"}
                 </button>
               </div>
             </div>
