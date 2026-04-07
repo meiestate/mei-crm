@@ -13,6 +13,7 @@ const menuItems = [
   { label: "Deals", path: "/deals" },
   { label: "Tasks", path: "/tasks" },
   { label: "Settings", path: "/settings" },
+  { label: "Billing & Subscription", path: "/settings/billing" }
 ];
 
 export default function Sidebar({ mode }: SidebarProps) {

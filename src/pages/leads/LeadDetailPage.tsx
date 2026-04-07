@@ -62,7 +62,17 @@ type UnifiedTimelineItem = {
   metaLabel?: string;
   groupDateKey: string;
   groupDateLabel: string;
+  isPinned?: boolean;
+  note?: string;
 };
+
+type TimelineEnhancementMap = Record<
+  string,
+  {
+    isPinned?: boolean;
+    note?: string;
+  }
+>;
 
 type AttachmentItem = {
   id: string;
@@ -130,6 +140,7 @@ const LEAD_STORAGE_KEYS = [
 
 const DEAL_STORAGE_KEY = "mei-crm-deals";
 const LEAD_ACTIVITIES_STORAGE_KEY = "mei-crm-lead-activities";
+const LEAD_TIMELINE_META_STORAGE_KEY = "mei-crm-lead-timeline-meta";
 
 const OWNER_OPTIONS = [
   "Madhan",
@@ -272,6 +283,26 @@ function readStoredLeadActivities(): ExternalLeadActivityItem[] {
   } catch (error) {
     console.error("Failed to read lead activities:", error);
     return [];
+  }
+}
+
+function readTimelineMeta(): TimelineEnhancementMap {
+  try {
+    const raw = localStorage.getItem(LEAD_TIMELINE_META_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    console.error("Failed to read timeline meta:", error);
+    return {};
+  }
+}
+
+function saveTimelineMeta(data: TimelineEnhancementMap) {
+  try {
+    localStorage.setItem(LEAD_TIMELINE_META_STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error("Failed to save timeline meta:", error);
   }
 }
 
@@ -519,6 +550,9 @@ export default function LeadDetailPage({
   const [externalActivities, setExternalActivities] = useState<ExternalLeadActivityItem[]>(
     () => readStoredLeadActivities()
   );
+  const [timelineMeta, setTimelineMeta] = useState<TimelineEnhancementMap>(() =>
+    readTimelineMeta()
+  );
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [noteInput, setNoteInput] = useState("");
@@ -535,16 +569,24 @@ export default function LeadDetailPage({
   const [timelineDateFrom, setTimelineDateFrom] = useState("");
   const [timelineDateTo, setTimelineDateTo] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [selectedTimelineItem, setSelectedTimelineItem] = useState<UnifiedTimelineItem | null>(null);
+  const [activityNoteDraft, setActivityNoteDraft] = useState("");
+  const [isPrintPanelOpen, setIsPrintPanelOpen] = useState(false);
 
   useEffect(() => {
     const syncAll = () => {
       setAllLeads(readStoredLeads());
       setExternalActivities(readStoredLeadActivities());
+      setTimelineMeta(readTimelineMeta());
     };
 
     window.addEventListener("storage", syncAll);
     return () => window.removeEventListener("storage", syncAll);
   }, []);
+
+  useEffect(() => {
+    saveTimelineMeta(timelineMeta);
+  }, [timelineMeta]);
 
   const initialLead = useMemo(
     () => allLeads.find((item) => item.id === leadId) ?? null,
@@ -607,6 +649,60 @@ export default function LeadDetailPage({
     setFormData(updatedLead);
   };
 
+  const openTimelineDrawer = (item: UnifiedTimelineItem) => {
+    setSelectedTimelineItem(item);
+    setActivityNoteDraft(item.note || "");
+  };
+
+  const closeTimelineDrawer = () => {
+    setSelectedTimelineItem(null);
+    setActivityNoteDraft("");
+  };
+
+  const handleSaveActivityNote = () => {
+    if (!selectedTimelineItem) return;
+
+    setTimelineMeta((prev) => ({
+      ...prev,
+      [selectedTimelineItem.id]: {
+        ...(prev[selectedTimelineItem.id] || {}),
+        note: activityNoteDraft.trim(),
+        isPinned: prev[selectedTimelineItem.id]?.isPinned || false,
+      },
+    }));
+
+    setSelectedTimelineItem((prev) =>
+      prev
+        ? {
+            ...prev,
+            note: activityNoteDraft.trim(),
+          }
+        : prev
+    );
+  };
+
+  const handleTogglePinActivity = (item: UnifiedTimelineItem) => {
+    setTimelineMeta((prev) => ({
+      ...prev,
+      [item.id]: {
+        ...(prev[item.id] || {}),
+        isPinned: !item.isPinned,
+        note: prev[item.id]?.note || item.note || "",
+      },
+    }));
+
+    if (selectedTimelineItem?.id === item.id) {
+      setSelectedTimelineItem({
+        ...item,
+        isPinned: !item.isPinned,
+      });
+    }
+  };
+
+  const handlePrintLeadHistory = () => {
+    window.print();
+  };
+
   if (!leadState || !formData) {
     return (
       <AppLayout title="Lead Detail" mode={mode} onToggleTheme={onToggleTheme}>
@@ -656,6 +752,8 @@ export default function LeadDetailPage({
   const unifiedTimeline = useMemo<UnifiedTimelineItem[]>(() => {
     const internalTimeline: UnifiedTimelineItem[] = (lead.timeline || []).map((item, index) => {
       const sortable = parseLooseTimeToTimestamp(item.time, index);
+      const meta = timelineMeta[`lead-${lead.id}-timeline-${index}`] || {};
+
       return {
         id: `lead-${lead.id}-timeline-${index}`,
         title: item.title,
@@ -667,6 +765,8 @@ export default function LeadDetailPage({
         metaLabel: "LEAD",
         groupDateKey: toDateKeyFromTimestamp(sortable),
         groupDateLabel: toDateLabelFromTimestamp(sortable),
+        isPinned: Boolean(meta.isPinned),
+        note: meta.note || "",
       };
     });
 
@@ -674,6 +774,8 @@ export default function LeadDetailPage({
       .filter((item) => Number(item.leadId) === lead.id)
       .map((item) => {
         const sortable = new Date(item.createdAt).getTime();
+        const meta = timelineMeta[item.id] || {};
+
         return {
           id: item.id,
           title: item.title,
@@ -688,13 +790,18 @@ export default function LeadDetailPage({
           metaLabel: item.meta?.callId ? `CALL • ${item.meta.callId}` : "CALL",
           groupDateKey: toDateKeyFromTimestamp(sortable),
           groupDateLabel: toDateLabelFromTimestamp(sortable),
+          isPinned: Boolean(meta.isPinned),
+          note: meta.note || "",
         };
       });
 
-    return [...externalTimeline, ...internalTimeline].sort(
-      (a, b) => b.createdAtSortable - a.createdAtSortable
-    );
-  }, [lead.timeline, externalActivities, lead.id]);
+    return [...externalTimeline, ...internalTimeline].sort((a, b) => {
+      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+        return a.isPinned ? -1 : 1;
+      }
+      return b.createdAtSortable - a.createdAtSortable;
+    });
+  }, [lead.timeline, externalActivities, lead.id, timelineMeta]);
 
   const timelineFiltered = useMemo(() => {
     const q = timelineSearch.trim().toLowerCase();
@@ -706,7 +813,8 @@ export default function LeadDetailPage({
         !q ||
         item.title.toLowerCase().includes(q) ||
         item.description.toLowerCase().includes(q) ||
-        item.metaLabel?.toLowerCase().includes(q);
+        item.metaLabel?.toLowerCase().includes(q) ||
+        item.note?.toLowerCase().includes(q);
 
       const fromOk = timelineDateFrom
         ? item.createdAtSortable >= new Date(`${timelineDateFrom}T00:00:00`).getTime()
@@ -721,10 +829,7 @@ export default function LeadDetailPage({
   }, [unifiedTimeline, timelineSearch, activityFilter, timelineDateFrom, timelineDateTo]);
 
   const groupedTimeline = useMemo(() => {
-    const map = new Map<
-      string,
-      { label: string; items: UnifiedTimelineItem[] }
-    >();
+    const map = new Map<string, { label: string; items: UnifiedTimelineItem[] }>();
 
     timelineFiltered.forEach((item) => {
       if (!map.has(item.groupDateKey)) {
@@ -789,7 +894,7 @@ export default function LeadDetailPage({
 
   const exportTimelineHistory = () => {
     const rows: string[][] = [
-      ["Date Group", "Time", "Title", "Description", "Tone", "Source", "Meta"],
+      ["Date Group", "Time", "Title", "Description", "Tone", "Source", "Meta", "Pinned", "Note"],
       ...timelineFiltered.map((item) => [
         item.groupDateLabel,
         item.time,
@@ -798,6 +903,8 @@ export default function LeadDetailPage({
         item.tone || "info",
         item.source,
         item.metaLabel || "",
+        item.isPinned ? "Yes" : "No",
+        item.note || "",
       ]),
     ];
 
@@ -1557,6 +1664,9 @@ export default function LeadDetailPage({
                   <button onClick={collapseAllGroups} style={secondaryButton(colors)}>
                     Collapse All
                   </button>
+                  <button onClick={() => setIsPrintPanelOpen(true)} style={secondaryButton(colors)}>
+                    Print View
+                  </button>
                   <button onClick={exportTimelineHistory} style={primaryButton(colors)}>
                     Export Activity
                   </button>
@@ -1723,11 +1833,15 @@ export default function LeadDetailPage({
                                   />
 
                                   <div
+                                    onClick={() => openTimelineDrawer(item)}
                                     style={{
                                       background: colors.cardBg,
                                       border: `1px solid ${colors.border}`,
                                       borderRadius: 14,
                                       padding: 14,
+                                      cursor: "pointer",
+                                      transition: "all 160ms ease",
+                                      boxShadow: item.isPinned ? `0 0 0 1px ${colors.warning}` : "none",
                                     }}
                                   >
                                     <div
@@ -1744,9 +1858,27 @@ export default function LeadDetailPage({
                                           color: colors.text,
                                           fontSize: 15,
                                           fontWeight: 700,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
                                         }}
                                       >
                                         {item.title}
+                                        {item.isPinned ? (
+                                          <span
+                                            style={{
+                                              display: "inline-block",
+                                              padding: "2px 8px",
+                                              borderRadius: 999,
+                                              background: colors.warning,
+                                              color: "#ffffff",
+                                              fontSize: 10,
+                                              fontWeight: 800,
+                                            }}
+                                          >
+                                            PINNED
+                                          </span>
+                                        ) : null}
                                       </div>
 
                                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1793,6 +1925,23 @@ export default function LeadDetailPage({
                                     >
                                       {item.description}
                                     </div>
+
+                                    {item.note ? (
+                                      <div
+                                        style={{
+                                          marginTop: 8,
+                                          padding: "10px 12px",
+                                          borderRadius: 10,
+                                          background: colors.cardBgSoft,
+                                          border: `1px solid ${colors.border}`,
+                                          color: colors.text,
+                                          fontSize: 13,
+                                          lineHeight: 1.5,
+                                        }}
+                                      >
+                                        <strong>Note:</strong> {item.note}
+                                      </div>
+                                    ) : null}
 
                                     <div
                                       style={{
@@ -2198,6 +2347,312 @@ export default function LeadDetailPage({
           </div>
         </section>
       </div>
+
+      {selectedTimelineItem && (
+        <div
+          onClick={closeTimelineDrawer}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            justifyContent: "flex-end",
+            zIndex: 1200,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              height: "100%",
+              background: colors.cardBg,
+              borderLeft: `1px solid ${colors.border}`,
+              boxShadow: colors.shadowCard,
+              padding: 24,
+              boxSizing: "border-box",
+              overflowY: "auto",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    color: colors.text,
+                    fontSize: 22,
+                    fontWeight: 800,
+                  }}
+                >
+                  {selectedTimelineItem.title}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: colors.subText,
+                    fontSize: 13,
+                    fontWeight: 700,
+                  }}
+                >
+                  {selectedTimelineItem.time}
+                </div>
+              </div>
+
+              <button onClick={closeTimelineDrawer} style={secondaryButton(colors)}>
+                Close
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              {selectedTimelineItem.metaLabel ? (
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    background: colors.cardBgSoft,
+                    border: `1px solid ${colors.border}`,
+                    color: colors.subText,
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  {selectedTimelineItem.metaLabel}
+                </span>
+              ) : null}
+
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: getTimelineToneColor(selectedTimelineItem.tone, colors),
+                  color: "#ffffff",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                {(selectedTimelineItem.tone || "info").toUpperCase()}
+              </span>
+
+              {selectedTimelineItem.isPinned ? (
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    background: colors.warning,
+                    color: "#ffffff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  PINNED
+                </span>
+              ) : null}
+            </div>
+
+            <div
+              style={{
+                background: colors.cardBgSoft,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 14,
+                padding: 16,
+                color: colors.text,
+                fontSize: 14,
+                lineHeight: 1.7,
+                marginBottom: 16,
+              }}
+            >
+              {selectedTimelineItem.description}
+            </div>
+
+            <div style={{ marginBottom: 12, color: colors.text, fontSize: 15, fontWeight: 800 }}>
+              Activity Note
+            </div>
+
+            <textarea
+              rows={5}
+              value={activityNoteDraft}
+              onChange={(e) => setActivityNoteDraft(e.target.value)}
+              placeholder="Write a private contextual note about this activity..."
+              style={{
+                ...inputStyle(colors),
+                resize: "vertical",
+                fontFamily: "inherit",
+                marginBottom: 16,
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={handleSaveActivityNote} style={primaryButton(colors)}>
+                Save Note
+              </button>
+
+              <button
+                onClick={() => handleTogglePinActivity(selectedTimelineItem)}
+                style={secondaryButton(colors)}
+              >
+                {selectedTimelineItem.isPinned ? "Unpin Activity" : "Pin Activity"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPrintPanelOpen && (
+        <div
+          onClick={() => setIsPrintPanelOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 1300,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 980,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              background: colors.cardBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 20,
+              padding: 24,
+              boxSizing: "border-box",
+              boxShadow: colors.shadowCard,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                marginBottom: 18,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div style={{ color: colors.text, fontSize: 26, fontWeight: 800 }}>
+                  Printable Lead History
+                </div>
+                <div style={{ marginTop: 6, color: colors.subText, fontSize: 14 }}>
+                  {lead.name} • Lead ID {lead.id}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button onClick={handlePrintLeadHistory} style={primaryButton(colors)}>
+                  Print
+                </button>
+                <button onClick={() => setIsPrintPanelOpen(false)} style={secondaryButton(colors)}>
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              <DetailCard label="Lead Name" value={lead.name} colors={colors} />
+              <DetailCard label="Phone" value={lead.phone} colors={colors} />
+              <DetailCard label="Status" value={lead.status} colors={colors} />
+              <DetailCard label="Owner" value={lead.owner} colors={colors} />
+              <DetailCard label="Budget" value={lead.budget} colors={colors} />
+              <DetailCard label="Follow-up Date" value={lead.followUpDate} colors={colors} />
+            </div>
+
+            <div
+              style={{
+                color: colors.text,
+                fontSize: 20,
+                fontWeight: 800,
+                marginBottom: 14,
+              }}
+            >
+              Full Activity History
+            </div>
+
+            <div style={{ display: "grid", gap: 12 }}>
+              {timelineFiltered.length > 0 ? (
+                timelineFiltered.map((item) => (
+                  <div
+                    key={`print-${item.id}`}
+                    style={{
+                      background: colors.cardBgSoft,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 14,
+                      padding: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ color: colors.text, fontWeight: 800, fontSize: 15 }}>
+                        {item.title}
+                      </div>
+                      <div style={{ color: colors.mutedText, fontSize: 12, fontWeight: 700 }}>
+                        {item.time}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 6,
+                        color: colors.subText,
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {item.description}
+                    </div>
+
+                    {item.note ? (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          color: colors.text,
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <strong>Note:</strong> {item.note}
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <EmptyStateCard text="No activity available for print." colors={colors} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEditOpen && (
         <div

@@ -18,6 +18,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
 import CallLogPage from "./pages/calls/CallLogPage";
+import BillingSubscriptionPage from "./pages/settings/BillingSubscriptionPage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -185,6 +186,7 @@ export default function App() {
   );
   <Route path="/calls" element={<CallLogPage mode={mode} />} />
 
+
   return (
     <BrowserRouter>
       <Routes>
@@ -218,6 +220,7 @@ export default function App() {
             )
           }
         />
+          <Route path="/settings/billing" element={<BillingSubscriptionPage mode={mode} />} />
 
         <Route
           path="/signup"
