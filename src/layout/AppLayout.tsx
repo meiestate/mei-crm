@@ -10,17 +10,31 @@ export default function AppLayout({ children }: Props) {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#0b1020",
-        color: "#e5e7eb",
         display: "flex",
+        minHeight: "100vh",
+        background: "#020617",
       }}
     >
       <Sidebar />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
         <Topbar />
-        <main style={{ padding: "24px" }}>{children}</main>
+
+        <main
+          style={{
+            flex: 1,
+            overflow: "auto",
+          }}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

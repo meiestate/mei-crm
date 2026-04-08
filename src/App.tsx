@@ -12,14 +12,15 @@ import DealDetailPage from "./pages/deals/DealDetailPage";
 import TasksPage from "./pages/tasks/TasksPage";
 import TaskDetailPage from "./pages/tasks/TaskDetailPage";
 import SettingsPage from "./pages/settings/SettingsPage";
+import BillingSubscriptionPage from "./pages/settings/BillingSubscriptionPage";
+import HelpSupportPage from "./pages/support/HelpSupportPage";
+import CallLogPage from "./pages/calls/CallLogPage";
+
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
-import CallLogPage from "./pages/calls/CallLogPage";
-import BillingSubscriptionPage from "./pages/settings/BillingSubscriptionPage";
-import HelpSupportPage from "./pages/support/HelpSupportPage";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -186,13 +187,13 @@ export default function App() {
     <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
-  const callLogPageElement = <CallLogPage mode={mode} />;
-
   const billingSubscriptionPageElement = (
     <BillingSubscriptionPage mode={mode} />
   );
 
   const helpSupportPageElement = <HelpSupportPage mode={mode} />;
+
+  const callLogPageElement = <CallLogPage mode={mode} />;
 
   return (
     <BrowserRouter>

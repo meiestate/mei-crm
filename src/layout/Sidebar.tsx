@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 
 const menuItems = [
-  { name: "Dashboard", path: "/" },
+  { name: "Dashboard", path: "/dashboard" },
   { name: "Leads", path: "/leads" },
   { name: "Contacts", path: "/contacts" },
   { name: "Deals", path: "/deals" },
@@ -9,6 +9,7 @@ const menuItems = [
   { name: "Call Logs", path: "/calls" },
   { name: "Help & Support", path: "/help-support" },
   { name: "Settings", path: "/settings" },
+  { name: "Billing & Subscription", path: "/settings/billing" },
 ];
 
 export default function Sidebar() {
@@ -16,8 +17,7 @@ export default function Sidebar() {
   const location = useLocation();
 
   const isActive = (path: string) => {
-    if (path === "/") return location.pathname === "/";
-    return location.pathname.startsWith(path);
+    return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
   return (
@@ -44,7 +44,7 @@ export default function Sidebar() {
             letterSpacing: "0.4px",
           }}
         >
-          MEI
+          MEI CRM
         </div>
 
         <div
@@ -64,11 +64,12 @@ export default function Sidebar() {
           return (
             <button
               key={item.name}
+              type="button"
               onClick={() => navigate(item.path)}
               style={{
-                background: active ? "#1e293b" : "transparent",
+                background: active ? "#2563eb" : "transparent",
                 color: active ? "#ffffff" : "#cbd5e1",
-                border: "1px solid " + (active ? "#334155" : "transparent"),
+                border: "1px solid " + (active ? "#2563eb" : "transparent"),
                 borderRadius: "12px",
                 padding: "12px 14px",
                 textAlign: "left",
