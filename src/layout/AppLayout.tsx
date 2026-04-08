@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import type { ThemeMode } from "../theme";
+import { getTheme } from "../theme";
 
 type Props = {
   children: ReactNode;
@@ -13,18 +14,20 @@ type Props = {
 export default function AppLayout({
   children,
   title,
-  mode,
+  mode = "light",
   onToggleTheme,
 }: Props) {
+  const theme = getTheme(mode);
+
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#020617",
+        background: theme.pageBg,
       }}
     >
-      <Sidebar />
+      <Sidebar mode={mode} />
 
       <div
         style={{
@@ -32,6 +35,7 @@ export default function AppLayout({
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
+          background: theme.pageBg,
         }}
       >
         <Topbar title={title} mode={mode} onToggleTheme={onToggleTheme} />
@@ -40,6 +44,7 @@ export default function AppLayout({
           style={{
             flex: 1,
             overflow: "auto",
+            background: theme.pageBg,
           }}
         >
           {children}

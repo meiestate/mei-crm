@@ -15,6 +15,9 @@ import SettingsPage from "./pages/settings/SettingsPage";
 import BillingSubscriptionPage from "./pages/settings/BillingSubscriptionPage";
 import HelpSupportPage from "./pages/support/HelpSupportPage";
 import CallLogPage from "./pages/calls/CallLogPage";
+import PipelinesPage from "./pages/pipelines/PipelinesPage";
+import RolesPage from "./pages/settings/RolesPage";
+import UsersPage from "./pages/settings/UsersPage";
 
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
@@ -175,6 +178,10 @@ export default function App() {
     <DealDetailPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
+  const pipelinesPageElement = (
+    <PipelinesPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
   const tasksPageElement = (
     <TasksPage mode={mode} onToggleTheme={toggleTheme} />
   );
@@ -189,6 +196,14 @@ export default function App() {
 
   const billingSubscriptionPageElement = (
     <BillingSubscriptionPage mode={mode} />
+  );
+
+  const rolesPageElement = (
+    <RolesPage mode={mode} onToggleTheme={toggleTheme} />
+  );
+
+  const usersPageElement = (
+    <UsersPage mode={mode} onToggleTheme={toggleTheme} />
   );
 
   const helpSupportPageElement = <HelpSupportPage mode={mode} />;
@@ -406,6 +421,21 @@ export default function App() {
         />
 
         <Route
+          path="/pipelines"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                pipelinesPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
           path="/tasks"
           element={
             isAuthenticated ? (
@@ -486,6 +516,36 @@ export default function App() {
             isAuthenticated ? (
               hasCompletedOnboarding ? (
                 billingSubscriptionPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/settings/roles"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                rolesPageElement
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/settings/users"
+          element={
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                usersPageElement
               ) : (
                 <Navigate to="/onboarding" replace />
               )
