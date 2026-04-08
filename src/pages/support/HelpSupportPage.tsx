@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
+
 type HelpSupportPageProps = {
   mode: ThemeMode;
 };

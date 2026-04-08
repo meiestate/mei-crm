@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import AppLayout from "../../components/layout/AppLayout";
+import AppLayout from "../../layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
