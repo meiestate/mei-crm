@@ -1,12 +1,21 @@
 import type { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import type { ThemeMode } from "../theme";
 
 type Props = {
   children: ReactNode;
+  title?: string;
+  mode?: ThemeMode;
+  onToggleTheme?: () => void;
 };
 
-export default function AppLayout({ children }: Props) {
+export default function AppLayout({
+  children,
+  title,
+  mode,
+  onToggleTheme,
+}: Props) {
   return (
     <div
       style={{
@@ -25,7 +34,7 @@ export default function AppLayout({ children }: Props) {
           minWidth: 0,
         }}
       >
-        <Topbar />
+        <Topbar title={title} mode={mode} onToggleTheme={onToggleTheme} />
 
         <main
           style={{

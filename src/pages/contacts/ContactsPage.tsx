@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import AppLayout from "../../components/layout/AppLayout";
+import AppLayout from "../../layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 

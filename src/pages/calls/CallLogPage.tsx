@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
+import AppLayout from "../../layout/AppLayout";
 
 type CallType = "Incoming" | "Outgoing" | "Missed";
 type CallStatus = "Connected" | "No Answer" | "Busy" | "Failed";
@@ -30,6 +31,7 @@ type CallLog = {
 
 type CallLogPageProps = {
   mode: ThemeMode;
+  onToggleTheme?: () => void;
 };
 
 type CallLogFormState = {
@@ -396,7 +398,10 @@ function Label({
   );
 }
 
-export default function CallLogPage({ mode }: CallLogPageProps) {
+export default function CallLogPage({
+  mode,
+  onToggleTheme,
+}: CallLogPageProps) {
   const theme = getTheme(mode);
   const navigate = useNavigate();
 
@@ -730,7 +735,6 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
     const updated = callLogs.filter((item) => !selectedIds.includes(item.id));
 
     setCallLogs(updated);
-
     deleteLogs.forEach((log) => syncLeadActivityFromCall("call_deleted", log));
 
     setSelectedIds([]);
@@ -827,10 +831,10 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
     setSelectedIds((prev) => Array.from(new Set([...prev, ...currentPageIds])));
   };
 
-  return (
+  const pageContent = (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100%",
         background: theme.pageBg,
         padding: 24,
       }}
@@ -866,13 +870,14 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 fontSize: 14,
               }}
             >
-              Enterprise call tracking with editing, bulk actions, pagination, sorting,
-              and lead activity sync.
+              Enterprise call tracking with editing, bulk actions, pagination,
+              sorting, and lead activity sync.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
+              type="button"
               onClick={() => handleExportCsv("filtered")}
               style={toolbarButton(theme)}
             >
@@ -880,6 +885,7 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
             </button>
 
             <button
+              type="button"
               onClick={openAddModal}
               style={{
                 ...toolbarButton(theme),
@@ -1037,7 +1043,11 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                   <option value="durationSec:asc">Shortest Duration</option>
                 </select>
 
-                <button onClick={resetFilters} style={toolbarButton(theme)}>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  style={toolbarButton(theme)}
+                >
                   Clear
                 </button>
               </div>
@@ -1055,12 +1065,24 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 flexWrap: "wrap",
               }}
             >
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={toggleCurrentPageSelection} style={toolbarButton(theme)}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={toggleCurrentPageSelection}
+                  style={toolbarButton(theme)}
+                >
                   {allCurrentPageSelected ? "Unselect Page" : "Select Page"}
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleExportCsv("selected")}
                   style={toolbarButton(theme)}
                 >
@@ -1068,13 +1090,18 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => handleExportCsv("page")}
                   style={toolbarButton(theme)}
                 >
                   Export This Page
                 </button>
 
-                <button onClick={handleBulkDelete} style={dangerButton(theme)}>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  style={dangerButton()}
+                >
                   Delete Selected
                 </button>
               </div>
@@ -1211,17 +1238,19 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                             />
                           </td>
 
-                          <td
-                            style={cellStyle(theme, true)}
-                          >
-                            {call.id}
-                          </td>
+                          <td style={cellStyle(theme, true)}>{call.id}</td>
 
                           <td style={cellStyle(theme)}>
                             <div style={{ color: theme.text, fontWeight: 700 }}>
                               {call.contactName}
                             </div>
-                            <div style={{ color: theme.subText, fontSize: 12, marginTop: 4 }}>
+                            <div
+                              style={{
+                                color: theme.subText,
+                                fontSize: 12,
+                                marginTop: 4,
+                              }}
+                            >
                               {call.leadName || call.company || "—"}
                             </div>
                           </td>
@@ -1229,9 +1258,7 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                           <td style={cellStyle(theme)}>{call.phone}</td>
 
                           <td style={cellStyle(theme)}>
-                            <span style={badgeStyle(typeColors)}>
-                              {call.type}
-                            </span>
+                            <span style={badgeStyle(typeColors)}>{call.type}</span>
                           </td>
 
                           <td style={cellStyle(theme)}>
@@ -1268,7 +1295,14 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                                 ▶ Recording
                               </a>
                             ) : (
-                              <span style={{ color: theme.mutedText, fontSize: 13 }}>—</span>
+                              <span
+                                style={{
+                                  color: theme.mutedText,
+                                  fontSize: 13,
+                                }}
+                              >
+                                —
+                              </span>
                             )}
                           </td>
                         </tr>
@@ -1293,11 +1327,13 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
             >
               <div style={{ color: theme.subText, fontSize: 13 }}>
                 Showing {(currentPage - 1) * pageSize + (paginatedLogs.length ? 1 : 0)}–
-                {(currentPage - 1) * pageSize + paginatedLogs.length} of {filteredAndSortedLogs.length}
+                {(currentPage - 1) * pageSize + paginatedLogs.length} of{" "}
+                {filteredAndSortedLogs.length}
               </div>
 
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button
+                  type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   style={{
@@ -1321,6 +1357,7 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 </div>
 
                 <button
+                  type="button"
                   disabled={currentPage === totalPages}
                   onClick={() =>
                     setCurrentPage((prev) => Math.min(totalPages, prev + 1))
@@ -1328,7 +1365,8 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                   style={{
                     ...toolbarButton(theme),
                     opacity: currentPage === totalPages ? 0.5 : 1,
-                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
                   }}
                 >
                   Next
@@ -1378,8 +1416,14 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                     { label: "Assigned To", value: selectedCall.assignedTo },
                     { label: "Call Type", value: selectedCall.type },
                     { label: "Status", value: selectedCall.status },
-                    { label: "Duration", value: formatDuration(selectedCall.durationSec) },
-                    { label: "Follow-up", value: selectedCall.followUpDate || "Not scheduled" },
+                    {
+                      label: "Duration",
+                      value: formatDuration(selectedCall.durationSec),
+                    },
+                    {
+                      label: "Follow-up",
+                      value: selectedCall.followUpDate || "Not scheduled",
+                    },
                   ].map((item) => (
                     <div
                       key={item.label}
@@ -1390,8 +1434,16 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                         padding: 14,
                       }}
                     >
-                      <div style={{ fontSize: 12, color: theme.subText }}>{item.label}</div>
-                      <div style={{ marginTop: 6, fontWeight: 700, color: theme.text }}>
+                      <div style={{ fontSize: 12, color: theme.subText }}>
+                        {item.label}
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontWeight: 700,
+                          color: theme.text,
+                        }}
+                      >
                         {item.value}
                       </div>
                     </div>
@@ -1413,10 +1465,22 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                   <div style={{ color: theme.text, fontWeight: 700 }}>
                     {selectedCall.leadName || "General Contact"}
                   </div>
-                  <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 6 }}>
+                  <div
+                    style={{
+                      color: theme.mutedText,
+                      fontSize: 13,
+                      marginTop: 6,
+                    }}
+                  >
                     {selectedCall.company || "No company linked"}
                   </div>
-                  <div style={{ color: theme.mutedText, fontSize: 13, marginTop: 6 }}>
+                  <div
+                    style={{
+                      color: theme.mutedText,
+                      fontSize: 13,
+                      marginTop: 6,
+                    }}
+                  >
                     Lead ID: {selectedCall.leadId || "—"}
                   </div>
                 </div>
@@ -1439,18 +1503,23 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 </div>
 
                 <div style={{ display: "grid", gap: 10 }}>
-                  <button onClick={openEditModal} style={toolbarButton(theme)}>
+                  <button type="button" onClick={openEditModal} style={toolbarButton(theme)}>
                     Edit Call Log
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => setDeleteTarget(selectedCall)}
-                    style={dangerButton(theme)}
+                    style={dangerButton()}
                   >
                     Delete Call Log
                   </button>
 
-                  <button onClick={goToLeadDetail} style={toolbarButton(theme)}>
+                  <button
+                    type="button"
+                    onClick={goToLeadDetail}
+                    style={toolbarButton(theme)}
+                  >
                     Open Lead Detail
                   </button>
 
@@ -1469,6 +1538,7 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                     </a>
                   ) : (
                     <button
+                      type="button"
                       style={{
                         ...toolbarButton(theme),
                         color: theme.mutedText,
@@ -1479,7 +1549,9 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                     </button>
                   )}
 
-                  <button style={toolbarButton(theme)}>Create Task</button>
+                  <button type="button" style={toolbarButton(theme)}>
+                    Create Task
+                  </button>
 
                   <a
                     href={`tel:${selectedCall.phone}`}
@@ -1563,15 +1635,23 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
                 marginBottom: 20,
               }}
             >
-              Are you sure you want to delete <strong>{deleteTarget.id}</strong> for{" "}
-              <strong>{deleteTarget.contactName}</strong>?
+              Are you sure you want to delete <strong>{deleteTarget.id}</strong>{" "}
+              for <strong>{deleteTarget.contactName}</strong>?
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button onClick={() => setDeleteTarget(null)} style={toolbarButton(theme)}>
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                style={toolbarButton(theme)}
+              >
                 Cancel
               </button>
-              <button onClick={confirmDeleteSelectedCall} style={dangerButton(theme)}>
+              <button
+                type="button"
+                onClick={confirmDeleteSelectedCall}
+                style={dangerButton()}
+              >
                 Confirm Delete
               </button>
             </div>
@@ -1579,6 +1659,12 @@ export default function CallLogPage({ mode }: CallLogPageProps) {
         </ModalShell>
       )}
     </div>
+  );
+
+  return (
+    <AppLayout title="Call Logs" mode={mode} onToggleTheme={onToggleTheme}>
+      {pageContent}
+    </AppLayout>
   );
 }
 
@@ -1758,11 +1844,12 @@ function CallForm({
           marginTop: 20,
         }}
       >
-        <button onClick={onCancel} style={toolbarButton(theme)}>
+        <button type="button" onClick={onCancel} style={toolbarButton(theme)}>
           Cancel
         </button>
 
         <button
+          type="button"
           onClick={onSubmit}
           style={{
             ...toolbarButton(theme),
@@ -1842,7 +1929,7 @@ function ModalShell({
             </div>
           </div>
 
-          <button onClick={onClose} style={toolbarButton(theme)}>
+          <button type="button" onClick={onClose} style={toolbarButton(theme)}>
             Close
           </button>
         </div>
@@ -1882,7 +1969,7 @@ function toolbarButton(theme: ReturnType<typeof getTheme>): React.CSSProperties 
   };
 }
 
-function dangerButton(theme: ReturnType<typeof getTheme>): React.CSSProperties {
+function dangerButton(): React.CSSProperties {
   return {
     background: "rgba(239,68,68,0.08)",
     color: "#dc2626",

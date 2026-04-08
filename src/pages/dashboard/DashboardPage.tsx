@@ -1,4 +1,4 @@
-import AppLayout from "../../components/layout/AppLayout";
+import AppLayout from "../../layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 import type { CSSProperties } from "react";
@@ -277,15 +277,19 @@ export default function DashboardPage({
   const newDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["new"])
   ).length;
+
   const negotiationDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["negotiation"])
   ).length;
+
   const proposalDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["proposal"])
   ).length;
+
   const wonDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["won", "closed"])
   ).length;
+
   const lostDeals = deals.filter((deal) =>
     matchesStatus(deal.stage || deal.status, ["lost"])
   ).length;
@@ -477,18 +481,21 @@ export default function DashboardPage({
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <button
+              type="button"
               style={primaryButtonStyle(colors)}
               onClick={() => navigate("/leads")}
             >
               + Add Lead
             </button>
             <button
+              type="button"
               style={secondaryButtonStyle(colors)}
               onClick={() => navigate("/tasks")}
             >
               Create Task
             </button>
             <button
+              type="button"
               style={secondaryButtonStyle(colors)}
               onClick={() => navigate("/deals")}
             >
@@ -989,12 +996,14 @@ export default function DashboardPage({
                 <MiniStatCard
                   colors={colors}
                   label="Win Rate"
-                  value={`${deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"}%`}
+                  value={`${
+                    deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"
+                  }%`}
                 />
                 <button
                   type="button"
                   onClick={() => navigate("/tasks?filter=today")}
-                  style={miniStatButtonStyle(colors)}
+                  style={miniStatButtonStyle()}
                 >
                   <MiniStatCard
                     colors={colors}
@@ -1005,7 +1014,7 @@ export default function DashboardPage({
                 <button
                   type="button"
                   onClick={() => navigate("/tasks?filter=overdue")}
-                  style={miniStatButtonStyle(colors)}
+                  style={miniStatButtonStyle()}
                 >
                   <MiniStatCard
                     colors={colors}
@@ -1016,7 +1025,7 @@ export default function DashboardPage({
                 <button
                   type="button"
                   onClick={() => navigate("/tasks?filter=pending")}
-                  style={miniStatButtonStyle(colors)}
+                  style={miniStatButtonStyle()}
                 >
                   <MiniStatCard
                     colors={colors}
@@ -1492,9 +1501,7 @@ function MiniStatCard({
   );
 }
 
-function miniStatButtonStyle(
-  colors: ReturnType<typeof getTheme>
-): React.CSSProperties {
+function miniStatButtonStyle(): React.CSSProperties {
   return {
     border: "none",
     background: "transparent",
