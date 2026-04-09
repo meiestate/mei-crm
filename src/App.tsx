@@ -24,6 +24,9 @@ import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
+import NotFoundPage from "./pages/NotFoundPage";
+
+import ProtectedRoute from "./ProtectedRoute";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
@@ -132,83 +135,9 @@ export default function App() {
     setHasCompletedOnboarding(true);
   };
 
-  const loginPageElement = (
-    <LoginPage
-      mode={mode}
-      onToggleTheme={toggleTheme}
-      onLoginSuccess={handleLoginSuccess}
-    />
-  );
-
-  const onboardingPageElement = (
-    <OnboardingWelcomePage
-      mode={mode}
-      onComplete={handleOnboardingComplete}
-      onSkip={handleOnboardingComplete}
-    />
-  );
-
-  const dashboardPageElement = (
-    <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const leadsPageElement = (
-    <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const addLeadPageElement = <AddLeadPage mode={mode} />;
-
-  const leadsCalendarPageElement = (
-    <LeadsCalendarPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const leadDetailPageElement = (
-    <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const contactsPageElement = (
-    <ContactsPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const dealsPageElement = (
-    <DealsPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const dealDetailPageElement = (
-    <DealDetailPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const pipelinesPageElement = (
-    <PipelinesPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const tasksPageElement = (
-    <TasksPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const taskDetailPageElement = (
-    <TaskDetailPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const settingsPageElement = (
-    <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const billingSubscriptionPageElement = (
-    <BillingSubscriptionPage mode={mode} />
-  );
-
-  const rolesPageElement = (
-    <RolesPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const usersPageElement = (
-    <UsersPage mode={mode} onToggleTheme={toggleTheme} />
-  );
-
-  const helpSupportPageElement = <HelpSupportPage mode={mode} />;
-
-  const callLogPageElement = <CallLogPage mode={mode} />;
+  const defaultProtectedRedirect = hasCompletedOnboarding
+    ? "/dashboard"
+    : "/onboarding";
 
   return (
     <BrowserRouter>
@@ -217,29 +146,23 @@ export default function App() {
           path="/"
           element={
             <Navigate
-              to={
-                isAuthenticated
-                  ? hasCompletedOnboarding
-                    ? "/dashboard"
-                    : "/onboarding"
-                  : "/login"
-              }
+              to={isAuthenticated ? defaultProtectedRedirect : "/login"}
               replace
             />
           }
         />
 
         <Route
-          path="/onboarding"
+          path="/login"
           element={
             isAuthenticated ? (
-              hasCompletedOnboarding ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                onboardingPageElement
-              )
+              <Navigate to={defaultProtectedRedirect} replace />
             ) : (
-              <Navigate to="/login" replace />
+              <LoginPage
+                mode={mode}
+                onToggleTheme={toggleTheme}
+                onLoginSuccess={handleLoginSuccess}
+              />
             )
           }
         />
@@ -248,10 +171,7 @@ export default function App() {
           path="/signup"
           element={
             isAuthenticated ? (
-              <Navigate
-                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
-                replace
-              />
+              <Navigate to={defaultProtectedRedirect} replace />
             ) : (
               <SignupPage mode={mode} />
             )
@@ -262,10 +182,7 @@ export default function App() {
           path="/forgot-password"
           element={
             isAuthenticated ? (
-              <Navigate
-                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
-                replace
-              />
+              <Navigate to={defaultProtectedRedirect} replace />
             ) : (
               <ForgotPasswordPage mode={mode} />
             )
@@ -276,10 +193,7 @@ export default function App() {
           path="/reset-password"
           element={
             isAuthenticated ? (
-              <Navigate
-                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
-                replace
-              />
+              <Navigate to={defaultProtectedRedirect} replace />
             ) : (
               <ResetPasswordPage mode={mode} />
             )
@@ -287,27 +201,17 @@ export default function App() {
         />
 
         <Route
-          path="/login"
-          element={
-            isAuthenticated ? (
-              <Navigate
-                to={hasCompletedOnboarding ? "/dashboard" : "/onboarding"}
-                replace
-              />
-            ) : (
-              loginPageElement
-            )
-          }
-        />
-
-        <Route
-          path="/dashboard"
+          path="/onboarding"
           element={
             isAuthenticated ? (
               hasCompletedOnboarding ? (
-                dashboardPageElement
+                <Navigate to="/dashboard" replace />
               ) : (
-                <Navigate to="/onboarding" replace />
+                <OnboardingWelcomePage
+                  mode={mode}
+                  onComplete={handleOnboardingComplete}
+                  onSkip={handleOnboardingComplete}
+                />
               )
             ) : (
               <Navigate to="/login" replace />
@@ -316,258 +220,213 @@ export default function App() {
         />
 
         <Route
-          path="/leads"
           element={
-            isAuthenticated ? (
+            <ProtectedRoute
+              isAuthenticated={isAuthenticated}
+              redirectPath="/login"
+            />
+          }
+        >
+          <Route
+            path="/dashboard"
+            element={
               hasCompletedOnboarding ? (
-                leadsPageElement
+                <DashboardPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/leads/new"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/leads"
+            element={
               hasCompletedOnboarding ? (
-                addLeadPageElement
+                <LeadsPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/leads/calendar"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/leads/new"
+            element={
               hasCompletedOnboarding ? (
-                leadsCalendarPageElement
+                <AddLeadPage mode={mode} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/leads/:id"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/leads/calendar"
+            element={
               hasCompletedOnboarding ? (
-                leadDetailPageElement
+                <LeadsCalendarPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/contacts"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/leads/:id"
+            element={
               hasCompletedOnboarding ? (
-                contactsPageElement
+                <LeadDetailPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/deals"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/contacts"
+            element={
               hasCompletedOnboarding ? (
-                dealsPageElement
+                <ContactsPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/deals/:id"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/deals"
+            element={
               hasCompletedOnboarding ? (
-                dealDetailPageElement
+                <DealsPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/pipelines"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/deals/:id"
+            element={
               hasCompletedOnboarding ? (
-                pipelinesPageElement
+                <DealDetailPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/tasks"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/pipelines"
+            element={
               hasCompletedOnboarding ? (
-                tasksPageElement
+                <PipelinesPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/tasks/:id"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/tasks"
+            element={
               hasCompletedOnboarding ? (
-                taskDetailPageElement
+                <TasksPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/calls"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/tasks/:id"
+            element={
               hasCompletedOnboarding ? (
-                callLogPageElement
+                <TaskDetailPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/help-support"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/calls"
+            element={
               hasCompletedOnboarding ? (
-                helpSupportPageElement
+                <CallLogPage mode={mode} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/settings"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/help-support"
+            element={
               hasCompletedOnboarding ? (
-                settingsPageElement
+                <HelpSupportPage mode={mode} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/settings/billing"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/settings"
+            element={
               hasCompletedOnboarding ? (
-                billingSubscriptionPageElement
+                <SettingsPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/settings/roles"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/settings/billing"
+            element={
               hasCompletedOnboarding ? (
-                rolesPageElement
+                <BillingSubscriptionPage mode={mode} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
 
-        <Route
-          path="/settings/users"
-          element={
-            isAuthenticated ? (
+          <Route
+            path="/settings/roles"
+            element={
               hasCompletedOnboarding ? (
-                usersPageElement
+                <RolesPage mode={mode} onToggleTheme={toggleTheme} />
               ) : (
                 <Navigate to="/onboarding" replace />
               )
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+            }
+          />
+
+          <Route
+            path="/settings/users"
+            element={
+              hasCompletedOnboarding ? (
+                <UsersPage mode={mode} onToggleTheme={toggleTheme} />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            }
+          />
+        </Route>
 
         <Route
           path="*"
           element={
-            <Navigate
-              to={
-                isAuthenticated
-                  ? hasCompletedOnboarding
-                    ? "/dashboard"
-                    : "/onboarding"
-                  : "/login"
-              }
-              replace
-            />
+            isAuthenticated ? (
+              hasCompletedOnboarding ? (
+                <NotFoundPage />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/login" replace />
+            )
           }
         />
       </Routes>
