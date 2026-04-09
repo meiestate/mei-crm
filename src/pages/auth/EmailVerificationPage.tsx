@@ -212,7 +212,10 @@ export default function EmailVerificationPage({
             marginBottom: 18,
             padding: "14px 16px",
             borderRadius: 12,
-            background: theme.mode === "dark" ? "rgba(37,99,235,0.12)" : "rgba(37,99,235,0.08)",
+            background:
+              mode === "dark"
+                ? "rgba(37,99,235,0.12)"
+                : "rgba(37,99,235,0.08)",
             border: `1px solid ${theme.border}`,
           }}
         >

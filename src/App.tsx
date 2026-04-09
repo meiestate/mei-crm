@@ -24,9 +24,8 @@ import SignupPage from "./pages/auth/SignupPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import OnboardingWelcomePage from "./pages/onboarding/OnboardingWelcomePage";
-import NotFoundPage from "./pages/NotFoundPage";
-
-import ProtectedRoute from "./ProtectedRoute";
+import NotFoundPage from "./pages/not-found/NotFoundPage";
+import ProtectedRoute from "./app/router/ProtectedRoute";
 
 import type { ThemeMode } from "./theme";
 import { getTheme } from "./theme";
