@@ -4,12 +4,14 @@ import type { ThemeMode } from "../theme";
 
 type SidebarProps = {
   mode?: ThemeMode;
+  onNavigate?: () => void;
 };
 
 type MenuItem = {
   name: string;
   path: string;
   icon: string;
+  badge?: string;
 };
 
 type MenuSection = {
@@ -45,11 +47,16 @@ const menuSections: MenuSection[] = [
   },
   {
     title: "Support",
-    items: [{ name: "Help & Support", path: "/help-support", icon: "🆘" }],
+    items: [
+      { name: "Help & Support", path: "/help-support", icon: "🆘", badge: "2" },
+    ],
   },
 ];
 
-export default function Sidebar({ mode = "light" }: SidebarProps) {
+export default function Sidebar({
+  mode = "light",
+  onNavigate,
+}: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = getTheme(mode);
@@ -58,23 +65,27 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
     return location.pathname === path || location.pathname.startsWith(path + "/");
   };
 
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    onNavigate?.();
+  };
+
   return (
     <aside
       style={{
-        width: 270,
-        minHeight: "100vh",
+        width: "100%",
+        minHeight: "100%",
+        height: "100%",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        padding: "22px 16px",
-        gap: 20,
-        background: theme.sidebarBg,
-        borderRight: `1px solid ${theme.border}`,
-        position: "sticky",
-        top: 0,
+        padding: "18px 14px",
+        gap: 18,
+        background: theme.sidebarBg ?? theme.cardBg ?? theme.pageBg,
+        color: theme.text,
       }}
     >
-      <div style={{ padding: "6px 6px 2px" }}>
+      <div style={{ padding: "6px 8px 2px" }}>
         <div
           style={{
             fontSize: 24,
@@ -82,6 +93,7 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
             letterSpacing: 0.4,
             color: theme.text,
             marginBottom: 6,
+            lineHeight: 1.1,
           }}
         >
           MEI CRM
@@ -90,8 +102,9 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
         <div
           style={{
             fontSize: 13,
-            color: theme.subText,
+            color: theme.subText ?? theme.mutedText,
             fontWeight: 500,
+            lineHeight: 1.5,
           }}
         >
           Business OS
@@ -129,6 +142,7 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
             fontWeight: 800,
             color: theme.text,
             marginBottom: 4,
+            lineHeight: 1.35,
           }}
         >
           MEI CRM Core
@@ -138,10 +152,11 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
           style={{
             fontSize: 12,
             color: theme.subText,
-            lineHeight: 1.5,
+            lineHeight: 1.55,
           }}
         >
-          Manage leads, teams, pipelines, roles, and growth from one clean control panel.
+          Manage leads, teams, pipelines, roles, and growth from one clean
+          control panel.
         </div>
       </div>
 
@@ -185,7 +200,7 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
                   <button
                     key={item.name}
                     type="button"
-                    onClick={() => navigate(item.path)}
+                    onClick={() => handleNavigate(item.path)}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -193,10 +208,15 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
                       width: "100%",
                       borderRadius: 14,
                       padding: "12px 14px",
+                      minHeight: 46,
                       border: `1px solid ${
-                        active ? theme.primary : "transparent"
+                        active
+                          ? theme.primary
+                          : theme.borderSoft ?? "transparent"
                       }`,
-                      background: active ? theme.navActiveBg : "transparent",
+                      background: active
+                        ? theme.navActiveBg
+                        : theme.cardBgSoft ?? "transparent",
                       color: active ? theme.navActiveText : theme.navText,
                       cursor: "pointer",
                       textAlign: "left",
@@ -218,9 +238,39 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
                       {item.icon}
                     </span>
 
-                    <span style={{ flex: 1 }}>{item.name}</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.name}
+                    </span>
 
-                    {active ? (
+                    {item.badge ? (
+                      <span
+                        style={{
+                          minWidth: 22,
+                          height: 22,
+                          padding: "0 6px",
+                          borderRadius: 999,
+                          background: active ? theme.primary : "#ef4444",
+                          color: "#ffffff",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    ) : active ? (
                       <span
                         style={{
                           width: 8,
@@ -254,6 +304,7 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
             fontWeight: 800,
             color: theme.text,
             marginBottom: 6,
+            lineHeight: 1.4,
           }}
         >
           Enterprise Mode
@@ -263,7 +314,7 @@ export default function Sidebar({ mode = "light" }: SidebarProps) {
           style={{
             fontSize: 12,
             color: theme.subText,
-            lineHeight: 1.5,
+            lineHeight: 1.55,
             marginBottom: 12,
           }}
         >

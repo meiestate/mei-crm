@@ -1,19 +1,25 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import type { ThemeMode } from "../theme";
+import { getTheme } from "../theme";
 
 type TopbarProps = {
   title?: string;
   mode?: ThemeMode;
   onToggleTheme?: () => void;
+  onOpenSidebar?: () => void;
+  isMobile?: boolean;
 };
 
 export default function Topbar({
   title,
-  mode,
+  mode = "light",
   onToggleTheme,
+  onOpenSidebar,
+  isMobile = false,
 }: TopbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = getTheme(mode);
 
   const pageTitles: Record<string, string> = {
     "/": "Dashboard",
@@ -26,6 +32,9 @@ export default function Topbar({
     "/help-support": "Help & Support",
     "/settings": "Settings",
     "/settings/billing": "Billing & Subscription",
+    "/settings/roles": "Roles & Permissions",
+    "/settings/users": "Users",
+    "/pipelines": "Pipelines",
   };
 
   const matchedPath =
@@ -62,13 +71,13 @@ export default function Topbar({
   return (
     <header
       style={{
-        minHeight: "72px",
-        borderBottom: "1px solid #1f2937",
-        background: "#0f172a",
+        minHeight: isMobile ? "auto" : "72px",
+        borderBottom: `1px solid ${theme.border}`,
+        background: theme.topbarBg ?? theme.cardBg ?? theme.pageBg,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 24px",
+        padding: isMobile ? "12px" : "0 24px",
         gap: "16px",
         boxSizing: "border-box",
         flexWrap: "wrap",
@@ -77,28 +86,60 @@ export default function Topbar({
       <div
         style={{
           minWidth: 0,
-          padding: "12px 0",
+          padding: isMobile ? "0" : "12px 0",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+          flex: isMobile ? "1 1 100%" : "0 1 auto",
         }}
       >
-        <div
-          style={{
-            fontSize: "20px",
-            fontWeight: 700,
-            color: "#f8fafc",
-            lineHeight: 1.2,
-          }}
-        >
-          {pageTitle}
-        </div>
+        {isMobile && onOpenSidebar ? (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            aria-label="Open sidebar"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              border: `1px solid ${theme.border}`,
+              background: theme.cardBg ?? theme.pageBg,
+              color: theme.text,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              fontSize: 18,
+              lineHeight: 1,
+            }}
+          >
+            ☰
+          </button>
+        ) : null}
 
-        <div
-          style={{
-            fontSize: "13px",
-            color: "#94a3b8",
-            marginTop: "4px",
-          }}
-        >
-          Welcome back to MEI Business OS
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: isMobile ? "18px" : "20px",
+              fontWeight: 700,
+              color: theme.text,
+              lineHeight: 1.2,
+              wordBreak: "break-word",
+            }}
+          >
+            {pageTitle}
+          </div>
+
+          <div
+            style={{
+              fontSize: "13px",
+              color: theme.subText ?? theme.mutedText ?? "#94a3b8",
+              marginTop: "4px",
+            }}
+          >
+            Welcome back to MEI Business OS
+          </div>
         </div>
       </div>
 
@@ -108,22 +149,24 @@ export default function Topbar({
           alignItems: "center",
           gap: "12px",
           flexWrap: "wrap",
-          justifyContent: "flex-end",
-          padding: "12px 0",
+          justifyContent: isMobile ? "stretch" : "flex-end",
+          padding: isMobile ? "0" : "12px 0",
+          width: isMobile ? "100%" : "auto",
         }}
       >
         <input
           placeholder="Search..."
           style={{
-            width: "240px",
+            width: isMobile ? "100%" : "240px",
             maxWidth: "100%",
-            background: "#111827",
-            color: "#e5e7eb",
-            border: "1px solid #374151",
+            background: theme.inputBg ?? theme.cardBg ?? theme.pageBg,
+            color: theme.text,
+            border: `1px solid ${theme.border}`,
             borderRadius: "12px",
             padding: "10px 14px",
             outline: "none",
             boxSizing: "border-box",
+            minHeight: 42,
           }}
         />
 
@@ -132,13 +175,15 @@ export default function Topbar({
             type="button"
             onClick={handleThemeToggle}
             style={{
-              background: "#111827",
-              color: "#e5e7eb",
-              border: "1px solid #374151",
+              background: theme.cardBg ?? theme.pageBg,
+              color: theme.text,
+              border: `1px solid ${theme.border}`,
               borderRadius: "12px",
               padding: "10px 14px",
               fontWeight: 600,
               cursor: "pointer",
+              minHeight: 42,
+              width: isMobile ? "calc(50% - 6px)" : "auto",
             }}
           >
             {mode === "dark" ? "Light Mode" : "Dark Mode"}
@@ -149,16 +194,19 @@ export default function Topbar({
           type="button"
           onClick={handleHelpSupportClick}
           style={{
-            background: "#111827",
-            color: "#e5e7eb",
-            border: "1px solid #374151",
+            background: theme.cardBg ?? theme.pageBg,
+            color: theme.text,
+            border: `1px solid ${theme.border}`,
             borderRadius: "12px",
             padding: "10px 14px",
             fontWeight: 600,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
             gap: "8px",
+            minHeight: 42,
+            width: isMobile ? "calc(50% - 6px)" : "auto",
           }}
         >
           <span style={{ fontSize: "15px" }}>🛟</span>
@@ -169,16 +217,19 @@ export default function Topbar({
           type="button"
           onClick={handleSupportTicketClick}
           style={{
-            background: "#1e293b",
-            color: "#f8fafc",
-            border: "1px solid #334155",
+            background: theme.sectionBg ?? theme.cardBg ?? theme.pageBg,
+            color: theme.text,
+            border: `1px solid ${theme.borderStrong ?? theme.border}`,
             borderRadius: "999px",
             padding: "10px 14px",
             fontWeight: 600,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
             gap: "8px",
+            minHeight: 42,
+            width: isMobile ? "calc(50% - 6px)" : "auto",
           }}
         >
           <span>Support</span>
@@ -206,13 +257,15 @@ export default function Topbar({
           type="button"
           onClick={handleAddLeadClick}
           style={{
-            background: "#2563eb",
+            background: theme.primary,
             color: "#ffffff",
             border: "none",
             borderRadius: "12px",
             padding: "10px 16px",
             fontWeight: 600,
             cursor: "pointer",
+            minHeight: 42,
+            width: isMobile ? "100%" : "auto",
           }}
         >
           + Add Lead
