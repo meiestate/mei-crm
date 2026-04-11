@@ -12,7 +12,7 @@ export type TeamMember = {
   lastActive: string;
 };
 
-type SortField = "name" | "role" | "lastActive";
+type SortField = "name" | "email" | "role" | "department" | "status" | "lastActive";
 type SortDirection = "asc" | "desc";
 
 type TeamRolesCardProps = {
@@ -25,6 +25,7 @@ type TeamRolesCardProps = {
   onResendInvite?: (member: TeamMember) => void;
   onBulkDeactivateMembers?: (members: TeamMember[]) => void;
   onBulkResendInvites?: (members: TeamMember[]) => void;
+  onBulkDeleteMembers?: (members: TeamMember[]) => void;
 };
 
 const ALL_STATUSES = "All Statuses";
@@ -40,6 +41,7 @@ export default function TeamRolesCard({
   onResendInvite,
   onBulkDeactivateMembers,
   onBulkResendInvites,
+  onBulkDeleteMembers,
 }: TeamRolesCardProps) {
   const theme = getTheme(mode);
 
@@ -88,12 +90,27 @@ export default function TeamRolesCard({
     sorted.sort((a, b) => {
       let comparison = 0;
 
-      if (sortField === "name") {
-        comparison = a.name.localeCompare(b.name);
-      } else if (sortField === "role") {
-        comparison = a.role.localeCompare(b.role);
-      } else if (sortField === "lastActive") {
-        comparison = a.lastActive.localeCompare(b.lastActive);
+      switch (sortField) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "email":
+          comparison = a.email.localeCompare(b.email);
+          break;
+        case "role":
+          comparison = a.role.localeCompare(b.role);
+          break;
+        case "department":
+          comparison = a.department.localeCompare(b.department);
+          break;
+        case "status":
+          comparison = a.status.localeCompare(b.status);
+          break;
+        case "lastActive":
+          comparison = a.lastActive.localeCompare(b.lastActive);
+          break;
+        default:
+          comparison = 0;
       }
 
       return sortDirection === "asc" ? comparison : -comparison;
@@ -194,6 +211,93 @@ export default function TeamRolesCard({
   const handleClearSelection = () => {
     setSelectedIds([]);
   };
+
+  const handleExportSelectedCsv = () => {
+    if (selectedMembers.length === 0) return;
+
+    const headers = [
+      "ID",
+      "Name",
+      "Email",
+      "Role",
+      "Department",
+      "Status",
+      "Last Active",
+    ];
+
+    const escapeCsvValue = (value: string) => {
+      const safe = String(value ?? "");
+      if (safe.includes(",") || safe.includes('"') || safe.includes("\n")) {
+        return `"${safe.replace(/"/g, '""')}"`;
+      }
+      return safe;
+    };
+
+    const rows = selectedMembers.map((member) => [
+      member.id,
+      member.name,
+      member.email,
+      member.role,
+      member.department,
+      member.status,
+      member.lastActive,
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => escapeCsvValue(String(cell))).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "selected-team-members.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const renderHeaderCell = (label: string, field?: SortField, width?: number) => (
+    <th
+      key={label}
+      style={{
+        textAlign: "left",
+        padding: "14px 16px",
+        fontSize: 12,
+        fontWeight: 800,
+        color: theme.subText,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        borderBottom: `1px solid ${theme.border}`,
+        whiteSpace: "nowrap",
+        width,
+        cursor: field ? "pointer" : "default",
+        userSelect: "none",
+      }}
+      onClick={field ? () => handleSortChange(field) : undefined}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {label}
+        {field && (
+          <span
+            style={{
+              fontSize: 11,
+              color: sortField === field ? theme.text : theme.subText,
+            }}
+          >
+            {getSortArrow(field, sortField, sortDirection)}
+          </span>
+        )}
+      </span>
+    </th>
+  );
 
   return (
     <div
@@ -378,7 +482,7 @@ export default function TeamRolesCard({
       >
         <div style={bulkToolbarStyle}>
           <div style={{ display: "grid", gap: 8 }}>
-            <label style={fieldLabelStyle(theme)}>Sort By</label>
+            <label style={fieldLabelStyle(theme)}>Quick Sort</label>
             <div style={sortButtonsWrapStyle}>
               <button
                 type="button"
@@ -441,6 +545,24 @@ export default function TeamRolesCard({
 
               <button
                 type="button"
+                onClick={() => onBulkDeleteMembers?.(selectedMembers)}
+                disabled={selectedMembers.length === 0}
+                style={bulkDangerButtonStyle(selectedMembers.length === 0)}
+              >
+                Bulk Delete
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportSelectedCsv}
+                disabled={selectedMembers.length === 0}
+                style={bulkButtonStyle(theme, selectedMembers.length === 0)}
+              >
+                Export Selected CSV
+              </button>
+
+              <button
+                type="button"
                 onClick={handleClearSelection}
                 disabled={selectedIds.length === 0}
                 style={bulkButtonStyle(theme, selectedIds.length === 0)}
@@ -463,7 +585,7 @@ export default function TeamRolesCard({
         <table
           style={{
             width: "100%",
-            minWidth: 1060,
+            minWidth: 1140,
             borderCollapse: "collapse",
           }}
         >
@@ -495,32 +617,13 @@ export default function TeamRolesCard({
                 />
               </th>
 
-              {[
-                "Name",
-                "Email",
-                "Role",
-                "Department",
-                "Status",
-                "Last Active",
-                "Actions",
-              ].map((column) => (
-                <th
-                  key={column}
-                  style={{
-                    textAlign: "left",
-                    padding: "14px 16px",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: theme.subText,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.6,
-                    borderBottom: `1px solid ${theme.border}`,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {column}
-                </th>
-              ))}
+              {renderHeaderCell("Name", "name")}
+              {renderHeaderCell("Email", "email")}
+              {renderHeaderCell("Role", "role")}
+              {renderHeaderCell("Department", "department")}
+              {renderHeaderCell("Status", "status")}
+              {renderHeaderCell("Last Active", "lastActive")}
+              {renderHeaderCell("Actions")}
             </tr>
           </thead>
 
@@ -1057,6 +1160,21 @@ function bulkButtonStyle(
     background: disabled ? theme.cardBgSoft : theme.cardBg,
     color: disabled ? theme.subText : theme.text,
     fontWeight: 700,
+    fontSize: 13,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+    whiteSpace: "nowrap",
+  };
+}
+
+function bulkDangerButtonStyle(disabled: boolean): CSSProperties {
+  return {
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 12px",
+    background: disabled ? "rgba(239, 68, 68, 0.08)" : "#DC2626",
+    color: disabled ? "rgba(220, 38, 38, 0.6)" : "#fff",
+    fontWeight: 800,
     fontSize: 13,
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.7 : 1,
