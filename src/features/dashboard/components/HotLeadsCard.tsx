@@ -1,88 +1,131 @@
-import React from "react";
-import { getTheme } from "../../theme";
-import type { ThemeMode } from "../../theme";
+// src/features/dashboard/components/HotLeadsCard.tsx
 
-export type HotLeadItem = {
-  id: string;
-  name: string;
-  company?: string;
-  source?: string;
-  owner?: string;
-  status?:
-    | "new"
-    | "contacted"
-    | "qualified"
-    | "proposal"
-    | "negotiation"
-    | "follow_up"
-    | "converted"
-    | "lost";
-  priority?: "low" | "medium" | "high" | "urgent";
-  budget?: number;
-  currency?: string;
-  phone?: string;
-  email?: string;
-  city?: string;
-  nextFollowUpAt?: string;
-  lastActivityAt?: string;
-};
+import { getTheme, type ThemeMode } from "../../../theme";
+import type { DashboardRecentLeadItem } from "../api/dashboardApi";
 
 type HotLeadsCardProps = {
-  mode: ThemeMode;
-  leads: HotLeadItem[];
+  leads?: DashboardRecentLeadItem[];
+  mode?: ThemeMode;
+  loading?: boolean;
   title?: string;
-  maxItems?: number;
-  onLeadClick?: (lead: HotLeadItem) => void;
   onViewAll?: () => void;
-  onCall?: (lead: HotLeadItem) => void;
-  onWhatsapp?: (lead: HotLeadItem) => void;
+  onLeadClick?: (lead: DashboardRecentLeadItem) => void;
 };
 
+function formatCurrency(value?: number): string {
+  const amount = typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+  return new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatDate(value?: string): string {
+  if (!value) return "No follow-up date";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No follow-up date";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function getLeadStatusTone(status?: string) {
+  const value = (status ?? "").toLowerCase();
+
+  if (value === "hot") {
+    return {
+      label: "Hot",
+      bg: "rgba(239, 68, 68, 0.12)",
+      color: "#dc2626",
+      border: "rgba(239, 68, 68, 0.22)",
+    };
+  }
+
+  if (value === "warm") {
+    return {
+      label: "Warm",
+      bg: "rgba(245, 158, 11, 0.12)",
+      color: "#d97706",
+      border: "rgba(245, 158, 11, 0.22)",
+    };
+  }
+
+  if (value === "cold") {
+    return {
+      label: "Cold",
+      bg: "rgba(59, 130, 246, 0.12)",
+      color: "#2563eb",
+      border: "rgba(59, 130, 246, 0.22)",
+    };
+  }
+
+  if (value === "new") {
+    return {
+      label: "New",
+      bg: "rgba(139, 92, 246, 0.12)",
+      color: "#7c3aed",
+      border: "rgba(139, 92, 246, 0.22)",
+    };
+  }
+
+  return {
+    label: status || "Lead",
+    bg: "rgba(100, 116, 139, 0.12)",
+    color: "#475569",
+    border: "rgba(100, 116, 139, 0.22)",
+  };
+}
+
+function getInitials(name?: string): string {
+  if (!name) return "L";
+
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "L";
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
 export default function HotLeadsCard({
-  mode,
-  leads,
+  leads = [],
+  mode = "light",
+  loading = false,
   title = "Hot Leads",
-  maxItems = 5,
-  onLeadClick,
   onViewAll,
-  onCall,
-  onWhatsapp,
+  onLeadClick,
 }: HotLeadsCardProps) {
   const theme = getTheme(mode);
-
-  const visibleLeads = [...leads]
-    .sort((a, b) => {
-      const priorityScore = getPriorityScore(b.priority) - getPriorityScore(a.priority);
-      if (priorityScore !== 0) return priorityScore;
-
-      const aDate = a.nextFollowUpAt ? new Date(a.nextFollowUpAt).getTime() : 0;
-      const bDate = b.nextFollowUpAt ? new Date(b.nextFollowUpAt).getTime() : 0;
-      return aDate - bDate;
-    })
-    .slice(0, maxItems);
-
-  const hotCount = leads.filter((lead) =>
-    ["high", "urgent"].includes((lead.priority || "").toLowerCase())
-  ).length;
 
   return (
     <section
       style={{
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
-        borderRadius: 22,
-        overflow: "hidden",
+        borderRadius: 20,
+        padding: 20,
+        boxShadow:
+          mode === "dark"
+            ? "0 10px 30px rgba(0,0,0,0.28)"
+            : "0 10px 30px rgba(15, 23, 42, 0.06)",
+        minHeight: 380,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
       }}
     >
       <div
         style={{
-          padding: "18px 20px",
-          borderBottom: `1px solid ${theme.border}`,
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 14,
-          flexWrap: "wrap",
+          gap: 12,
         }}
       >
         <div>
@@ -90,626 +133,402 @@ export default function HotLeadsCard({
             style={{
               margin: 0,
               fontSize: 18,
-              fontWeight: 800,
+              fontWeight: 700,
               color: theme.text,
+              lineHeight: 1.2,
             }}
           >
             {title}
           </h3>
+
           <p
             style={{
               margin: "6px 0 0",
               fontSize: 13,
-              lineHeight: 1.6,
               color: theme.subText,
             }}
           >
-            High-intent leads that need quick attention before the window closes.
+            Priority leads that need sharp follow-up and quick conversion.
           </p>
         </div>
 
-        <div
+        <button
+          type="button"
+          onClick={onViewAll}
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
+            border: `1px solid ${theme.border}`,
+            background: theme.cardBgSoft,
+            color: theme.text,
+            borderRadius: 10,
+            padding: "8px 12px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: onViewAll ? "pointer" : "default",
+            opacity: onViewAll ? 1 : 0.72,
           }}
         >
-          <MiniStat mode={mode} label="Total" value={String(leads.length)} />
-          <MiniStat mode={mode} label="Hot" value={String(hotCount)} />
-          {onViewAll ? (
-            <button
-              onClick={onViewAll}
-              style={{
-                height: 40,
-                padding: "0 14px",
-                borderRadius: 12,
-                border: `1px solid ${theme.border}`,
-                background: theme.cardBgSoft,
-                color: theme.text,
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              View All
-            </button>
-          ) : null}
-        </div>
+          View All
+        </button>
       </div>
 
-      <div
-        style={{
-          padding: 20,
-        }}
-      >
-        {visibleLeads.length === 0 ? (
-          <EmptyState mode={mode} />
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: 14,
-            }}
-          >
-            {visibleLeads.map((lead) => {
-              const clickable = Boolean(onLeadClick);
-
-              return (
+      {loading ? (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "48px 1fr",
+                gap: 12,
+                alignItems: "start",
+                border: `1px solid ${theme.borderSoft}`,
+                background: theme.cardBgSoft,
+                borderRadius: 16,
+                padding: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 14,
+                  background: theme.border,
+                }}
+              />
+              <div style={{ display: "grid", gap: 8 }}>
                 <div
-                  key={lead.id}
-                  onClick={() => onLeadClick?.(lead)}
                   style={{
-                    background: theme.cardBgSoft,
+                    height: 12,
+                    width: "46%",
+                    borderRadius: 999,
+                    background: theme.border,
+                  }}
+                />
+                <div
+                  style={{
+                    height: 10,
+                    width: "68%",
+                    borderRadius: 999,
+                    background: theme.borderSoft,
+                  }}
+                />
+                <div
+                  style={{
+                    height: 10,
+                    width: "32%",
+                    borderRadius: 999,
+                    background: theme.borderSoft,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : leads.length === 0 ? (
+        <div
+          style={{
+            flex: 1,
+            border: `1px dashed ${theme.border}`,
+            borderRadius: 18,
+            background: theme.cardBgSoft,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            textAlign: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 34,
+                lineHeight: 1,
+                marginBottom: 10,
+              }}
+            >
+              🔥
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: theme.text,
+                marginBottom: 6,
+              }}
+            >
+              No hot leads right now
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: theme.subText,
+              }}
+            >
+              Once promising leads arrive, they will appear here first.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          {leads.map((lead) => {
+            const tone = getLeadStatusTone(lead.status);
+
+            return (
+              <button
+                key={lead.id}
+                type="button"
+                onClick={() => onLeadClick?.(lead)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  border: `1px solid ${theme.borderSoft}`,
+                  background: theme.cardBgSoft,
+                  borderRadius: 16,
+                  padding: 14,
+                  cursor: onLeadClick ? "pointer" : "default",
+                  display: "grid",
+                  gridTemplateColumns: "48px 1fr",
+                  gap: 12,
+                  alignItems: "start",
+                }}
+              >
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 14,
+                    background:
+                      mode === "dark"
+                        ? "linear-gradient(135deg, rgba(239, 68, 68, 0.24), rgba(245, 158, 11, 0.18))"
+                        : "linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(245, 158, 11, 0.14))",
                     border: `1px solid ${theme.border}`,
-                    borderRadius: 18,
-                    padding: 16,
-                    cursor: clickable ? "pointer" : "default",
-                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: theme.text,
+                    flexShrink: 0,
                   }}
                 >
+                  {getInitials(lead.name)}
+                </div>
+
+                <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
-                      gap: 14,
-                      alignItems: "start",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      marginBottom: 8,
                     }}
                   >
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          flexWrap: "wrap",
-                          marginBottom: 8,
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: theme.text,
+                          lineHeight: 1.35,
+                          marginBottom: 6,
+                          wordBreak: "break-word",
                         }}
                       >
-                        <div
-                          style={{
-                            width: 42,
-                            height: 42,
-                            borderRadius: "50%",
-                            background: theme.primary,
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 14,
-                            fontWeight: 800,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {getInitials(lead.name)}
-                        </div>
-
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <h4
-                              style={{
-                                margin: 0,
-                                fontSize: 15,
-                                fontWeight: 800,
-                                color: theme.text,
-                                lineHeight: 1.3,
-                              }}
-                            >
-                              {lead.name}
-                            </h4>
-
-                            {lead.priority ? (
-                              <Badge
-                                mode={mode}
-                                label={lead.priority}
-                                tone={getPriorityTone(lead.priority)}
-                              />
-                            ) : null}
-
-                            {lead.status ? (
-                              <Badge
-                                mode={mode}
-                                label={formatStatusLabel(lead.status)}
-                                tone={getStatusTone(lead.status)}
-                              />
-                            ) : null}
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 13,
-                              color: theme.subText,
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            {[lead.company, lead.city].filter(Boolean).join(" • ") || "Lead profile"}
-                          </div>
-                        </div>
+                        {lead.name}
                       </div>
 
                       <div
                         style={{
-                          display: "grid",
-                          gap: 6,
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          alignItems: "center",
                         }}
                       >
-                        <MetaLine label="Source" value={lead.source || "-"} mode={mode} />
-                        <MetaLine label="Owner" value={lead.owner || "-"} mode={mode} />
-                        <MetaLine
-                          label="Next Follow-up"
-                          value={lead.nextFollowUpAt ? formatDateTime(lead.nextFollowUpAt) : "-"}
-                          mode={mode}
-                        />
-                        <MetaLine
-                          label="Last Activity"
-                          value={lead.lastActivityAt ? formatDateTime(lead.lastActivityAt) : "-"}
-                          mode={mode}
-                        />
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            borderRadius: 999,
+                            padding: "4px 10px",
+                            background: tone.bg,
+                            color: tone.color,
+                            border: `1px solid ${tone.border}`,
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {tone.label}
+                        </span>
+
+                        {lead.source ? (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              borderRadius: 999,
+                              padding: "4px 10px",
+                              background: theme.cardBg,
+                              color: theme.subText,
+                              border: `1px solid ${theme.border}`,
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {lead.source}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {typeof lead.budget === "number" ? (
+                      <div
+                        style={{
+                          textAlign: "right",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: theme.mutedText,
+                            marginBottom: 4,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          Budget
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 800,
+                            color: theme.text,
+                          }}
+                        >
+                          ₹{formatCurrency(lead.budget)}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                      gap: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                        background: theme.cardBg,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: theme.mutedText,
+                          marginBottom: 4,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        Phone
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: theme.text,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {lead.phone || "Not available"}
                       </div>
                     </div>
 
                     <div
                       style={{
-                        textAlign: "right",
-                        minWidth: 140,
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                        background: theme.cardBg,
                       }}
                     >
                       <div
                         style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          color: theme.subText,
-                          marginBottom: 6,
+                          fontSize: 11,
+                          color: theme.mutedText,
+                          marginBottom: 4,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
                         }}
                       >
-                        Budget
+                        Follow-up
                       </div>
-
                       <div
                         style={{
-                          fontSize: 20,
-                          fontWeight: 800,
+                          fontSize: 13,
+                          fontWeight: 600,
                           color: theme.text,
-                          lineHeight: 1.1,
+                          wordBreak: "break-word",
                         }}
                       >
-                        {formatCurrency(lead.budget ?? 0, lead.currency || "INR")}
+                        {formatDate(lead.followUpDate)}
                       </div>
+                    </div>
 
-                      {(onCall || onWhatsapp) && (
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            gap: 8,
-                            marginTop: 12,
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {onCall ? (
-                            <IconButton
-                              label="Call"
-                              icon="📞"
-                              mode={mode}
-                              onClick={() => onCall(lead)}
-                            />
-                          ) : null}
-
-                          {onWhatsapp ? (
-                            <IconButton
-                              label="WhatsApp"
-                              icon="💬"
-                              mode={mode}
-                              onClick={() => onWhatsapp(lead)}
-                            />
-                          ) : null}
-                        </div>
-                      )}
+                    <div
+                      style={{
+                        border: `1px solid ${theme.border}`,
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                        background: theme.cardBg,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: theme.mutedText,
+                          marginBottom: 4,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        Owner
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: theme.text,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {lead.owner || "Unassigned"}
+                      </div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
-}
-
-function EmptyState({ mode }: { mode: ThemeMode }) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        minHeight: 220,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: 24,
-      }}
-    >
-      <div>
-        <div
-          style={{
-            width: 68,
-            height: 68,
-            margin: "0 auto 14px",
-            borderRadius: "50%",
-            background: theme.cardBgSoft,
-            border: `1px solid ${theme.border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 28,
-          }}
-        >
-          🔥
-        </div>
-
-        <h4
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: theme.text,
-          }}
-        >
-          No hot leads right now
-        </h4>
-
-        <p
-          style={{
-            margin: "8px auto 0",
-            maxWidth: 420,
-            fontSize: 13,
-            lineHeight: 1.7,
-            color: theme.subText,
-          }}
-        >
-          Once high-priority or urgent leads appear, they will show up here for rapid follow-up.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({
-  mode,
-  label,
-  value,
-}: {
-  mode: ThemeMode;
-  label: string;
-  value: string;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        padding: "9px 12px",
-        borderRadius: 14,
-        background: theme.cardBgSoft,
-        border: `1px solid ${theme.border}`,
-        minWidth: 70,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: theme.subText,
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 800,
-          color: theme.text,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MetaLine({
-  label,
-  value,
-  mode,
-}: {
-  label: string;
-  value: string;
-  mode: ThemeMode;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "110px 1fr",
-        gap: 10,
-        alignItems: "start",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: theme.subText,
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: theme.text,
-          lineHeight: 1.6,
-          wordBreak: "break-word",
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function IconButton({
-  label,
-  icon,
-  mode,
-  onClick,
-}: {
-  label: string;
-  icon: string;
-  mode: ThemeMode;
-  onClick: () => void;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      style={{
-        height: 34,
-        minWidth: 34,
-        padding: "0 10px",
-        borderRadius: 10,
-        border: `1px solid ${theme.border}`,
-        background: theme.cardBg,
-        color: theme.text,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 13,
-        fontWeight: 700,
-      }}
-    >
-      <span>{icon}</span>
-    </button>
-  );
-}
-
-function Badge({
-  mode,
-  label,
-  tone,
-}: {
-  mode: ThemeMode;
-  label: string;
-  tone: "success" | "warning" | "danger" | "neutral" | "info";
-}) {
-  const palette = getBadgePalette(mode, tone);
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "5px 9px",
-        borderRadius: 999,
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        color: palette.text,
-        fontSize: 11,
-        fontWeight: 800,
-        textTransform: "capitalize",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function getInitials(name?: string) {
-  if (!name?.trim()) return "L";
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.charAt(0) || "";
-  const second = parts[1]?.charAt(0) || "";
-  return `${first}${second}`.toUpperCase() || "L";
-}
-
-function formatStatusLabel(status: HotLeadItem["status"]) {
-  switch (status) {
-    case "new":
-      return "New";
-    case "contacted":
-      return "Contacted";
-    case "qualified":
-      return "Qualified";
-    case "proposal":
-      return "Proposal";
-    case "negotiation":
-      return "Negotiation";
-    case "follow_up":
-      return "Follow Up";
-    case "converted":
-      return "Converted";
-    case "lost":
-      return "Lost";
-    default:
-      return "Lead";
-  }
-}
-
-function getStatusTone(
-  status: HotLeadItem["status"]
-): "success" | "warning" | "danger" | "neutral" | "info" {
-  switch (status) {
-    case "converted":
-      return "success";
-    case "lost":
-      return "danger";
-    case "proposal":
-    case "negotiation":
-    case "follow_up":
-      return "warning";
-    case "qualified":
-    case "contacted":
-      return "info";
-    case "new":
-    default:
-      return "neutral";
-  }
-}
-
-function getPriorityTone(
-  priority: HotLeadItem["priority"]
-): "success" | "warning" | "danger" | "neutral" | "info" {
-  switch (priority) {
-    case "urgent":
-      return "danger";
-    case "high":
-      return "warning";
-    case "medium":
-      return "info";
-    case "low":
-    default:
-      return "neutral";
-  }
-}
-
-function getPriorityScore(priority?: HotLeadItem["priority"]) {
-  switch (priority) {
-    case "urgent":
-      return 4;
-    case "high":
-      return 3;
-    case "medium":
-      return 2;
-    case "low":
-    default:
-      return 1;
-  }
-}
-
-function getBadgePalette(
-  mode: ThemeMode,
-  tone: "success" | "warning" | "danger" | "neutral" | "info"
-) {
-  const isDark = mode === "dark";
-
-  switch (tone) {
-    case "success":
-      return {
-        bg: isDark ? "rgba(34,197,94,0.14)" : "rgba(34,197,94,0.10)",
-        border: isDark ? "rgba(34,197,94,0.28)" : "rgba(34,197,94,0.22)",
-        text: "#16a34a",
-      };
-    case "warning":
-      return {
-        bg: isDark ? "rgba(245,158,11,0.14)" : "rgba(245,158,11,0.10)",
-        border: isDark ? "rgba(245,158,11,0.28)" : "rgba(245,158,11,0.22)",
-        text: "#d97706",
-      };
-    case "danger":
-      return {
-        bg: isDark ? "rgba(239,68,68,0.14)" : "rgba(239,68,68,0.10)",
-        border: isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)",
-        text: "#dc2626",
-      };
-    case "info":
-      return {
-        bg: isDark ? "rgba(59,130,246,0.14)" : "rgba(59,130,246,0.10)",
-        border: isDark ? "rgba(59,130,246,0.28)" : "rgba(59,130,246,0.22)",
-        text: "#2563eb",
-      };
-    case "neutral":
-    default:
-      return {
-        bg: isDark ? "rgba(148,163,184,0.14)" : "rgba(148,163,184,0.10)",
-        border: isDark ? "rgba(148,163,184,0.28)" : "rgba(148,163,184,0.22)",
-        text: "#475569",
-      };
-  }
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatCurrency(value: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toLocaleString("en-IN")}`;
-  }
 }

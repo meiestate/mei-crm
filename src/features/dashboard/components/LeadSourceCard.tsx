@@ -1,62 +1,102 @@
-import React from "react";
-import { getTheme } from "../../theme";
-import type { ThemeMode } from "../../theme";
+// src/features/dashboard/components/LeadSourceCard.tsx
 
-export type LeadSourceItem = {
-  source: string;
-  count: number;
-  convertedCount?: number;
-  revenue?: number;
-  currency?: string;
-};
+import { getTheme, type ThemeMode } from "../../../theme";
+import type { DashboardLeadSourceItem } from "../api/dashboardApi";
 
 type LeadSourceCardProps = {
-  mode: ThemeMode;
-  items: LeadSourceItem[];
+  items?: DashboardLeadSourceItem[];
+  mode?: ThemeMode;
+  loading?: boolean;
   title?: string;
-  onSourceClick?: (item: LeadSourceItem) => void;
   onViewAll?: () => void;
+  onSourceClick?: (item: DashboardLeadSourceItem) => void;
 };
 
+function getSourceTone(index: number) {
+  const tones = [
+    {
+      bg: "rgba(59, 130, 246, 0.12)",
+      color: "#2563eb",
+      border: "rgba(59, 130, 246, 0.22)",
+      bar: "#3b82f6",
+    },
+    {
+      bg: "rgba(16, 185, 129, 0.12)",
+      color: "#059669",
+      border: "rgba(16, 185, 129, 0.22)",
+      bar: "#10b981",
+    },
+    {
+      bg: "rgba(245, 158, 11, 0.12)",
+      color: "#d97706",
+      border: "rgba(245, 158, 11, 0.22)",
+      bar: "#f59e0b",
+    },
+    {
+      bg: "rgba(168, 85, 247, 0.12)",
+      color: "#7c3aed",
+      border: "rgba(168, 85, 247, 0.22)",
+      bar: "#8b5cf6",
+    },
+    {
+      bg: "rgba(239, 68, 68, 0.12)",
+      color: "#dc2626",
+      border: "rgba(239, 68, 68, 0.22)",
+      bar: "#ef4444",
+    },
+    {
+      bg: "rgba(14, 165, 233, 0.12)",
+      color: "#0284c7",
+      border: "rgba(14, 165, 233, 0.22)",
+      bar: "#0ea5e9",
+    },
+  ];
+
+  return tones[index % tones.length];
+}
+
+function getSourceLabel(source?: string): string {
+  const value = (source ?? "").trim();
+  return value || "Unknown";
+}
+
 export default function LeadSourceCard({
-  mode,
-  items,
+  items = [],
+  mode = "light",
+  loading = false,
   title = "Lead Sources",
-  onSourceClick,
   onViewAll,
+  onSourceClick,
 }: LeadSourceCardProps) {
   const theme = getTheme(mode);
 
-  const sortedItems = [...items].sort((a, b) => b.count - a.count);
-  const totalLeads = sortedItems.reduce((sum, item) => sum + item.count, 0);
-  const totalConverted = sortedItems.reduce(
-    (sum, item) => sum + (item.convertedCount ?? 0),
-    0
-  );
-  const totalRevenue = sortedItems.reduce(
-    (sum, item) => sum + (item.revenue ?? 0),
-    0
-  );
-  const topSource = sortedItems[0];
+  const totalCount = items.reduce((sum, item) => sum + (item.count || 0), 0);
+  const topSource = items.length > 0 ? items[0] : null;
+  const maxCount = Math.max(...items.map((item) => item.count || 0), 0);
 
   return (
     <section
       style={{
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
-        borderRadius: 22,
-        overflow: "hidden",
+        borderRadius: 20,
+        padding: 20,
+        boxShadow:
+          mode === "dark"
+            ? "0 10px 30px rgba(0,0,0,0.28)"
+            : "0 10px 30px rgba(15, 23, 42, 0.06)",
+        minHeight: 360,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
       }}
     >
       <div
         style={{
-          padding: "18px 20px",
-          borderBottom: `1px solid ${theme.border}`,
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 14,
-          flexWrap: "wrap",
+          gap: 12,
         }}
       >
         <div>
@@ -64,493 +104,347 @@ export default function LeadSourceCard({
             style={{
               margin: 0,
               fontSize: 18,
-              fontWeight: 800,
+              fontWeight: 700,
               color: theme.text,
+              lineHeight: 1.2,
             }}
           >
             {title}
           </h3>
+
           <p
             style={{
               margin: "6px 0 0",
               fontSize: 13,
-              lineHeight: 1.6,
               color: theme.subText,
             }}
           >
-            Track where leads are coming from and which channels are converting
-            best.
+            See which channels are feeding your pipeline the most.
           </p>
         </div>
 
-        <div
+        <button
+          type="button"
+          onClick={onViewAll}
           style={{
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-            alignItems: "center",
+            border: `1px solid ${theme.border}`,
+            background: theme.cardBgSoft,
+            color: theme.text,
+            borderRadius: 10,
+            padding: "8px 12px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: onViewAll ? "pointer" : "default",
+            opacity: onViewAll ? 1 : 0.72,
           }}
         >
-          <MiniStat mode={mode} label="Sources" value={String(sortedItems.length)} />
-          <MiniStat mode={mode} label="Leads" value={String(totalLeads)} />
-          <MiniStat mode={mode} label="Converted" value={String(totalConverted)} />
-          {onViewAll ? (
-            <button
-              onClick={onViewAll}
-              style={{
-                height: 40,
-                padding: "0 14px",
-                borderRadius: 12,
-                border: `1px solid ${theme.border}`,
-                background: theme.cardBgSoft,
-                color: theme.text,
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              View All
-            </button>
-          ) : null}
+          View All
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            border: `1px solid ${theme.border}`,
+            background: theme.cardBgSoft,
+            borderRadius: 16,
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: theme.mutedText,
+              marginBottom: 6,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Total Leads Tracked
+          </div>
+          <div
+            style={{
+              fontSize: 24,
+              fontWeight: 800,
+              color: theme.text,
+              lineHeight: 1.2,
+            }}
+          >
+            {totalCount}
+          </div>
+        </div>
+
+        <div
+          style={{
+            border: `1px solid ${theme.border}`,
+            background: theme.cardBgSoft,
+            borderRadius: 16,
+            padding: 14,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: theme.mutedText,
+              marginBottom: 6,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            Top Source
+          </div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: theme.text,
+              lineHeight: 1.2,
+              wordBreak: "break-word",
+            }}
+          >
+            {topSource ? getSourceLabel(topSource.source) : "—"}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: 20 }}>
-        {sortedItems.length === 0 ? (
-          <EmptyState mode={mode} />
-        ) : (
-          <div style={{ display: "grid", gap: 16 }}>
-            {topSource ? (
-              <div
-                style={{
-                  background:
-                    mode === "dark"
-                      ? "linear-gradient(135deg, rgba(99,102,241,0.14), rgba(59,130,246,0.10))"
-                      : "linear-gradient(135deg, rgba(99,102,241,0.10), rgba(59,130,246,0.06))",
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 18,
-                  padding: 16,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: theme.subText,
-                    marginBottom: 8,
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  TOP SOURCE
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: 12,
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 800,
-                        color: theme.text,
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      {topSource.source}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 6,
-                        fontSize: 13,
-                        color: theme.subText,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {topSource.count} leads •{" "}
-                      {getPercentage(topSource.count, totalLeads)} of total
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 800,
-                        color: theme.text,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {topSource.convertedCount ?? 0}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: theme.subText,
-                      }}
-                    >
-                      Converted
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div style={{ display: "grid", gap: 12 }}>
-              {sortedItems.map((item) => {
-                const percentage = getPercentageNumber(item.count, totalLeads);
-                const clickable = Boolean(onSourceClick);
-                const conversionRate =
-                  item.convertedCount && item.count > 0
-                    ? Math.round((item.convertedCount / item.count) * 100)
-                    : 0;
-
-                return (
-                  <div
-                    key={item.source}
-                    onClick={() => onSourceClick?.(item)}
-                    style={{
-                      background: theme.cardBgSoft,
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 16,
-                      padding: 14,
-                      cursor: clickable ? "pointer" : "default",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr auto",
-                        gap: 12,
-                        alignItems: "center",
-                        marginBottom: 10,
-                      }}
-                    >
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 800,
-                            color: theme.text,
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          {item.source}
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 4,
-                            fontSize: 12,
-                            color: theme.subText,
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {item.count} leads • {percentage.toFixed(1)}% share
-                          {item.convertedCount !== undefined
-                            ? ` • ${conversionRate}% conversion`
-                            : ""}
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: "right" }}>
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 800,
-                            color: theme.text,
-                            lineHeight: 1,
-                          }}
-                        >
-                          {item.count}
-                        </div>
-                        {item.revenue !== undefined ? (
-                          <div
-                            style={{
-                              marginTop: 6,
-                              fontSize: 12,
-                              color: theme.subText,
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            {formatCurrency(item.revenue, item.currency || "INR")}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        height: 10,
-                        borderRadius: 999,
-                        background: theme.sectionBg,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${percentage}%`,
-                          height: "100%",
-                          borderRadius: 999,
-                          background:
-                            item.source === topSource?.source
-                              ? "linear-gradient(90deg, #4f46e5, #2563eb)"
-                              : mode === "dark"
-                              ? "rgba(148,163,184,0.5)"
-                              : "rgba(148,163,184,0.65)",
-                        }}
-                      />
-                    </div>
-
-                    {(item.convertedCount !== undefined || item.revenue !== undefined) && (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 10,
-                          flexWrap: "wrap",
-                          marginTop: 12,
-                        }}
-                      >
-                        {item.convertedCount !== undefined ? (
-                          <MetricPill
-                            mode={mode}
-                            label={`Converted: ${item.convertedCount}`}
-                          />
-                        ) : null}
-
-                        {item.revenue !== undefined ? (
-                          <MetricPill
-                            mode={mode}
-                            label={`Revenue: ${formatCurrency(
-                              item.revenue,
-                              item.currency || "INR"
-                            )}`}
-                          />
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {totalRevenue > 0 ? (
-              <div
-                style={{
-                  padding: 14,
-                  borderRadius: 16,
-                  background: theme.cardBgSoft,
-                  border: `1px solid ${theme.border}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                      color: theme.subText,
-                      marginBottom: 6,
-                    }}
-                  >
-                    TOTAL SOURCE-ATTRIBUTED REVENUE
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: theme.text,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {formatCurrency(totalRevenue, sortedItems[0]?.currency || "INR")}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: theme.subText,
-                    lineHeight: 1.6,
-                    maxWidth: 260,
-                    textAlign: "right",
-                  }}
-                >
-                  Measure which acquisition channels actually move the revenue
-                  needle, not just lead volume.
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function EmptyState({ mode }: { mode: ThemeMode }) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        minHeight: 220,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: 24,
-      }}
-    >
-      <div>
+      {loading ? (
         <div
           style={{
-            width: 68,
-            height: 68,
-            margin: "0 auto 14px",
-            borderRadius: "50%",
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div
+              key={index}
+              style={{
+                border: `1px solid ${theme.borderSoft}`,
+                background: theme.cardBgSoft,
+                borderRadius: 16,
+                padding: 14,
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  height: 12,
+                  width: "38%",
+                  background: theme.border,
+                  borderRadius: 999,
+                }}
+              />
+              <div
+                style={{
+                  height: 10,
+                  width: "24%",
+                  background: theme.borderSoft,
+                  borderRadius: 999,
+                }}
+              />
+              <div
+                style={{
+                  height: 8,
+                  width: "100%",
+                  background: theme.borderSoft,
+                  borderRadius: 999,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div
+          style={{
+            flex: 1,
+            border: `1px dashed ${theme.border}`,
+            borderRadius: 18,
             background: theme.cardBgSoft,
-            border: `1px solid ${theme.border}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 28,
+            padding: 24,
+            textAlign: "center",
           }}
         >
-          📡
+          <div>
+            <div
+              style={{
+                fontSize: 34,
+                lineHeight: 1,
+                marginBottom: 10,
+              }}
+            >
+              🌐
+            </div>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: theme.text,
+                marginBottom: 6,
+              }}
+            >
+              No source data yet
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: theme.subText,
+              }}
+            >
+              Lead channels will show up here once records are created.
+            </div>
+          </div>
         </div>
-
-        <h4
+      ) : (
+        <div
           style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: theme.text,
+            display: "grid",
+            gap: 12,
           }}
         >
-          No source data available
-        </h4>
+          {items.map((item, index) => {
+            const tone = getSourceTone(index);
+            const count = item.count || 0;
+            const percent = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+            const widthPercent =
+              maxCount > 0 ? Math.max(8, Math.round((count / maxCount) * 100)) : 8;
 
-        <p
-          style={{
-            margin: "8px auto 0",
-            maxWidth: 420,
-            fontSize: 13,
-            lineHeight: 1.7,
-            color: theme.subText,
-          }}
-        >
-          Once leads start flowing in, source-wise performance will appear here
-          with volume and conversion visibility.
-        </p>
-      </div>
-    </div>
+            return (
+              <button
+                key={`${item.source}-${index}`}
+                type="button"
+                onClick={() => onSourceClick?.(item)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  border: `1px solid ${theme.borderSoft}`,
+                  background: theme.cardBgSoft,
+                  borderRadius: 16,
+                  padding: 14,
+                  cursor: onSourceClick ? "pointer" : "default",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        borderRadius: 999,
+                        padding: "4px 10px",
+                        background: tone.bg,
+                        color: tone.color,
+                        border: `1px solid ${tone.border}`,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Source
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: theme.text,
+                        lineHeight: 1.3,
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {getSourceLabel(item.source)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      minWidth: 72,
+                      textAlign: "right",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: theme.mutedText,
+                        marginBottom: 4,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      Leads
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: theme.text,
+                      }}
+                    >
+                      {count}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    height: 10,
+                    borderRadius: 999,
+                    background: theme.border,
+                    overflow: "hidden",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${widthPercent}%`,
+                      height: "100%",
+                      borderRadius: 999,
+                      background: tone.bar,
+                    }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    fontSize: 12,
+                    color: theme.subText,
+                  }}
+                >
+                  <span>
+                    Share:{" "}
+                    <strong style={{ color: theme.text }}>{percent}%</strong>
+                  </span>
+
+                  <span>
+                    Rank:{" "}
+                    <strong style={{ color: theme.text }}>#{index + 1}</strong>
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
-}
-
-function MiniStat({
-  mode,
-  label,
-  value,
-}: {
-  mode: ThemeMode;
-  label: string;
-  value: string;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        padding: "9px 12px",
-        borderRadius: 14,
-        background: theme.cardBgSoft,
-        border: `1px solid ${theme.border}`,
-        minWidth: 72,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: theme.subText,
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 800,
-          color: theme.text,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function MetricPill({
-  mode,
-  label,
-}: {
-  mode: ThemeMode;
-  label: string;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "7px 10px",
-        borderRadius: 999,
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        color: theme.subText,
-        fontSize: 12,
-        fontWeight: 700,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function getPercentage(value: number, total: number) {
-  if (!total) return "0%";
-  return `${Math.round((value / total) * 100)}%`;
-}
-
-function getPercentageNumber(value: number, total: number) {
-  if (!total) return 0;
-  return (value / total) * 100;
-}
-
-function formatCurrency(value: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toLocaleString("en-IN")}`;
-  }
 }
