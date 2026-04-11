@@ -1,13 +1,74 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/settings/SettingsPage.tsx
+
+import React from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
+
 
 type SettingsPageProps = {
   mode: ThemeMode;
   onToggleTheme: () => void;
 };
+
+const settingsNavItems = [
+  {
+    label: "Company",
+    path: "/settings/company",
+    description: "Brand, company info, and business identity",
+  },
+  {
+    label: "Workspace",
+    path: "/settings/workspace",
+    description: "Workspace preferences and default behavior",
+  },
+  {
+    label: "Team Roles",
+    path: "/settings/team-roles",
+    description: "Roles, permissions, and user access control",
+  },
+  {
+    label: "Pipelines",
+    path: "/settings/pipelines",
+    description: "Deal and lead pipeline configuration",
+  },
+  {
+    label: "Lead Sources",
+    path: "/settings/lead-sources",
+    description: "Manage source channels and attribution",
+  },
+  {
+    label: "Notifications",
+    path: "/settings/notifications",
+    description: "Alerts, reminders, and activity updates",
+  },
+  {
+    label: "Security",
+    path: "/settings/security",
+    description: "Authentication, sessions, and protection",
+  },
+  {
+    label: "Billing",
+    path: "/settings/billing",
+    description: "Plan, invoices, seats, and subscription",
+  },
+  {
+    label: "Integrations",
+    path: "/settings/integrations",
+    description: "External apps, API hooks, and sync tools",
+  },
+  {
+    label: "Data Backup",
+    path: "/settings/data-backup",
+    description: "Exports, restore points, and backup controls",
+  },
+  {
+    label: "Audit Logs",
+    path: "/settings/audit-logs",
+    description: "System history, admin activity, and logs",
+  },
+] as const;
 
 export default function SettingsPage({
   mode,
@@ -15,37 +76,11 @@ export default function SettingsPage({
 }: SettingsPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [profile, setProfile] = useState({
-    fullName: "Balraj",
-    email: "balraj@mei-crm.com",
-    phone: "9876543210",
-    role: "Admin",
-  });
-
-  const [business, setBusiness] = useState({
-    companyName: "MEI CRM",
-    website: "www.meicrm.com",
-    city: "Chennai",
-    timezone: "Asia/Kolkata",
-  });
-
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    smsAlerts: false,
-    taskReminders: true,
-    leadNotifications: true,
-  });
-
-  const [security, setSecurity] = useState({
-    twoFactorAuth: false,
-    sessionTimeout: "30 Minutes",
-    loginAlerts: true,
-  });
-
-  const handleSave = (sectionName: string) => {
-    alert(`${sectionName} settings saved successfully.`);
-  };
+  const activeItem =
+    settingsNavItems.find((item) => location.pathname.startsWith(item.path)) ??
+    settingsNavItems[0];
 
   const handleLogout = () => {
     try {
@@ -62,304 +97,286 @@ export default function SettingsPage({
   return (
     <AppLayout title="Settings" mode={mode} onToggleTheme={onToggleTheme}>
       <div style={{ display: "grid", gap: 20 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 30, color: colors.text }}>
-            Settings
-          </h2>
-          <p style={{ margin: "8px 0 0", color: colors.subText }}>
-            Manage profile, business, notifications, security, and appearance.
-          </p>
-        </div>
+        <HeaderSection colors={colors} activeLabel={activeItem.label} />
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gridTemplateColumns: "320px minmax(0, 1fr)",
             gap: 20,
+            alignItems: "start",
           }}
         >
-          <SectionCard title="Profile Settings" colors={colors}>
-            <InputField
-              label="Full Name"
-              value={profile.fullName}
-              onChange={(value) =>
-                setProfile((prev) => ({ ...prev, fullName: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="Email"
-              value={profile.email}
-              onChange={(value) =>
-                setProfile((prev) => ({ ...prev, email: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="Phone"
-              value={profile.phone}
-              onChange={(value) =>
-                setProfile((prev) => ({ ...prev, phone: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="Role"
-              value={profile.role}
-              onChange={(value) =>
-                setProfile((prev) => ({ ...prev, role: value }))
-              }
-              colors={colors}
-            />
+          <aside
+            style={{
+              display: "grid",
+              gap: 16,
+              position: "sticky",
+              top: 20,
+            }}
+          >
+            <SectionCard title="Settings Menu" colors={colors}>
+              <div style={{ display: "grid", gap: 10 }}>
+                {settingsNavItems.map((item) => {
+                  const isActive = location.pathname.startsWith(item.path);
 
-            <ActionButton
-              label="Save Profile"
-              onClick={() => handleSave("Profile")}
-              colors={colors}
-            />
-          </SectionCard>
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      style={{
+                        textDecoration: "none",
+                      }}
+                    >
+                      <div
+                        style={{
+                          border: `1px solid ${
+                            isActive ? colors.primary : colors.border
+                          }`,
+                          background: isActive
+                            ? colors.cardBgSoft
+                            : colors.cardBg,
+                          borderRadius: 16,
+                          padding: 14,
+                          display: "grid",
+                          gap: 6,
+                          transition: "all 0.2s ease",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 12,
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: isActive ? colors.primary : colors.text,
+                              fontWeight: 800,
+                              fontSize: 15,
+                            }}
+                          >
+                            {item.label}
+                          </span>
 
-          <SectionCard title="Business Settings" colors={colors}>
-            <InputField
-              label="Company Name"
-              value={business.companyName}
-              onChange={(value) =>
-                setBusiness((prev) => ({ ...prev, companyName: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="Website"
-              value={business.website}
-              onChange={(value) =>
-                setBusiness((prev) => ({ ...prev, website: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="City"
-              value={business.city}
-              onChange={(value) =>
-                setBusiness((prev) => ({ ...prev, city: value }))
-              }
-              colors={colors}
-            />
-            <InputField
-              label="Timezone"
-              value={business.timezone}
-              onChange={(value) =>
-                setBusiness((prev) => ({ ...prev, timezone: value }))
-              }
-              colors={colors}
-            />
+                          {isActive ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 800,
+                                padding: "5px 8px",
+                                borderRadius: 999,
+                                background: colors.primary,
+                                color: "#ffffff",
+                              }}
+                            >
+                              OPEN
+                            </span>
+                          ) : null}
+                        </div>
 
-            <ActionButton
-              label="Save Business"
-              onClick={() => handleSave("Business")}
-              colors={colors}
-            />
-          </SectionCard>
-        </div>
+                        <span
+                          style={{
+                            color: colors.subText,
+                            fontSize: 12.5,
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {item.description}
+                        </span>
+                      </div>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </SectionCard>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: 20,
-          }}
-        >
-          <SectionCard title="Notification Settings" colors={colors}>
-            <ToggleRow
-              label="Email Alerts"
-              checked={notifications.emailAlerts}
-              onChange={() =>
-                setNotifications((prev) => ({
-                  ...prev,
-                  emailAlerts: !prev.emailAlerts,
-                }))
-              }
-              colors={colors}
-            />
-            <ToggleRow
-              label="SMS Alerts"
-              checked={notifications.smsAlerts}
-              onChange={() =>
-                setNotifications((prev) => ({
-                  ...prev,
-                  smsAlerts: !prev.smsAlerts,
-                }))
-              }
-              colors={colors}
-            />
-            <ToggleRow
-              label="Task Reminders"
-              checked={notifications.taskReminders}
-              onChange={() =>
-                setNotifications((prev) => ({
-                  ...prev,
-                  taskReminders: !prev.taskReminders,
-                }))
-              }
-              colors={colors}
-            />
-            <ToggleRow
-              label="Lead Notifications"
-              checked={notifications.leadNotifications}
-              onChange={() =>
-                setNotifications((prev) => ({
-                  ...prev,
-                  leadNotifications: !prev.leadNotifications,
-                }))
-              }
-              colors={colors}
-            />
+            <SectionCard title="Appearance" colors={colors}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                <AppearanceCard
+                  title="Light"
+                  description="Bright and clean"
+                  active={mode === "light"}
+                  colors={colors}
+                />
+                <AppearanceCard
+                  title="Dark Navy"
+                  description="Premium dark UI"
+                  active={mode === "dark"}
+                  colors={colors}
+                />
+              </div>
 
-            <ActionButton
-              label="Save Notifications"
-              onClick={() => handleSave("Notification")}
-              colors={colors}
-            />
-          </SectionCard>
+              <button
+                onClick={onToggleTheme}
+                style={{
+                  border: "none",
+                  background: colors.primary,
+                  color: "#ffffff",
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Toggle Theme
+              </button>
+            </SectionCard>
 
-          <SectionCard title="Security Settings" colors={colors}>
-            <ToggleRow
-              label="Two-Factor Authentication"
-              checked={security.twoFactorAuth}
-              onChange={() =>
-                setSecurity((prev) => ({
-                  ...prev,
-                  twoFactorAuth: !prev.twoFactorAuth,
-                }))
-              }
-              colors={colors}
-            />
-
-            <ToggleRow
-              label="Login Alerts"
-              checked={security.loginAlerts}
-              onChange={() =>
-                setSecurity((prev) => ({
-                  ...prev,
-                  loginAlerts: !prev.loginAlerts,
-                }))
-              }
-              colors={colors}
-            />
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <label
+            <SectionCard title="Account Actions" colors={colors}>
+              <div
                 style={{
                   color: colors.subText,
                   fontSize: 14,
-                  fontWeight: 600,
+                  lineHeight: 1.6,
                 }}
               >
-                Session Timeout
-              </label>
+                Sign out safely from the current workspace session.
+              </div>
 
-              <select
-                value={security.sessionTimeout}
-                onChange={(e) =>
-                  setSecurity((prev) => ({
-                    ...prev,
-                    sessionTimeout: e.target.value,
-                  }))
-                }
+              <button
+                onClick={handleLogout}
                 style={{
-                  width: "100%",
-                  padding: "14px 16px",
+                  border: `1px solid ${colors.danger}`,
+                  background: colors.dangerBg,
+                  color: colors.danger,
+                  padding: "12px 16px",
                   borderRadius: 12,
-                  border: `1px solid ${colors.border}`,
-                  background: colors.inputBg,
-                  color: colors.text,
-                  outline: "none",
-                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  justifySelf: "start",
                 }}
               >
-                <option>15 Minutes</option>
-                <option>30 Minutes</option>
-                <option>1 Hour</option>
-                <option>2 Hours</option>
-              </select>
-            </div>
+                Logout
+              </button>
+            </SectionCard>
+          </aside>
 
-            <ActionButton
-              label="Save Security"
-              onClick={() => handleSave("Security")}
-              colors={colors}
-            />
-          </SectionCard>
-        </div>
-
-        <SectionCard title="Appearance Settings" colors={colors}>
-          <div
+          <main
             style={{
+              minWidth: 0,
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 16,
+              gap: 20,
             }}
           >
-            <AppearanceCard
-              title="Light Mode"
-              description="Bright white, clean, modern interface."
-              active={mode === "light"}
-              colors={colors}
-            />
-            <AppearanceCard
-              title="Dark Navy Mode"
-              description="Premium dark navy business interface."
-              active={mode === "dark"}
-              colors={colors}
-            />
-          </div>
+            <SectionCard title={`${activeItem.label} Settings`} colors={colors}>
+              <div
+                style={{
+                  color: colors.subText,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                }}
+              >
+                Open and manage your <strong style={{ color: colors.text }}>
+                  {activeItem.label}
+                </strong>{" "}
+                configuration from this panel.
+              </div>
+            </SectionCard>
 
-          <div style={{ marginTop: 18 }}>
-            <button
-              onClick={onToggleTheme}
+            <div
               style={{
-                border: "none",
-                background: colors.primary,
-                color: "#ffffff",
-                padding: "12px 18px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
+                minWidth: 0,
               }}
             >
-              Toggle Theme
-            </button>
-          </div>
-        </SectionCard>
+              <Outlet />
+            </div>
+          </main>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
 
-        <SectionCard title="Account Actions" colors={colors}>
-          <div
+function HeaderSection({
+  colors,
+  activeLabel,
+}: {
+  colors: ReturnType<typeof getTheme>;
+  activeLabel: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 14,
+        }}
+      >
+        <div style={{ display: "grid", gap: 6 }}>
+          <h2
             style={{
+              margin: 0,
+              fontSize: 30,
+              color: colors.text,
+              lineHeight: 1.1,
+            }}
+          >
+            Settings
+          </h2>
+
+          <p
+            style={{
+              margin: 0,
               color: colors.subText,
               fontSize: 14,
               lineHeight: 1.6,
             }}
           >
-            Securely sign out from your current account session.
-          </div>
+            Manage workspace controls, preferences, team access, security, and
+            system-level configuration.
+          </p>
+        </div>
 
-          <button
-            onClick={handleLogout}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: 999,
+            border: `1px solid ${colors.border}`,
+            background: colors.cardBg,
+          }}
+        >
+          <span
             style={{
-              border: `1px solid ${colors.danger}`,
-              background: colors.dangerBg,
-              color: colors.danger,
-              padding: "12px 18px",
-              borderRadius: 12,
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: colors.primary,
+              display: "inline-block",
+            }}
+          />
+          <span
+            style={{
+              color: colors.text,
+              fontSize: 13,
               fontWeight: 700,
-              cursor: "pointer",
-              justifySelf: "start",
             }}
           >
-            Logout
-          </button>
-        </SectionCard>
+            Current Section: {activeLabel}
+          </span>
+        </div>
       </div>
-    </AppLayout>
+    </div>
   );
 }
 
@@ -386,9 +403,10 @@ function SectionCard({
     >
       <div
         style={{
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 800,
           color: colors.text,
+          lineHeight: 1.2,
         }}
       >
         {title}
@@ -396,130 +414,6 @@ function SectionCard({
 
       {children}
     </div>
-  );
-}
-
-function InputField({
-  label,
-  value,
-  onChange,
-  colors,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  colors: ReturnType<typeof getTheme>;
-}) {
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <label
-        style={{
-          color: colors.subText,
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </label>
-
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "14px 16px",
-          borderRadius: 12,
-          border: `1px solid ${colors.border}`,
-          background: colors.inputBg,
-          color: colors.text,
-          outline: "none",
-          fontSize: 14,
-          boxSizing: "border-box",
-        }}
-      />
-    </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  checked,
-  onChange,
-  colors,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: () => void;
-  colors: ReturnType<typeof getTheme>;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 16,
-        alignItems: "center",
-        padding: "14px 16px",
-        borderRadius: 14,
-        border: `1px solid ${colors.border}`,
-        background: colors.cardBgSoft,
-      }}
-    >
-      <span
-        style={{
-          color: colors.text,
-          fontSize: 15,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </span>
-
-      <button
-        onClick={onChange}
-        style={{
-          border: "none",
-          background: checked ? colors.success : colors.borderStrong,
-          color: "#ffffff",
-          padding: "8px 14px",
-          borderRadius: 999,
-          fontWeight: 700,
-          cursor: "pointer",
-          minWidth: 72,
-        }}
-      >
-        {checked ? "ON" : "OFF"}
-      </button>
-    </div>
-  );
-}
-
-function ActionButton({
-  label,
-  onClick,
-  colors,
-}: {
-  label: string;
-  onClick: () => void;
-  colors: ReturnType<typeof getTheme>;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        border: "none",
-        background: colors.primary,
-        color: "#ffffff",
-        padding: "12px 16px",
-        borderRadius: 12,
-        fontWeight: 700,
-        cursor: "pointer",
-        justifySelf: "start",
-      }}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -539,14 +433,16 @@ function AppearanceCard({
       style={{
         border: `1px solid ${active ? colors.primary : colors.border}`,
         background: active ? colors.cardBgSoft : colors.cardBg,
-        borderRadius: 18,
-        padding: 18,
+        borderRadius: 16,
+        padding: 14,
+        display: "grid",
+        gap: 8,
       }}
     >
       <div
         style={{
           color: colors.text,
-          fontSize: 18,
+          fontSize: 15,
           fontWeight: 800,
         }}
       >
@@ -555,30 +451,28 @@ function AppearanceCard({
 
       <div
         style={{
-          marginTop: 8,
           color: colors.subText,
-          fontSize: 14,
-          lineHeight: 1.5,
+          fontSize: 12.5,
+          lineHeight: 1.45,
         }}
       >
         {description}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <span
-          style={{
-            display: "inline-block",
-            padding: "6px 10px",
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#ffffff",
-            background: active ? colors.primary : colors.subText,
-          }}
-        >
-          {active ? "Active" : "Available"}
-        </span>
-      </div>
+      <span
+        style={{
+          display: "inline-block",
+          width: "fit-content",
+          padding: "5px 9px",
+          borderRadius: 999,
+          fontSize: 11,
+          fontWeight: 800,
+          color: "#ffffff",
+          background: active ? colors.primary : colors.subText,
+        }}
+      >
+        {active ? "Active" : "Available"}
+      </span>
     </div>
   );
 }

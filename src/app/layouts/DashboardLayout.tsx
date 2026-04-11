@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import Sidebar from "./Sidebar";
-import Topbar from "./Topbar";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import Sidebar from "../../layout/Sidebar";
+import Topbar from "../../layout/Topbar";
+import { getTheme, type ThemeMode } from "../../theme";
 
 type DashboardLayoutProps = {
   children: ReactNode;

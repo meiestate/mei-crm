@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ThemeMode } from "../theme";
+import type { ThemeMode } from "../../theme";
 
 export const THEME_STORAGE_KEY = "mei-crm-theme";
 
@@ -28,59 +28,62 @@ function getInitialThemeMode(): ThemeMode {
     return "light";
   }
 
-  const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+  const savedMode = window.localStorage.getItem(THEME_STORAGE_KEY);
 
   if (savedMode === "light" || savedMode === "dark") {
     return savedMode;
   }
 
   const prefersDark =
-    window.matchMedia &&
+    typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
 
   return prefersDark ? "dark" : "light";
 }
 
 export default function ThemeProvider({ children }: ThemeProviderProps) {
-  const [mode, setMode] = useState<ThemeMode>(getInitialThemeMode);
+  const [mode, setModeState] = useState<ThemeMode>(getInitialThemeMode);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
     document.documentElement.setAttribute("data-theme", mode);
     document.body.setAttribute("data-theme", mode);
+    document.body.style.background = mode === "dark" ? "#020617" : "#f8fafc";
     document.body.style.margin = "0";
-    document.body.style.backgroundColor =
-      mode === "dark" ? "#020617" : "#f8fafc";
-    document.body.style.color = mode === "dark" ? "#e2e8f0" : "#0f172a";
+    document.body.style.colorScheme = mode;
   }, [mode]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const handleChange = (event: MediaQueryListEvent) => {
-      const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+      const savedMode = window.localStorage.getItem(THEME_STORAGE_KEY);
 
       if (savedMode === "light" || savedMode === "dark") {
         return;
       }
 
-      setMode(event.matches ? "dark" : "light");
+      setModeState(event.matches ? "dark" : "light");
     };
 
-    if (mediaQuery.addEventListener) {
+    if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", handleChange);
-    } else {
+    } else if (typeof mediaQuery.addListener === "function") {
       mediaQuery.addListener(handleChange);
     }
 
     return () => {
-      if (mediaQuery.removeEventListener) {
+      if (typeof mediaQuery.removeEventListener === "function") {
         mediaQuery.removeEventListener("change", handleChange);
-      } else {
+      } else if (typeof mediaQuery.removeListener === "function") {
         mediaQuery.removeListener(handleChange);
       }
     };
@@ -90,15 +93,20 @@ export default function ThemeProvider({ children }: ThemeProviderProps) {
     () => ({
       mode,
       isDark: mode === "dark",
-      toggleTheme: () =>
-        setMode((prevMode) => (prevMode === "dark" ? "light" : "dark")),
-      setMode,
+      toggleTheme: () => {
+        setModeState((prevMode) => (prevMode === "dark" ? "light" : "dark"));
+      },
+      setMode: (nextMode: ThemeMode) => {
+        setModeState(nextMode);
+      },
     }),
-    [mode]
+    [mode],
   );
 
   return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>
+      {children}
+    </ThemeContext.Provider>
   );
 }
 

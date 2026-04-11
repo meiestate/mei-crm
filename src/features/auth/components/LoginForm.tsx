@@ -1,71 +1,100 @@
-import { useState, type FormEvent } from "react";
-import Card from "./Card";
-import Input from "./Input";
-import Checkbox from "./Checkbox";
-import Button from "./Button";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 
-type LoginFormValues = {
+type ThemeMode = "light" | "dark";
+
+export type LoginFormValues = {
   email: string;
   password: string;
   rememberMe: boolean;
 };
 
 type LoginFormProps = {
-  title?: string;
-  subtitle?: string;
-  loading?: boolean;
-  error?: string;
+  mode?: ThemeMode;
+  isLoading?: boolean;
+  errorMessage?: string;
   defaultValues?: Partial<LoginFormValues>;
-  onSubmit: (values: LoginFormValues) => void | Promise<void>;
+  onSubmit?: (values: LoginFormValues) => void | Promise<void>;
   onForgotPassword?: () => void;
-  onCreateAccount?: () => void;
+  onUseOtpLogin?: () => void;
 };
 
 export default function LoginForm({
-  title = "Welcome back",
-  subtitle = "Login to continue to your account",
-  loading = false,
-  error,
+  mode = "light",
+  isLoading = false,
+  errorMessage,
   defaultValues,
   onSubmit,
   onForgotPassword,
-  onCreateAccount,
+  onUseOtpLogin,
 }: LoginFormProps) {
   const [values, setValues] = useState<LoginFormValues>({
-    email: defaultValues?.email || "",
-    password: defaultValues?.password || "",
-    rememberMe: defaultValues?.rememberMe || false,
+    email: defaultValues?.email ?? "",
+    password: defaultValues?.password ?? "",
+    rememberMe: defaultValues?.rememberMe ?? false,
   });
 
-  const [touched, setTouched] = useState({
+  const [touched, setTouched] = useState<{
+    email: boolean;
+    password: boolean;
+  }>({
     email: false,
     password: false,
   });
 
-  const [localError, setLocalError] = useState("");
+  const isDark = mode === "dark";
+
+  const theme = {
+    pageBg: isDark ? "#020617" : "#f8fafc",
+    cardBg: isDark ? "#0f172a" : "#ffffff",
+    cardSoft: isDark ? "#111827" : "#f8fafc",
+    text: isDark ? "#e5e7eb" : "#0f172a",
+    subText: isDark ? "#94a3b8" : "#64748b",
+    border: isDark ? "rgba(148,163,184,0.18)" : "rgba(15,23,42,0.10)",
+    inputBg: isDark ? "#111827" : "#ffffff",
+    inputBorder: isDark ? "rgba(148,163,184,0.20)" : "rgba(15,23,42,0.12)",
+    primary: "#2563eb",
+    primaryHover: "#1d4ed8",
+    dangerBg: isDark ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)",
+    dangerText: isDark ? "#fca5a5" : "#b91c1c",
+  };
 
   const emailError =
-    touched.email && !values.email.trim()
-      ? "Email is required"
+    touched.email && values.email.trim().length === 0
+      ? "Email is required."
       : touched.email &&
-        values.email.trim() &&
-        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)
-      ? "Enter a valid email address"
-      : "";
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+        ? "Enter a valid email address."
+        : "";
 
   const passwordError =
-    touched.password && !values.password.trim()
-      ? "Password is required"
-      : "";
+    touched.password && values.password.trim().length === 0
+      ? "Password is required."
+      : touched.password && values.password.trim().length < 6
+        ? "Password must be at least 6 characters."
+        : "";
 
-  const handleChange = <K extends keyof LoginFormValues>(
-    key: K,
-    value: LoginFormValues[K]
+  const hasValidationError = Boolean(emailError || passwordError);
+
+  const updateField = (
+    field: keyof LoginFormValues,
+    value: string | boolean,
   ) => {
     setValues((prev) => ({
       ...prev,
-      [key]: value,
+      [field]: value,
     }));
+  };
+
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateField("email", event.target.value);
+  };
+
+  const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateField("password", event.target.value);
+  };
+
+  const handleRememberMeChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateField("rememberMe", event.target.checked);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -76,121 +105,142 @@ export default function LoginForm({
       password: true,
     });
 
-    setLocalError("");
+    const email = values.email.trim();
+    const password = values.password.trim();
 
-    const isEmailValid =
-      values.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim());
-    const isPasswordValid = Boolean(values.password.trim());
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isPasswordValid = password.length >= 6;
 
-    if (!isEmailValid || !isPasswordValid) {
-      setLocalError("Please fill in the required fields correctly.");
+    if (!email || !password || !isEmailValid || !isPasswordValid) {
       return;
     }
 
-    await onSubmit({
-      email: values.email.trim(),
-      password: values.password,
+    await onSubmit?.({
+      email,
+      password,
       rememberMe: values.rememberMe,
     });
   };
 
   return (
-    <Card
+    <div
       style={{
         width: "100%",
-        maxWidth: 440,
+        maxWidth: 480,
         margin: "0 auto",
-      }}
-      bodyStyle={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 24,
         padding: 28,
+        boxShadow: isDark
+          ? "0 22px 48px rgba(0,0,0,0.34)"
+          : "0 18px 40px rgba(15,23,42,0.08)",
       }}
     >
-      <div
-        style={{
-          marginBottom: 24,
-        }}
-      >
-        <div
+      <div style={{ marginBottom: 24 }}>
+        <h2
           style={{
+            margin: 0,
             fontSize: 28,
             fontWeight: 800,
-            color: "#0f172a",
-            lineHeight: 1.2,
-            letterSpacing: -0.4,
+            letterSpacing: "-0.03em",
+            color: theme.text,
           }}
         >
-          {title}
-        </div>
+          Welcome back
+        </h2>
 
-        <div
+        <p
           style={{
-            marginTop: 8,
+            margin: "10px 0 0",
             fontSize: 14,
-            color: "#64748b",
-            lineHeight: 1.6,
+            lineHeight: 1.7,
+            color: theme.subText,
           }}
         >
-          {subtitle}
-        </div>
+          Sign in to continue managing leads, deals, tasks, and your team from
+          one clean workspace.
+        </p>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: "grid",
-            gap: 16,
-          }}
-        >
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="Enter your email"
-            value={values.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-            onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                email: true,
-              }))
-            }
-            error={emailError}
-            autoComplete="email"
-          />
+      <form onSubmit={handleSubmit} noValidate>
+        <div style={{ display: "grid", gap: 18 }}>
+          <div>
+            <label
+              htmlFor="login-email"
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                color: theme.text,
+              }}
+            >
+              Email
+            </label>
 
-          <Input
-            label="Password"
-            type="password"
-            placeholder="Enter your password"
-            value={values.password}
-            onChange={(e) => handleChange("password", e.target.value)}
-            onBlur={() =>
-              setTouched((prev) => ({
-                ...prev,
-                password: true,
-              }))
-            }
-            error={passwordError}
-            autoComplete="current-password"
-          />
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <Checkbox
-              id="rememberMe"
-              label="Remember me"
-              checked={values.rememberMe}
-              onChange={(e) => handleChange("rememberMe", e.target.checked)}
+            <input
+              id="login-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={values.email}
+              onChange={handleEmailChange}
+              onBlur={() =>
+                setTouched((prev) => ({
+                  ...prev,
+                  email: true,
+                }))
+              }
+              placeholder="Enter your email"
+              style={{
+                width: "100%",
+                height: 48,
+                borderRadius: 14,
+                border: `1px solid ${emailError ? "#ef4444" : theme.inputBorder}`,
+                background: theme.inputBg,
+                color: theme.text,
+                padding: "0 14px",
+                outline: "none",
+                fontSize: 14,
+                boxSizing: "border-box",
+              }}
             />
 
-            {onForgotPassword && (
+            {emailError ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: "#ef4444",
+                }}
+              >
+                {emailError}
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 8,
+              }}
+            >
+              <label
+                htmlFor="login-password"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: theme.text,
+                }}
+              >
+                Password
+              </label>
+
               <button
                 type="button"
                 onClick={onForgotPassword}
@@ -198,70 +248,137 @@ export default function LoginForm({
                   border: "none",
                   background: "transparent",
                   padding: 0,
-                  color: "#2563eb",
-                  fontSize: 14,
+                  margin: 0,
+                  fontSize: 13,
                   fontWeight: 600,
+                  color: theme.primary,
                   cursor: "pointer",
                 }}
               >
                 Forgot password?
               </button>
-            )}
+            </div>
+
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              value={values.password}
+              onChange={handlePasswordChange}
+              onBlur={() =>
+                setTouched((prev) => ({
+                  ...prev,
+                  password: true,
+                }))
+              }
+              placeholder="Enter your password"
+              style={{
+                width: "100%",
+                height: 48,
+                borderRadius: 14,
+                border: `1px solid ${passwordError ? "#ef4444" : theme.inputBorder}`,
+                background: theme.inputBg,
+                color: theme.text,
+                padding: "0 14px",
+                outline: "none",
+                fontSize: 14,
+                boxSizing: "border-box",
+              }}
+            />
+
+            {passwordError ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: "#ef4444",
+                }}
+              >
+                {passwordError}
+              </div>
+            ) : null}
           </div>
 
-          {(error || localError) && (
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              cursor: "pointer",
+              userSelect: "none",
+              color: theme.subText,
+              fontSize: 14,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={values.rememberMe}
+              onChange={handleRememberMeChange}
+              style={{
+                width: 16,
+                height: 16,
+                accentColor: theme.primary,
+              }}
+            />
+            Remember me
+          </label>
+
+          {errorMessage ? (
             <div
               style={{
                 borderRadius: 14,
-                border: "1px solid #fecaca",
-                background: "#fef2f2",
-                color: "#b91c1c",
                 padding: "12px 14px",
+                background: theme.dangerBg,
+                color: theme.dangerText,
                 fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.5,
+                lineHeight: 1.6,
               }}
             >
-              {error || localError}
+              {errorMessage}
             </div>
-          )}
+          ) : null}
 
-          <Button type="submit" fullWidth loading={loading} size="lg">
-            Sign In
-          </Button>
-        </div>
-      </form>
-
-      {onCreateAccount && (
-        <div
-          style={{
-            marginTop: 22,
-            paddingTop: 18,
-            borderTop: "1px solid #e2e8f0",
-            textAlign: "center",
-            fontSize: 14,
-            color: "#64748b",
-            lineHeight: 1.6,
-          }}
-        >
-          Don&apos;t have an account?{" "}
           <button
-            type="button"
-            onClick={onCreateAccount}
+            type="submit"
+            disabled={isLoading || hasValidationError}
             style={{
+              height: 48,
+              borderRadius: 14,
               border: "none",
-              background: "transparent",
-              padding: 0,
-              color: "#2563eb",
+              background:
+                isLoading || hasValidationError
+                  ? "rgba(37,99,235,0.55)"
+                  : theme.primary,
+              color: "#ffffff",
               fontSize: 14,
               fontWeight: 700,
+              cursor:
+                isLoading || hasValidationError ? "not-allowed" : "pointer",
+              transition: "background 0.2s ease",
+            }}
+          >
+            {isLoading ? "Signing in..." : "Sign in"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onUseOtpLogin}
+            style={{
+              height: 46,
+              borderRadius: 14,
+              border: `1px solid ${theme.border}`,
+              background: theme.cardSoft,
+              color: theme.text,
+              fontSize: 14,
+              fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            Create account
+            Use OTP login
           </button>
         </div>
-      )}
-    </Card>
+      </form>
+    </div>
   );
 }

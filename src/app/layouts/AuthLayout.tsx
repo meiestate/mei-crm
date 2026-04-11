@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import { getTheme, type ThemeMode } from "../../theme";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -35,12 +34,154 @@ export default function AuthLayout({
             : "linear-gradient(135deg, #f8fafc 0%, #eef2ff 45%, #e0f2fe 100%)",
       }}
     >
-      <div
+      <section
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "56px 48px",
+          color: mode === "dark" ? "#e2e8f0" : "#0f172a",
+          borderRight:
+            mode === "dark"
+              ? "1px solid rgba(148, 163, 184, 0.12)"
+              : "1px solid rgba(15, 23, 42, 0.08)",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 16px",
+              borderRadius: 999,
+              background:
+                mode === "dark"
+                  ? "rgba(59, 130, 246, 0.14)"
+                  : "rgba(37, 99, 235, 0.10)",
+              color: mode === "dark" ? "#93c5fd" : "#1d4ed8",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: 0.3,
+              marginBottom: 28,
+            }}
+          >
+            Business Operating System
+          </div>
+
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(36px, 5vw, 56px)",
+              lineHeight: 1.08,
+              fontWeight: 800,
+              letterSpacing: "-0.03em",
+              maxWidth: 620,
+            }}
+          >
+            {sideTitle}
+          </h1>
+
+          <p
+            style={{
+              marginTop: 20,
+              maxWidth: 640,
+              fontSize: 18,
+              lineHeight: 1.75,
+              color: mode === "dark" ? "#94a3b8" : "#475569",
+            }}
+          >
+            {sideSubtitle}
+          </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 18,
+              marginTop: 40,
+              maxWidth: 700,
+            }}
+          >
+            {[
+              {
+                title: "Lead Tracking",
+                text: "Track every enquiry from first touch to final conversion without confusion.",
+              },
+              {
+                title: "Deal Visibility",
+                text: "Monitor pipeline movement, negotiation stages, and revenue opportunities clearly.",
+              },
+              {
+                title: "Team Productivity",
+                text: "Keep your team aligned with tasks, permissions, and centralized workflows.",
+              },
+              {
+                title: "Smart Operations",
+                text: "Run contacts, follow-ups, and settings from one clean business dashboard.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                style={{
+                  padding: 20,
+                  borderRadius: 20,
+                  background:
+                    mode === "dark"
+                      ? "rgba(15, 23, 42, 0.52)"
+                      : "rgba(255, 255, 255, 0.82)",
+                  border:
+                    mode === "dark"
+                      ? "1px solid rgba(148, 163, 184, 0.14)"
+                      : "1px solid rgba(15, 23, 42, 0.08)",
+                  boxShadow:
+                    mode === "dark"
+                      ? "0 12px 30px rgba(0,0,0,0.22)"
+                      : "0 12px 30px rgba(15,23,42,0.08)",
+                  backdropFilter: "blur(10px)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    marginBottom: 8,
+                    color: mode === "dark" ? "#f8fafc" : "#0f172a",
+                  }}
+                >
+                  {item.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.7,
+                    color: mode === "dark" ? "#94a3b8" : "#475569",
+                  }}
+                >
+                  {item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 36,
+            fontSize: 13,
+            color: mode === "dark" ? "#64748b" : "#64748b",
+          }}
+        >
+          {footerText}
+        </div>
+      </section>
+
+      <section
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "48px 32px",
+          padding: "40px 28px",
         }}
       >
         <div
@@ -50,51 +191,28 @@ export default function AuthLayout({
             background: theme.cardBg,
             border: `1px solid ${theme.border}`,
             borderRadius: 28,
-            padding: 32,
             boxShadow:
               mode === "dark"
-                ? "0 20px 60px rgba(0,0,0,0.45)"
-                : "0 20px 60px rgba(15,23,42,0.10)",
+                ? "0 20px 60px rgba(0,0,0,0.38)"
+                : "0 20px 60px rgba(15,23,42,0.12)",
+            padding: 32,
           }}
         >
           <div style={{ marginBottom: 28 }}>
-            <div
+            <h2
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 14px",
-                borderRadius: 999,
-                background:
-                  mode === "dark"
-                    ? "rgba(59,130,246,0.14)"
-                    : "rgba(37,99,235,0.10)",
-                color: theme.primary,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
-              Secure Access
-            </div>
-
-            <h1
-              style={{
-                margin: "18px 0 8px",
-                fontSize: 32,
-                lineHeight: 1.15,
+                margin: 0,
+                fontSize: 30,
+                lineHeight: 1.2,
                 fontWeight: 800,
-                letterSpacing: "-0.03em",
                 color: theme.text,
               }}
             >
               {title}
-            </h1>
-
+            </h2>
             <p
               style={{
-                margin: 0,
+                margin: "10px 0 0",
                 fontSize: 15,
                 lineHeight: 1.7,
                 color: theme.subText,
@@ -106,162 +224,7 @@ export default function AuthLayout({
 
           <div>{children}</div>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "stretch",
-          justifyContent: "center",
-          padding: "32px",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            borderRadius: 30,
-            padding: "40px 36px",
-            border:
-              mode === "dark"
-                ? "1px solid rgba(255,255,255,0.08)"
-                : "1px solid rgba(15,23,42,0.06)",
-            background:
-              mode === "dark"
-                ? "linear-gradient(180deg, rgba(15,23,42,0.72) 0%, rgba(30,41,59,0.82) 100%)"
-                : "linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(248,250,252,0.92) 100%)",
-            boxShadow:
-              mode === "dark"
-                ? "inset 0 1px 0 rgba(255,255,255,0.04)"
-                : "inset 0 1px 0 rgba(255,255,255,0.8)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: theme.primary,
-                color: "#ffffff",
-                fontSize: 22,
-                fontWeight: 800,
-                boxShadow:
-                  mode === "dark"
-                    ? "0 16px 36px rgba(37,99,235,0.34)"
-                    : "0 16px 36px rgba(37,99,235,0.22)",
-              }}
-            >
-              M
-            </div>
-
-            <h2
-              style={{
-                margin: "24px 0 12px",
-                fontSize: 34,
-                lineHeight: 1.15,
-                fontWeight: 800,
-                letterSpacing: "-0.03em",
-                color: theme.text,
-                maxWidth: 420,
-              }}
-            >
-              {sideTitle}
-            </h2>
-
-            <p
-              style={{
-                margin: 0,
-                fontSize: 16,
-                lineHeight: 1.8,
-                color: theme.subText,
-                maxWidth: 500,
-              }}
-            >
-              {sideSubtitle}
-            </p>
-
-            <div
-              style={{
-                marginTop: 32,
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 16,
-              }}
-            >
-              {[
-                {
-                  label: "Lead Management",
-                  value: "Smart tracking and conversion flow",
-                },
-                {
-                  label: "Task Visibility",
-                  value: "Daily execution with zero confusion",
-                },
-                {
-                  label: "Deal Pipeline",
-                  value: "From inquiry to closure in one place",
-                },
-                {
-                  label: "Team Productivity",
-                  value: "Simple, sharp, scalable operations",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  style={{
-                    border: `1px solid ${theme.border}`,
-                    background:
-                      mode === "dark"
-                        ? "rgba(255,255,255,0.03)"
-                        : "rgba(255,255,255,0.56)",
-                    borderRadius: 20,
-                    padding: 18,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: theme.text,
-                      marginBottom: 6,
-                    }}
-                  >
-                    {item.label}
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      color: theme.subText,
-                    }}
-                  >
-                    {item.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: 32,
-              paddingTop: 20,
-              borderTop: `1px solid ${theme.border}`,
-              fontSize: 13,
-              color: theme.mutedText,
-            }}
-          >
-            {footerText}
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

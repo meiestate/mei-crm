@@ -1,83 +1,75 @@
-import React from "react";
-import { getTheme } from "../../theme";
-import type { ThemeMode } from "../../theme";
+type ThemeMode = "light" | "dark";
 
 export type ContactFilterValues = {
   search: string;
   status: string;
   source: string;
-  city: string;
-  sortBy: string;
+  owner: string;
 };
 
 type ContactFiltersProps = {
-  mode: ThemeMode;
+  mode?: ThemeMode;
   values: ContactFilterValues;
-  onChange: (next: ContactFilterValues) => void;
-  onClear: () => void;
-  totalCount?: number;
-  filteredCount?: number;
   statusOptions?: string[];
   sourceOptions?: string[];
-  cityOptions?: string[];
+  ownerOptions?: string[];
+  onChange: (next: ContactFilterValues) => void;
+  onClear?: () => void;
+  resultCount?: number;
 };
 
 export default function ContactFilters({
-  mode,
+  mode = "light",
   values,
+  statusOptions = ["all", "active", "inactive", "blocked", "archived"],
+  sourceOptions = [
+    "all",
+    "website",
+    "referral",
+    "facebook",
+    "instagram",
+    "whatsapp",
+    "call",
+    "manual",
+    "other",
+  ],
+  ownerOptions = ["all"],
   onChange,
   onClear,
-  totalCount = 0,
-  filteredCount = 0,
-  statusOptions = ["Active", "New", "Prospect", "Customer", "Inactive"],
-  sourceOptions = [
-    "Website",
-    "Facebook",
-    "Instagram",
-    "WhatsApp",
-    "Referral",
-    "Cold Call",
-    "Walk-In",
-    "Campaign",
-  ],
-  cityOptions = [],
+  resultCount,
 }: ContactFiltersProps) {
-  const theme = getTheme(mode);
+  const isDark = mode === "dark";
+
+  const theme = {
+    cardBg: isDark ? "#0f172a" : "#ffffff",
+    cardSoft: isDark ? "#111827" : "#f8fafc",
+    text: isDark ? "#e5e7eb" : "#0f172a",
+    subText: isDark ? "#94a3b8" : "#64748b",
+    border: isDark ? "rgba(148,163,184,0.16)" : "rgba(15,23,42,0.10)",
+    borderStrong: isDark ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.14)",
+    inputBg: isDark ? "#111827" : "#ffffff",
+    inputBorder: isDark ? "rgba(148,163,184,0.20)" : "rgba(15,23,42,0.12)",
+    primary: "#2563eb",
+    primarySoft: isDark ? "rgba(37,99,235,0.16)" : "rgba(37,99,235,0.10)",
+    shadow: isDark
+      ? "0 20px 40px rgba(0,0,0,0.28)"
+      : "0 16px 32px rgba(15,23,42,0.08)",
+  };
 
   const hasActiveFilters =
     values.search.trim() !== "" ||
-    values.status !== "" ||
-    values.source !== "" ||
-    values.city !== "" ||
-    values.sortBy !== "newest";
+    values.status !== "all" ||
+    values.source !== "all" ||
+    values.owner !== "all";
 
-  const updateField = (field: keyof ContactFilterValues, value: string) => {
+  const update = <K extends keyof ContactFilterValues>(
+    key: K,
+    value: ContactFilterValues[K],
+  ) => {
     onChange({
       ...values,
-      [field]: value,
+      [key]: value,
     });
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    height: 42,
-    borderRadius: 12,
-    border: `1px solid ${theme.border}`,
-    background: theme.inputBg,
-    color: theme.text,
-    padding: "0 14px",
-    fontSize: 14,
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    marginBottom: 8,
-    fontSize: 12,
-    fontWeight: 700,
-    color: theme.subText,
-    letterSpacing: 0.3,
   };
 
   return (
@@ -85,7 +77,8 @@ export default function ContactFilters({
       style={{
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
-        borderRadius: 20,
+        borderRadius: 24,
+        boxShadow: theme.shadow,
         overflow: "hidden",
       }}
     >
@@ -104,9 +97,10 @@ export default function ContactFilters({
           <h3
             style={{
               margin: 0,
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: 800,
               color: theme.text,
+              letterSpacing: "-0.02em",
             }}
           >
             Contact Filters
@@ -116,9 +110,10 @@ export default function ContactFilters({
               margin: "6px 0 0",
               fontSize: 13,
               color: theme.subText,
+              lineHeight: 1.6,
             }}
           >
-            Search, segment, and sort your contact database with precision.
+            Search and narrow contacts by status, source, and ownership.
           </p>
         </div>
 
@@ -130,39 +125,45 @@ export default function ContactFilters({
             flexWrap: "wrap",
           }}
         >
-          <span
-            style={{
-              padding: "8px 12px",
-              borderRadius: 999,
-              background: theme.cardBgSoft,
-              border: `1px solid ${theme.border}`,
-              color: theme.text,
-              fontSize: 12,
-              fontWeight: 800,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {filteredCount} / {totalCount} Results
-          </span>
+          {typeof resultCount === "number" ? (
+            <div
+              style={{
+                height: 36,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 12px",
+                borderRadius: 999,
+                background: theme.primarySoft,
+                color: theme.primary,
+                fontSize: 12,
+                fontWeight: 800,
+              }}
+            >
+              {resultCount} result{resultCount === 1 ? "" : "s"}
+            </div>
+          ) : null}
 
-          <button
-            onClick={onClear}
-            disabled={!hasActiveFilters}
-            style={{
-              height: 40,
-              padding: "0 14px",
-              borderRadius: 12,
-              border: `1px solid ${theme.border}`,
-              background: hasActiveFilters ? theme.cardBgSoft : theme.sectionBg,
-              color: hasActiveFilters ? theme.text : theme.subText,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: hasActiveFilters ? "pointer" : "not-allowed",
-              opacity: hasActiveFilters ? 1 : 0.65,
-            }}
-          >
-            Clear Filters
-          </button>
+          {onClear ? (
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={!hasActiveFilters}
+              style={{
+                height: 38,
+                padding: "0 14px",
+                borderRadius: 12,
+                border: `1px solid ${theme.borderStrong}`,
+                background: theme.cardSoft,
+                color: hasActiveFilters ? theme.text : theme.subText,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: hasActiveFilters ? "pointer" : "not-allowed",
+                opacity: hasActiveFilters ? 1 : 0.7,
+              }}
+            >
+              Clear Filters
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -170,236 +171,207 @@ export default function ContactFilters({
         style={{
           padding: 20,
           display: "grid",
-          gap: 16,
+          gridTemplateColumns: "minmax(240px, 2fr) repeat(3, minmax(160px, 1fr))",
+          gap: 14,
         }}
       >
+        <FilterField label="Search" theme={theme}>
+          <input
+            type="text"
+            value={values.search}
+            onChange={(event) => update("search", event.target.value)}
+            placeholder="Search name, email, phone, company..."
+            style={getInputStyle(theme)}
+          />
+        </FilterField>
+
+        <FilterField label="Status" theme={theme}>
+          <select
+            value={values.status}
+            onChange={(event) => update("status", event.target.value)}
+            style={getInputStyle(theme)}
+          >
+            {statusOptions.map((option) => (
+              <option key={option} value={option}>
+                {formatOption(option)}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+
+        <FilterField label="Source" theme={theme}>
+          <select
+            value={values.source}
+            onChange={(event) => update("source", event.target.value)}
+            style={getInputStyle(theme)}
+          >
+            {sourceOptions.map((option) => (
+              <option key={option} value={option}>
+                {formatOption(option)}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+
+        <FilterField label="Owner" theme={theme}>
+          <select
+            value={values.owner}
+            onChange={(event) => update("owner", event.target.value)}
+            style={getInputStyle(theme)}
+          >
+            {ownerOptions.map((option) => (
+              <option key={option} value={option}>
+                {formatOption(option)}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+      </div>
+
+      {hasActiveFilters ? (
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(260px, 2fr) repeat(4, minmax(160px, 1fr))",
-            gap: 16,
+            padding: "0 20px 20px",
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
           }}
         >
-          <div>
-            <label style={labelStyle}>Search</label>
-            <div style={{ position: "relative" }}>
-              <span
-                style={{
-                  position: "absolute",
-                  left: 14,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  fontSize: 14,
-                  color: theme.subText,
-                  pointerEvents: "none",
-                }}
-              >
-                🔍
-              </span>
-              <input
-                value={values.search}
-                onChange={(e) => updateField("search", e.target.value)}
-                placeholder="Search name, email, phone, company..."
-                style={{
-                  ...inputStyle,
-                  paddingLeft: 38,
-                }}
-              />
-            </div>
-          </div>
+          {values.search.trim() ? (
+            <FilterChip
+              label={`Search: ${values.search}`}
+              onRemove={() => update("search", "")}
+              theme={theme}
+            />
+          ) : null}
 
-          <div>
-            <label style={labelStyle}>Status</label>
-            <select
-              value={values.status}
-              onChange={(e) => updateField("status", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All Statuses</option>
-              {statusOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
+          {values.status !== "all" ? (
+            <FilterChip
+              label={`Status: ${formatOption(values.status)}`}
+              onRemove={() => update("status", "all")}
+              theme={theme}
+            />
+          ) : null}
 
-          <div>
-            <label style={labelStyle}>Source</label>
-            <select
-              value={values.source}
-              onChange={(e) => updateField("source", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All Sources</option>
-              {sourceOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
+          {values.source !== "all" ? (
+            <FilterChip
+              label={`Source: ${formatOption(values.source)}`}
+              onRemove={() => update("source", "all")}
+              theme={theme}
+            />
+          ) : null}
 
-          <div>
-            <label style={labelStyle}>City</label>
-            <select
-              value={values.city}
-              onChange={(e) => updateField("city", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All Cities</option>
-              {cityOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={labelStyle}>Sort By</label>
-            <select
-              value={values.sortBy}
-              onChange={(e) => updateField("sortBy", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="name_asc">Name A-Z</option>
-              <option value="name_desc">Name Z-A</option>
-              <option value="company_asc">Company A-Z</option>
-              <option value="company_desc">Company Z-A</option>
-            </select>
-          </div>
+          {values.owner !== "all" ? (
+            <FilterChip
+              label={`Owner: ${formatOption(values.owner)}`}
+              onRemove={() => update("owner", "all")}
+              theme={theme}
+            />
+          ) : null}
         </div>
-
-        {hasActiveFilters ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: theme.subText,
-                letterSpacing: 0.3,
-              }}
-            >
-              ACTIVE FILTERS
-            </span>
-
-            {values.search.trim() ? (
-              <FilterChip
-                label={`Search: ${values.search}`}
-                mode={mode}
-                onRemove={() => updateField("search", "")}
-              />
-            ) : null}
-
-            {values.status ? (
-              <FilterChip
-                label={`Status: ${values.status}`}
-                mode={mode}
-                onRemove={() => updateField("status", "")}
-              />
-            ) : null}
-
-            {values.source ? (
-              <FilterChip
-                label={`Source: ${values.source}`}
-                mode={mode}
-                onRemove={() => updateField("source", "")}
-              />
-            ) : null}
-
-            {values.city ? (
-              <FilterChip
-                label={`City: ${values.city}`}
-                mode={mode}
-                onRemove={() => updateField("city", "")}
-              />
-            ) : null}
-
-            {values.sortBy !== "newest" ? (
-              <FilterChip
-                label={`Sort: ${getSortLabel(values.sortBy)}`}
-                mode={mode}
-                onRemove={() => updateField("sortBy", "newest")}
-              />
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }
 
-type FilterChipProps = {
+function FilterField({
+  label,
+  children,
+  theme,
+}: {
   label: string;
-  mode: ThemeMode;
-  onRemove: () => void;
-};
-
-function FilterChip({ label, mode, onRemove }: FilterChipProps) {
-  const theme = getTheme(mode);
-
+  children: React.ReactNode;
+  theme: {
+    text: string;
+    subText: string;
+  };
+}) {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 10px",
-        borderRadius: 999,
-        background: theme.cardBgSoft,
-        border: `1px solid ${theme.border}`,
-        color: theme.text,
-        fontSize: 12,
-        fontWeight: 700,
-      }}
-    >
-      {label}
-      <button
-        onClick={onRemove}
+    <div>
+      <label
         style={{
-          border: "none",
-          background: "transparent",
-          color: theme.subText,
-          cursor: "pointer",
+          display: "block",
+          marginBottom: 8,
           fontSize: 12,
-          padding: 0,
-          lineHeight: 1,
           fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: theme.subText,
         }}
-        aria-label={`Remove ${label}`}
-        title={`Remove ${label}`}
       >
-        ✕
-      </button>
-    </span>
+        {label}
+      </label>
+      {children}
+    </div>
   );
 }
 
-function getSortLabel(sortBy: string) {
-  switch (sortBy) {
-    case "newest":
-      return "Newest First";
-    case "oldest":
-      return "Oldest First";
-    case "name_asc":
-      return "Name A-Z";
-    case "name_desc":
-      return "Name Z-A";
-    case "company_asc":
-      return "Company A-Z";
-    case "company_desc":
-      return "Company Z-A";
-    default:
-      return sortBy;
+function FilterChip({
+  label,
+  onRemove,
+  theme,
+}: {
+  label: string;
+  onRemove: () => void;
+  theme: {
+    primary: string;
+    primarySoft: string;
+  };
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      style={{
+        height: 32,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 12px",
+        borderRadius: 999,
+        border: "none",
+        background: theme.primarySoft,
+        color: theme.primary,
+        fontSize: 12,
+        fontWeight: 800,
+        cursor: "pointer",
+      }}
+    >
+      <span>{label}</span>
+      <span>×</span>
+    </button>
+  );
+}
+
+function formatOption(value: string) {
+  if (!value) {
+    return "—";
   }
+
+  if (value.toLowerCase() === "all") {
+    return "All";
+  }
+
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getInputStyle(theme: {
+  inputBg: string;
+  inputBorder: string;
+  text: string;
+}): React.CSSProperties {
+  return {
+    width: "100%",
+    height: 44,
+    borderRadius: 14,
+    border: `1px solid ${theme.inputBorder}`,
+    background: theme.inputBg,
+    color: theme.text,
+    padding: "0 14px",
+    outline: "none",
+    fontSize: 14,
+    boxSizing: "border-box",
+  };
 }

@@ -1,125 +1,135 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import Card from "./Card";
-import Input from "./Input";
-import Button from "./Button";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
+
+type ThemeMode = "light" | "dark";
+
+type OtpLoginFormSubmitPayload = {
+  phone: string;
+  otp: string;
+};
+
+type OtpLoginFormSendOtpPayload = {
+  phone: string;
+};
 
 type OtpLoginFormProps = {
+  mode?: ThemeMode;
   title?: string;
   subtitle?: string;
   phoneLabel?: string;
   phonePlaceholder?: string;
   otpLength?: number;
   loading?: boolean;
-  error?: string;
+  sendOtpLoading?: boolean;
+  errorMessage?: string;
+  successMessage?: string;
   initialPhone?: string;
   resendCooldownSeconds?: number;
-  onSendOtp: (phone: string) => void | Promise<void>;
-  onVerifyOtp: (values: { phone: string; otp: string }) => void | Promise<void>;
-  onBack?: () => void;
+  onSendOtp?: (payload: OtpLoginFormSendOtpPayload) => void | Promise<void>;
+  onSubmit?: (payload: OtpLoginFormSubmitPayload) => void | Promise<void>;
+  onBackToPasswordLogin?: () => void;
+  onResendOtp?: (payload: OtpLoginFormSendOtpPayload) => void | Promise<void>;
 };
 
 export default function OtpLoginForm({
+  mode = "light",
   title = "Login with OTP",
-  subtitle = "Enter your mobile number and verify with one-time password",
-  phoneLabel = "Mobile Number",
-  phonePlaceholder = "Enter mobile number",
+  subtitle = "Enter your mobile number, receive a one-time password, and sign in securely.",
+  phoneLabel = "Mobile number",
+  phonePlaceholder = "Enter your mobile number",
   otpLength = 6,
   loading = false,
-  error,
+  sendOtpLoading = false,
+  errorMessage,
+  successMessage,
   initialPhone = "",
   resendCooldownSeconds = 30,
   onSendOtp,
-  onVerifyOtp,
-  onBack,
+  onSubmit,
+  onBackToPasswordLogin,
+  onResendOtp,
 }: OtpLoginFormProps) {
   const [phone, setPhone] = useState(initialPhone);
   const [otpValues, setOtpValues] = useState<string[]>(
-    Array(otpLength).fill("")
+    Array.from({ length: otpLength }, () => ""),
   );
-  const [step, setStep] = useState<"phone" | "otp">(initialPhone ? "otp" : "phone");
-  const [localError, setLocalError] = useState("");
-  const [touchedPhone, setTouchedPhone] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [touchedPhone, setTouchedPhone] = useState(false);
 
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  useEffect(() => {
-    if (step !== "otp" || cooldown <= 0) return;
+  const isDark = mode === "dark";
 
-    const timer = window.setInterval(() => {
-      setCooldown((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
+  const theme = {
+    cardBg: isDark ? "#0f172a" : "#ffffff",
+    cardSoft: isDark ? "#111827" : "#f8fafc",
+    text: isDark ? "#e5e7eb" : "#0f172a",
+    subText: isDark ? "#94a3b8" : "#64748b",
+    border: isDark ? "rgba(148,163,184,0.18)" : "rgba(15,23,42,0.10)",
+    inputBg: isDark ? "#111827" : "#ffffff",
+    inputBorder: isDark ? "rgba(148,163,184,0.20)" : "rgba(15,23,42,0.12)",
+    primary: "#2563eb",
+    dangerBg: isDark ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)",
+    dangerText: isDark ? "#fca5a5" : "#b91c1c",
+    successBg: isDark ? "rgba(34,197,94,0.12)" : "rgba(34,197,94,0.10)",
+    successText: isDark ? "#86efac" : "#166534",
+  };
+
+  useEffect(() => {
+    if (cooldown <= 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCooldown((prev) => prev - 1);
     }, 1000);
 
     return () => {
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
-  }, [step, cooldown]);
+  }, [cooldown]);
 
-  const phoneError = useMemo(() => {
-    const trimmed = phone.trim();
+  const normalizedPhone = useMemo(() => phone.replace(/\D/g, ""), [phone]);
 
-    if (!touchedPhone) return "";
-    if (!trimmed) return "Mobile number is required";
-    if (!/^\d{10}$/.test(trimmed)) return "Enter a valid 10-digit mobile number";
-    return "";
-  }, [phone, touchedPhone]);
+  const phoneError =
+    touchedPhone && normalizedPhone.length === 0
+      ? "Mobile number is required."
+      : touchedPhone && normalizedPhone.length < 10
+        ? "Enter a valid mobile number."
+        : "";
 
-  const otp = otpValues.join("");
+  const otpValue = otpValues.join("");
   const otpError =
-    step === "otp" && localError
-      ? localError
+    otpSent && otpValue.length > 0 && otpValue.length < otpLength
+      ? `Enter the full ${otpLength}-digit OTP.`
       : "";
 
-  const handleSendOtp = async (event?: FormEvent) => {
-    event?.preventDefault();
-    setTouchedPhone(true);
-    setLocalError("");
-
-    const trimmed = phone.trim();
-
-    if (!trimmed) {
-      setLocalError("Please enter your mobile number.");
-      return;
-    }
-
-    if (!/^\d{10}$/.test(trimmed)) {
-      setLocalError("Please enter a valid 10-digit mobile number.");
-      return;
-    }
-
-    await onSendOtp(trimmed);
-    setStep("otp");
-    setOtpValues(Array(otpLength).fill(""));
-    setCooldown(resendCooldownSeconds);
-
-    setTimeout(() => {
-      otpRefs.current[0]?.focus();
-    }, 0);
+  const handlePhoneChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const cleaned = event.target.value.replace(/[^\d+ ]/g, "");
+    setPhone(cleaned);
   };
 
-  const handleVerifyOtp = async (event: FormEvent) => {
-    event.preventDefault();
-    setLocalError("");
-
-    if (otp.length !== otpLength || otpValues.some((digit) => !digit)) {
-      setLocalError(`Please enter the ${otpLength}-digit OTP.`);
-      return;
+  const focusOtpInput = (index: number) => {
+    const target = otpRefs.current[index];
+    if (target) {
+      target.focus();
+      target.select();
     }
-
-    await onVerifyOtp({
-      phone: phone.trim(),
-      otp,
-    });
   };
 
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, "").slice(-1);
+  const handleOtpChange = (
+    index: number,
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const raw = event.target.value;
+    const digit = raw.replace(/\D/g, "").slice(-1);
 
     setOtpValues((prev) => {
       const next = [...prev];
@@ -128,13 +138,13 @@ export default function OtpLoginForm({
     });
 
     if (digit && index < otpLength - 1) {
-      otpRefs.current[index + 1]?.focus();
+      focusOtpInput(index + 1);
     }
   };
 
   const handleOtpKeyDown = (
     index: number,
-    event: React.KeyboardEvent<HTMLInputElement>
+    event: KeyboardEvent<HTMLInputElement>,
   ) => {
     if (event.key === "Backspace") {
       if (otpValues[index]) {
@@ -143,8 +153,11 @@ export default function OtpLoginForm({
           next[index] = "";
           return next;
         });
-      } else if (index > 0) {
-        otpRefs.current[index - 1]?.focus();
+        return;
+      }
+
+      if (index > 0) {
+        focusOtpInput(index - 1);
         setOtpValues((prev) => {
           const next = [...prev];
           next[index - 1] = "";
@@ -154,203 +167,205 @@ export default function OtpLoginForm({
     }
 
     if (event.key === "ArrowLeft" && index > 0) {
-      otpRefs.current[index - 1]?.focus();
+      event.preventDefault();
+      focusOtpInput(index - 1);
     }
 
     if (event.key === "ArrowRight" && index < otpLength - 1) {
-      otpRefs.current[index + 1]?.focus();
+      event.preventDefault();
+      focusOtpInput(index + 1);
     }
   };
 
-  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = event.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, otpLength);
-
-    if (!pasted) return;
-
+  const handleOtpPaste = async (
+    event: React.ClipboardEvent<HTMLInputElement>,
+  ) => {
     event.preventDefault();
 
-    const next = Array(otpLength).fill("");
-    pasted.split("").forEach((digit, index) => {
-      next[index] = digit;
-    });
+    const pasted = event.clipboardData.getData("text").replace(/\D/g, "");
+    if (!pasted) {
+      return;
+    }
 
+    const next = Array.from({ length: otpLength }, (_, index) => pasted[index] ?? "");
     setOtpValues(next);
 
-    const focusIndex = Math.min(pasted.length, otpLength - 1);
-    otpRefs.current[focusIndex]?.focus();
+    const nextFocusIndex = Math.min(pasted.length, otpLength - 1);
+    focusOtpInput(nextFocusIndex);
   };
 
-  const handleEditPhone = () => {
-    setStep("phone");
-    setOtpValues(Array(otpLength).fill(""));
-    setLocalError("");
+  const handleSendOtp = async () => {
+    setTouchedPhone(true);
+
+    if (!normalizedPhone || normalizedPhone.length < 10) {
+      return;
+    }
+
+    await onSendOtp?.({
+      phone: normalizedPhone,
+    });
+
+    setOtpSent(true);
+    setCooldown(resendCooldownSeconds);
+
+    window.setTimeout(() => {
+      focusOtpInput(0);
+    }, 50);
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || !normalizedPhone) {
+      return;
+    }
+
+    await onResendOtp?.({
+      phone: normalizedPhone,
+    });
+
+    setOtpValues(Array.from({ length: otpLength }, () => ""));
+    setCooldown(resendCooldownSeconds);
+
+    window.setTimeout(() => {
+      focusOtpInput(0);
+    }, 50);
+  };
+
+  const handleVerifyOtp = async () => {
+    setTouchedPhone(true);
+
+    if (!normalizedPhone || normalizedPhone.length < 10) {
+      return;
+    }
+
+    if (otpValue.length !== otpLength) {
+      return;
+    }
+
+    await onSubmit?.({
+      phone: normalizedPhone,
+      otp: otpValue,
+    });
   };
 
   return (
-    <Card
+    <div
       style={{
         width: "100%",
-        maxWidth: 460,
+        maxWidth: 520,
         margin: "0 auto",
-      }}
-      bodyStyle={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 24,
         padding: 28,
+        boxShadow: isDark
+          ? "0 22px 48px rgba(0,0,0,0.34)"
+          : "0 18px 40px rgba(15,23,42,0.08)",
       }}
     >
       <div style={{ marginBottom: 24 }}>
-        <div
+        <h2
           style={{
+            margin: 0,
             fontSize: 28,
             fontWeight: 800,
-            color: "#0f172a",
-            lineHeight: 1.2,
-            letterSpacing: -0.4,
+            letterSpacing: "-0.03em",
+            color: theme.text,
           }}
         >
           {title}
-        </div>
+        </h2>
 
-        <div
+        <p
           style={{
-            marginTop: 8,
+            margin: "10px 0 0",
             fontSize: 14,
-            color: "#64748b",
-            lineHeight: 1.6,
+            lineHeight: 1.7,
+            color: theme.subText,
           }}
         >
           {subtitle}
-        </div>
+        </p>
       </div>
 
-      {step === "phone" ? (
-        <form onSubmit={handleSendOtp}>
-          <div
+      <div style={{ display: "grid", gap: 18 }}>
+        <div>
+          <label
+            htmlFor="otp-phone"
             style={{
-              display: "grid",
-              gap: 16,
+              display: "block",
+              marginBottom: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              color: theme.text,
             }}
           >
-            <Input
-              label={phoneLabel}
-              type="tel"
-              inputMode="numeric"
-              placeholder={phonePlaceholder}
-              value={phone}
-              maxLength={10}
-              onChange={(e) => {
-                const next = e.target.value.replace(/\D/g, "").slice(0, 10);
-                setPhone(next);
-              }}
-              onBlur={() => setTouchedPhone(true)}
-              error={phoneError}
-              autoComplete="tel"
-            />
+            {phoneLabel}
+          </label>
 
-            {(error || localError) && (
-              <div
-                style={{
-                  borderRadius: 14,
-                  border: "1px solid #fecaca",
-                  background: "#fef2f2",
-                  color: "#b91c1c",
-                  padding: "12px 14px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  lineHeight: 1.5,
-                }}
-              >
-                {error || localError}
-              </div>
-            )}
-
-            <Button type="submit" fullWidth loading={loading} size="lg">
-              Send OTP
-            </Button>
-
-            {onBack && (
-              <Button
-                type="button"
-                variant="outline"
-                fullWidth
-                onClick={onBack}
-              >
-                Back
-              </Button>
-            )}
-          </div>
-        </form>
-      ) : (
-        <form onSubmit={handleVerifyOtp}>
-          <div
+          <input
+            id="otp-phone"
+            name="phone"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={phone}
+            onChange={handlePhoneChange}
+            onBlur={() => setTouchedPhone(true)}
+            placeholder={phonePlaceholder}
             style={{
-              display: "grid",
-              gap: 18,
+              width: "100%",
+              height: 48,
+              borderRadius: 14,
+              border: `1px solid ${phoneError ? "#ef4444" : theme.inputBorder}`,
+              background: theme.inputBg,
+              color: theme.text,
+              padding: "0 14px",
+              outline: "none",
+              fontSize: 14,
+              boxSizing: "border-box",
             }}
-          >
+          />
+
+          {phoneError ? (
             <div
               style={{
-                padding: 14,
-                borderRadius: 14,
-                border: "1px solid #e2e8f0",
-                background: "#f8fafc",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
+                marginTop: 8,
+                fontSize: 12,
+                color: "#ef4444",
               }}
             >
-              <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  OTP sent to
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                  }}
-                >
-                  +91 {phone}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleEditPhone}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  color: "#2563eb",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Change
-              </button>
+              {phoneError}
             </div>
+          ) : null}
+        </div>
 
+        {!otpSent ? (
+          <button
+            type="button"
+            onClick={handleSendOtp}
+            disabled={sendOtpLoading}
+            style={{
+              height: 48,
+              borderRadius: 14,
+              border: "none",
+              background: sendOtpLoading ? "rgba(37,99,235,0.55)" : theme.primary,
+              color: "#ffffff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: sendOtpLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {sendOtpLoading ? "Sending OTP..." : "Send OTP"}
+          </button>
+        ) : (
+          <>
             <div>
               <div
                 style={{
                   marginBottom: 10,
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "#0f172a",
+                  color: theme.text,
                 }}
               >
                 Enter OTP
@@ -366,51 +381,63 @@ export default function OtpLoginForm({
                 {otpValues.map((digit, index) => (
                   <input
                     key={index}
-                    ref={(element) => {
-                      otpRefs.current[index] = element;
+                    ref={(node) => {
+                      otpRefs.current[index] = node;
                     }}
                     type="text"
                     inputMode="numeric"
-                    autoComplete={index === 0 ? "one-time-code" : "off"}
-                    value={digit}
                     maxLength={1}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    value={digit}
+                    onChange={(event) => handleOtpChange(index, event)}
+                    onKeyDown={(event) => handleOtpKeyDown(index, event)}
                     onPaste={handleOtpPaste}
                     style={{
+                      width: "100%",
                       height: 52,
-                      borderRadius: 14,
-                      border: otpError
-                        ? "1.5px solid #ef4444"
-                        : "1px solid #cbd5e1",
-                      background: "#ffffff",
                       textAlign: "center",
+                      borderRadius: 14,
+                      border: `1px solid ${otpError ? "#ef4444" : theme.inputBorder}`,
+                      background: theme.inputBg,
+                      color: theme.text,
+                      outline: "none",
                       fontSize: 20,
                       fontWeight: 700,
-                      color: "#0f172a",
-                      outline: "none",
-                      boxShadow: otpError
-                        ? "0 0 0 3px rgba(239, 68, 68, 0.10)"
-                        : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                      boxSizing: "border-box",
                     }}
                   />
                 ))}
               </div>
 
-              {(error || otpError) && (
+              {otpError ? (
                 <div
                   style={{
-                    marginTop: 10,
+                    marginTop: 8,
                     fontSize: 12,
-                    lineHeight: 1.5,
-                    color: "#dc2626",
-                    fontWeight: 600,
+                    color: "#ef4444",
                   }}
                 >
-                  {error || otpError}
+                  {otpError}
                 </div>
-              )}
+              ) : null}
             </div>
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={loading}
+              style={{
+                height: 48,
+                borderRadius: 14,
+                border: "none",
+                background: loading ? "rgba(37,99,235,0.55)" : theme.primary,
+                color: "#ffffff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: loading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Verifying..." : "Verify OTP"}
+            </button>
 
             <div
               style={{
@@ -421,40 +448,94 @@ export default function OtpLoginForm({
                 flexWrap: "wrap",
               }}
             >
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "#64748b",
-                  lineHeight: 1.5,
-                }}
-              >
-                Didn&apos;t receive the code?
-              </div>
-
               <button
                 type="button"
-                disabled={cooldown > 0 || loading}
-                onClick={() => handleSendOtp()}
+                onClick={handleResendOtp}
+                disabled={cooldown > 0}
                 style={{
                   border: "none",
                   background: "transparent",
                   padding: 0,
-                  color: cooldown > 0 ? "#94a3b8" : "#2563eb",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: cooldown > 0 || loading ? "not-allowed" : "pointer",
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: cooldown > 0 ? theme.subText : theme.primary,
+                  cursor: cooldown > 0 ? "not-allowed" : "pointer",
                 }}
               >
-                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend OTP"}
+                {cooldown > 0 ? `Resend OTP in ${cooldown}s` : "Resend OTP"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtpValues(Array.from({ length: otpLength }, () => ""));
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: theme.subText,
+                  cursor: "pointer",
+                }}
+              >
+                Change mobile number
               </button>
             </div>
+          </>
+        )}
 
-            <Button type="submit" fullWidth loading={loading} size="lg">
-              Verify OTP
-            </Button>
+        {errorMessage ? (
+          <div
+            style={{
+              borderRadius: 14,
+              padding: "12px 14px",
+              background: theme.dangerBg,
+              color: theme.dangerText,
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {errorMessage}
           </div>
-        </form>
-      )}
-    </Card>
+        ) : null}
+
+        {successMessage ? (
+          <div
+            style={{
+              borderRadius: 14,
+              padding: "12px 14px",
+              background: theme.successBg,
+              color: theme.successText,
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {successMessage}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onBackToPasswordLogin}
+          style={{
+            height: 46,
+            borderRadius: 14,
+            border: `1px solid ${theme.border}`,
+            background: theme.cardSoft,
+            color: theme.text,
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Back to password login
+        </button>
+      </div>
+    </div>
   );
 }

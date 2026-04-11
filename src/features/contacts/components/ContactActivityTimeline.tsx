@@ -1,55 +1,159 @@
-import React from "react";
-import { getTheme } from "../../theme";
-import type { ThemeMode } from "../../theme";
+type ThemeMode = "light" | "dark";
 
 export type ContactActivityItem = {
-  id: string;
+  id: string | number;
   type:
     | "call"
-    | "note"
     | "email"
-    | "meeting"
-    | "task"
     | "whatsapp"
-    | "status"
-    | "contact_created"
-    | "contact_updated";
+    | "meeting"
+    | "note"
+    | "task"
+    | "status_change"
+    | "tag_update"
+    | string;
   title: string;
   description?: string;
   createdAt: string;
   createdBy?: string;
-  status?: string;
-  meta?: string;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+  important?: boolean;
 };
 
 type ContactActivityTimelineProps = {
-  mode: ThemeMode;
-  activities: ContactActivityItem[];
+  mode?: ThemeMode;
   title?: string;
-  maxHeight?: number | string;
+  activities?: ContactActivityItem[];
+  loading?: boolean;
+  onAddNote?: () => void;
   onActivityClick?: (activity: ContactActivityItem) => void;
 };
 
+function getActivityTheme(type: string, mode: ThemeMode) {
+  const value = type.toLowerCase();
+
+  if (value === "call") {
+    return {
+      icon: "📞",
+      bg: mode === "dark" ? "rgba(59,130,246,0.16)" : "rgba(59,130,246,0.10)",
+      text: mode === "dark" ? "#93c5fd" : "#1d4ed8",
+      border:
+        mode === "dark" ? "rgba(59,130,246,0.28)" : "rgba(59,130,246,0.18)",
+    };
+  }
+
+  if (value === "email") {
+    return {
+      icon: "✉️",
+      bg:
+        mode === "dark" ? "rgba(168,85,247,0.16)" : "rgba(168,85,247,0.10)",
+      text: mode === "dark" ? "#d8b4fe" : "#7e22ce",
+      border:
+        mode === "dark" ? "rgba(168,85,247,0.28)" : "rgba(168,85,247,0.18)",
+    };
+  }
+
+  if (value === "whatsapp") {
+    return {
+      icon: "💬",
+      bg:
+        mode === "dark" ? "rgba(34,197,94,0.16)" : "rgba(34,197,94,0.10)",
+      text: mode === "dark" ? "#86efac" : "#15803d",
+      border:
+        mode === "dark" ? "rgba(34,197,94,0.28)" : "rgba(34,197,94,0.18)",
+    };
+  }
+
+  if (value === "meeting") {
+    return {
+      icon: "📅",
+      bg:
+        mode === "dark" ? "rgba(245,158,11,0.16)" : "rgba(245,158,11,0.10)",
+      text: mode === "dark" ? "#fcd34d" : "#b45309",
+      border:
+        mode === "dark" ? "rgba(245,158,11,0.28)" : "rgba(245,158,11,0.18)",
+    };
+  }
+
+  if (value === "note") {
+    return {
+      icon: "📝",
+      bg:
+        mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.10)",
+      text: mode === "dark" ? "#cbd5e1" : "#475569",
+      border:
+        mode === "dark"
+          ? "rgba(148,163,184,0.28)"
+          : "rgba(148,163,184,0.18)",
+    };
+  }
+
+  if (value === "task") {
+    return {
+      icon: "✅",
+      bg:
+        mode === "dark" ? "rgba(14,165,233,0.16)" : "rgba(14,165,233,0.10)",
+      text: mode === "dark" ? "#7dd3fc" : "#0369a1",
+      border:
+        mode === "dark" ? "rgba(14,165,233,0.28)" : "rgba(14,165,233,0.18)",
+    };
+  }
+
+  if (value === "status_change") {
+    return {
+      icon: "🔁",
+      bg:
+        mode === "dark" ? "rgba(244,114,182,0.16)" : "rgba(244,114,182,0.10)",
+      text: mode === "dark" ? "#f9a8d4" : "#be185d",
+      border:
+        mode === "dark" ? "rgba(244,114,182,0.28)" : "rgba(244,114,182,0.18)",
+    };
+  }
+
+  return {
+    icon: "•",
+    bg: mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.10)",
+    text: mode === "dark" ? "#cbd5e1" : "#475569",
+    border:
+      mode === "dark"
+        ? "rgba(148,163,184,0.28)"
+        : "rgba(148,163,184,0.18)",
+  };
+}
+
 export default function ContactActivityTimeline({
-  mode,
-  activities,
+  mode = "light",
   title = "Activity Timeline",
-  maxHeight = 560,
+  activities = [],
+  loading = false,
+  onAddNote,
   onActivityClick,
 }: ContactActivityTimelineProps) {
-  const theme = getTheme(mode);
+  const isDark = mode === "dark";
 
-  const sortedActivities = [...activities].sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  const theme = {
+    cardBg: isDark ? "#0f172a" : "#ffffff",
+    cardSoft: isDark ? "#111827" : "#f8fafc",
+    pageBg: isDark ? "#020617" : "#f8fafc",
+    text: isDark ? "#e5e7eb" : "#0f172a",
+    subText: isDark ? "#94a3b8" : "#64748b",
+    mutedText: isDark ? "#64748b" : "#94a3b8",
+    border: isDark ? "rgba(148,163,184,0.16)" : "rgba(15,23,42,0.10)",
+    borderStrong: isDark ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.14)",
+    primary: "#2563eb",
+    primarySoft: isDark ? "rgba(37,99,235,0.16)" : "rgba(37,99,235,0.10)",
+    shadow: isDark
+      ? "0 20px 40px rgba(0,0,0,0.28)"
+      : "0 16px 32px rgba(15,23,42,0.08)",
+  };
 
   return (
     <section
       style={{
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
-        borderRadius: 20,
+        borderRadius: 24,
+        boxShadow: theme.shadow,
         overflow: "hidden",
       }}
     >
@@ -68,9 +172,10 @@ export default function ContactActivityTimeline({
           <h3
             style={{
               margin: 0,
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: 800,
               color: theme.text,
+              letterSpacing: "-0.02em",
             }}
           >
             {title}
@@ -80,101 +185,207 @@ export default function ContactActivityTimeline({
               margin: "6px 0 0",
               fontSize: 13,
               color: theme.subText,
+              lineHeight: 1.6,
             }}
           >
-            Contact interactions, updates, and follow-up history.
+            Every interaction, update, and note in one chronological view.
           </p>
         </div>
 
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: 999,
-            background: theme.cardBgSoft,
-            border: `1px solid ${theme.border}`,
-            fontSize: 12,
-            fontWeight: 700,
-            color: theme.text,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {sortedActivities.length} Activities
-        </div>
+        {onAddNote ? (
+          <button
+            type="button"
+            onClick={onAddNote}
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 12,
+              border: "none",
+              background: theme.primary,
+              color: "#ffffff",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            + Add Note
+          </button>
+        ) : null}
       </div>
 
       <div
         style={{
           padding: 20,
-          maxHeight,
-          overflowY: "auto",
         }}
       >
-        {sortedActivities.length === 0 ? (
-          <EmptyState mode={mode} />
-        ) : (
-          <div style={{ display: "grid", gap: 18 }}>
-            {sortedActivities.map((activity, index) => {
-              const icon = getActivityIcon(activity.type);
-              const color = getActivityAccent(activity.type);
-
-              return (
+        {loading ? (
+          <div
+            style={{
+              display: "grid",
+              gap: 14,
+            }}
+          >
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "52px 1fr",
+                  gap: 14,
+                  alignItems: "start",
+                }}
+              >
                 <div
-                  key={activity.id}
-                  onClick={() => onActivityClick?.(activity)}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "40px 1fr",
-                    gap: 14,
-                    cursor: onActivityClick ? "pointer" : "default",
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    background: theme.borderStrong,
+                  }}
+                />
+                <div
+                  style={{
+                    borderRadius: 18,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.cardSoft,
+                    padding: 14,
                   }}
                 >
                   <div
                     style={{
+                      width: "38%",
+                      height: 14,
+                      borderRadius: 999,
+                      background: theme.borderStrong,
+                      marginBottom: 12,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: "72%",
+                      height: 12,
+                      borderRadius: 999,
+                      background: theme.border,
+                      marginBottom: 10,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: "54%",
+                      height: 12,
+                      borderRadius: 999,
+                      background: theme.border,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : activities.length === 0 ? (
+          <div
+            style={{
+              border: `1px dashed ${theme.borderStrong}`,
+              background: theme.cardSoft,
+              borderRadius: 20,
+              padding: 28,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: theme.text,
+                marginBottom: 8,
+              }}
+            >
+              No activity yet
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                lineHeight: 1.7,
+                color: theme.subText,
+                maxWidth: 420,
+                margin: "0 auto",
+              }}
+            >
+              Calls, notes, messages, and status updates will appear here as the
+              contact journey grows.
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              position: "relative",
+              display: "grid",
+              gap: 14,
+            }}
+          >
+            {activities.map((activity, index) => {
+              const activityTheme = getActivityTheme(activity.type, mode);
+
+              return (
+                <div
+                  key={String(activity.id)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "52px 1fr",
+                    gap: 14,
+                    alignItems: "start",
+                    position: "relative",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "relative",
                       display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <div
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 999,
-                        background: color.bg,
-                        border: `1px solid ${color.border}`,
-                        color: color.text,
+                        width: 42,
+                        height: 42,
+                        borderRadius: 14,
+                        border: `1px solid ${activityTheme.border}`,
+                        background: activityTheme.bg,
+                        color: activityTheme.text,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: 800,
-                        flexShrink: 0,
+                        zIndex: 1,
                       }}
                     >
-                      {icon}
+                      {activityTheme.icon}
                     </div>
 
-                    {index !== sortedActivities.length - 1 ? (
+                    {index < activities.length - 1 ? (
                       <div
                         style={{
+                          position: "absolute",
+                          top: 42,
+                          bottom: -14,
                           width: 2,
-                          flex: 1,
-                          minHeight: 36,
-                          marginTop: 8,
-                          borderRadius: 999,
                           background: theme.border,
                         }}
                       />
                     ) : null}
                   </div>
 
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => onActivityClick?.(activity)}
                     style={{
-                      background: theme.cardBgSoft,
-                      border: `1px solid ${theme.border}`,
+                      width: "100%",
+                      textAlign: "left",
                       borderRadius: 18,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.cardSoft,
                       padding: 16,
-                      transition: "all 0.2s ease",
+                      cursor: onActivityClick ? "pointer" : "default",
                     }}
                   >
                     <div
@@ -184,7 +395,7 @@ export default function ContactActivityTimeline({
                         justifyContent: "space-between",
                         gap: 12,
                         flexWrap: "wrap",
-                        marginBottom: 10,
+                        marginBottom: 8,
                       }}
                     >
                       <div style={{ minWidth: 0 }}>
@@ -194,120 +405,113 @@ export default function ContactActivityTimeline({
                             alignItems: "center",
                             gap: 8,
                             flexWrap: "wrap",
-                            marginBottom: 6,
                           }}
                         >
-                          <span
+                          <div
                             style={{
                               fontSize: 15,
                               fontWeight: 800,
                               color: theme.text,
+                              lineHeight: 1.4,
                             }}
                           >
                             {activity.title}
-                          </span>
+                          </div>
 
-                          <span
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: 999,
-                              background: color.bg,
-                              border: `1px solid ${color.border}`,
-                              color: color.text,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              textTransform: "capitalize",
-                              letterSpacing: 0.3,
-                            }}
-                          >
-                            {formatTypeLabel(activity.type)}
-                          </span>
-
-                          {activity.status ? (
+                          {activity.important ? (
                             <span
                               style={{
-                                padding: "4px 8px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                height: 24,
+                                padding: "0 8px",
                                 borderRadius: 999,
-                                background: theme.sectionBg,
-                                border: `1px solid ${theme.border}`,
-                                color: theme.subText,
+                                background: theme.primarySoft,
+                                color: theme.primary,
                                 fontSize: 11,
-                                fontWeight: 700,
+                                fontWeight: 800,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
                               }}
                             >
-                              {activity.status}
+                              Important
                             </span>
                           ) : null}
                         </div>
 
-                        {activity.description ? (
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: 13,
-                              lineHeight: 1.7,
-                              color: theme.subText,
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {activity.description}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div
-                        style={{
-                          textAlign: "right",
-                          minWidth: 140,
-                        }}
-                      >
                         <div
                           style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: theme.text,
-                          }}
-                        >
-                          {formatDateTime(activity.createdAt)}
-                        </div>
-                        <div
-                          style={{
-                            marginTop: 4,
+                            marginTop: 6,
                             fontSize: 12,
                             color: theme.subText,
+                            lineHeight: 1.6,
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 10,
                           }}
                         >
-                          {getRelativeTime(activity.createdAt)}
+                          <span>{activity.createdAt}</span>
+                          {activity.createdBy ? (
+                            <span>• By {activity.createdBy}</span>
+                          ) : null}
+                          <span>• {formatActivityType(activity.type)}</span>
                         </div>
                       </div>
                     </div>
 
-                    {(activity.createdBy || activity.meta) && (
+                    {activity.description ? (
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          flexWrap: "wrap",
-                          paddingTop: 12,
-                          marginTop: 12,
-                          borderTop: `1px dashed ${theme.border}`,
+                          fontSize: 14,
+                          color: theme.text,
+                          lineHeight: 1.8,
+                          whiteSpace: "pre-wrap",
+                          marginBottom: activity.metadata &&
+                            Object.keys(activity.metadata).length > 0
+                            ? 12
+                            : 0,
                         }}
                       >
-                        {activity.createdBy ? (
-                          <MetaChip
-                            label={`By ${activity.createdBy}`}
-                            mode={mode}
-                          />
-                        ) : null}
-
-                        {activity.meta ? (
-                          <MetaChip label={activity.meta} mode={mode} />
-                        ) : null}
+                        {activity.description}
                       </div>
-                    )}
-                  </div>
+                    ) : null}
+
+                    {activity.metadata &&
+                    Object.keys(activity.metadata).filter(
+                      (key) => activity.metadata?.[key] !== undefined &&
+                        activity.metadata?.[key] !== null &&
+                        String(activity.metadata?.[key]).trim() !== "",
+                    ).length > 0 ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(160px, 1fr))",
+                          gap: 10,
+                          marginTop: 10,
+                        }}
+                      >
+                        {Object.entries(activity.metadata).map(([key, value]) => {
+                          if (
+                            value === undefined ||
+                            value === null ||
+                            String(value).trim() === ""
+                          ) {
+                            return null;
+                          }
+
+                          return (
+                            <MetadataTile
+                              key={key}
+                              label={formatMetadataKey(key)}
+                              value={String(value)}
+                              theme={theme}
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </button>
                 </div>
               );
             })}
@@ -318,236 +522,65 @@ export default function ContactActivityTimeline({
   );
 }
 
-function EmptyState({ mode }: { mode: ThemeMode }) {
-  const theme = getTheme(mode);
-
+function MetadataTile({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: {
+    pageBg: string;
+    text: string;
+    subText: string;
+    border: string;
+  };
+}) {
   return (
     <div
       style={{
-        minHeight: 260,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: 24,
+        borderRadius: 14,
+        border: `1px solid ${theme.border}`,
+        background: theme.pageBg,
+        padding: 12,
       }}
     >
-      <div>
-        <div
-          style={{
-            width: 68,
-            height: 68,
-            margin: "0 auto 14px",
-            borderRadius: 999,
-            background: theme.cardBgSoft,
-            border: `1px solid ${theme.border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 28,
-          }}
-        >
-          🕘
-        </div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: theme.subText,
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </div>
 
-        <h4
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: theme.text,
-          }}
-        >
-          No activity yet
-        </h4>
-
-        <p
-          style={{
-            margin: "8px auto 0",
-            maxWidth: 420,
-            fontSize: 13,
-            lineHeight: 1.7,
-            color: theme.subText,
-          }}
-        >
-          Once calls, notes, meetings, emails, or status updates are added,
-          they will appear here in a clean chronological timeline.
-        </p>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: theme.text,
+          lineHeight: 1.5,
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
       </div>
     </div>
   );
 }
 
-function MetaChip({
-  label,
-  mode,
-}: {
-  label: string;
-  mode: ThemeMode;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: theme.sectionBg,
-        border: `1px solid ${theme.border}`,
-        color: theme.subText,
-        fontSize: 12,
-        fontWeight: 700,
-      }}
-    >
-      {label}
-    </span>
-  );
+function formatActivityType(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatTypeLabel(type: ContactActivityItem["type"]) {
-  switch (type) {
-    case "call":
-      return "Call";
-    case "note":
-      return "Note";
-    case "email":
-      return "Email";
-    case "meeting":
-      return "Meeting";
-    case "task":
-      return "Task";
-    case "whatsapp":
-      return "WhatsApp";
-    case "status":
-      return "Status";
-    case "contact_created":
-      return "Created";
-    case "contact_updated":
-      return "Updated";
-    default:
-      return "Activity";
-  }
-}
-
-function getActivityIcon(type: ContactActivityItem["type"]) {
-  switch (type) {
-    case "call":
-      return "📞";
-    case "note":
-      return "📝";
-    case "email":
-      return "✉️";
-    case "meeting":
-      return "📅";
-    case "task":
-      return "✅";
-    case "whatsapp":
-      return "💬";
-    case "status":
-      return "🔄";
-    case "contact_created":
-      return "✨";
-    case "contact_updated":
-      return "🛠️";
-    default:
-      return "•";
-  }
-}
-
-function getActivityAccent(type: ContactActivityItem["type"]) {
-  switch (type) {
-    case "call":
-      return {
-        bg: "rgba(59,130,246,0.12)",
-        border: "rgba(59,130,246,0.28)",
-        text: "#2563eb",
-      };
-    case "note":
-      return {
-        bg: "rgba(168,85,247,0.12)",
-        border: "rgba(168,85,247,0.28)",
-        text: "#9333ea",
-      };
-    case "email":
-      return {
-        bg: "rgba(14,165,233,0.12)",
-        border: "rgba(14,165,233,0.28)",
-        text: "#0284c7",
-      };
-    case "meeting":
-      return {
-        bg: "rgba(245,158,11,0.12)",
-        border: "rgba(245,158,11,0.28)",
-        text: "#d97706",
-      };
-    case "task":
-      return {
-        bg: "rgba(34,197,94,0.12)",
-        border: "rgba(34,197,94,0.28)",
-        text: "#16a34a",
-      };
-    case "whatsapp":
-      return {
-        bg: "rgba(16,185,129,0.12)",
-        border: "rgba(16,185,129,0.28)",
-        text: "#059669",
-      };
-    case "status":
-      return {
-        bg: "rgba(244,114,182,0.12)",
-        border: "rgba(244,114,182,0.28)",
-        text: "#db2777",
-      };
-    case "contact_created":
-      return {
-        bg: "rgba(99,102,241,0.12)",
-        border: "rgba(99,102,241,0.28)",
-        text: "#4f46e5",
-      };
-    case "contact_updated":
-      return {
-        bg: "rgba(148,163,184,0.14)",
-        border: "rgba(148,163,184,0.28)",
-        text: "#475569",
-      };
-    default:
-      return {
-        bg: "rgba(148,163,184,0.14)",
-        border: "rgba(148,163,184,0.28)",
-        text: "#475569",
-      };
-  }
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getRelativeTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  const now = new Date().getTime();
-  const diffMs = now - date.getTime();
-
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < minute) return "Just now";
-  if (diffMs < hour) return `${Math.floor(diffMs / minute)} min ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)} hr ago`;
-  if (diffMs < day * 7) return `${Math.floor(diffMs / day)} day ago`;
-  return `${Math.floor(diffMs / (day * 7))} week ago`;
+function formatMetadataKey(value: string) {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }

@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+// src/pages/settings/BillingSubscriptionPage.tsx
+
+import React, { useEffect, useMemo, useState } from "react";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
 type BillingSubscriptionPageProps = {
   mode: ThemeMode;
+  onToggleTheme?: () => void;
 };
 
 type PlanName = "Starter" | "Growth" | "Pro" | "Enterprise";
@@ -16,7 +19,6 @@ type SubscriptionStatus =
   | "Expired"
   | "Suspended";
 type InvoiceStatus = "Paid" | "Pending" | "Failed" | "Refunded" | "Overdue";
-
 type BillingProvider = "Razorpay" | "Stripe";
 
 type PlanFeature = {
@@ -306,10 +308,14 @@ function formatDate(dateString: string) {
 }
 
 function getSafeBillingState(): BillingState {
+  if (typeof window === "undefined") return DEFAULT_STATE;
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
+
     const parsed = JSON.parse(raw) as Partial<BillingState>;
+
     return {
       ...DEFAULT_STATE,
       ...parsed,
@@ -391,7 +397,7 @@ function getStatusColors(
   };
 
   return (
-    map[status] || {
+    map[status] ?? {
       bg: dark ? "rgba(107,114,128,0.18)" : "rgba(107,114,128,0.12)",
       text: dark ? "#d1d5db" : "#374151",
       border: dark ? "rgba(107,114,128,0.35)" : "rgba(107,114,128,0.25)",
@@ -405,19 +411,17 @@ function useViewport() {
   );
 
   useEffect(() => {
-    function onResize() {
-      setWidth(window.innerWidth);
-    }
-
+    const onResize = () => setWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const isMobile = width < 768;
-  const isTablet = width >= 768 && width < 1100;
-  const isDesktop = width >= 1100;
-
-  return { width, isMobile, isTablet, isDesktop };
+  return {
+    width,
+    isMobile: width < 768,
+    isTablet: width >= 768 && width < 1100,
+    isDesktop: width >= 1100,
+  };
 }
 
 export default function BillingSubscriptionPage({
@@ -431,14 +435,16 @@ export default function BillingSubscriptionPage({
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<PlanName>("Pro");
-  const [selectedProvider, setSelectedProvider] = useState<BillingProvider>("Razorpay");
-  const [toast, setToast] = useState<string>("");
+  const [selectedProvider, setSelectedProvider] =
+    useState<BillingProvider>("Razorpay");
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     setBillingData(getSafeBillingState());
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(billingData));
   }, [billingData]);
 
@@ -449,12 +455,12 @@ export default function BillingSubscriptionPage({
   }, [toast]);
 
   const activePlan = useMemo(
-    () => PLANS.find((plan) => plan.name === billingData.currentPlan) || PLANS[1],
+    () => PLANS.find((plan) => plan.name === billingData.currentPlan) ?? PLANS[1],
     [billingData.currentPlan]
   );
 
   const selectedUpgradePlanData = useMemo(
-    () => PLANS.find((plan) => plan.name === selectedUpgradePlan) || PLANS[2],
+    () => PLANS.find((plan) => plan.name === selectedUpgradePlan) ?? PLANS[2],
     [selectedUpgradePlan]
   );
 
@@ -469,8 +475,8 @@ export default function BillingSubscriptionPage({
         ? 0
         : activePlan.monthlyPrice
       : activePlan.name === "Enterprise"
-      ? 0
-      : activePlan.yearlyPrice;
+        ? 0
+        : activePlan.yearlyPrice;
 
   const seatPrice =
     billingData.billingCycle === "Monthly"
@@ -494,8 +500,8 @@ export default function BillingSubscriptionPage({
     billingData.couponCode.trim().toUpperCase() === "MEI100"
       ? 100
       : billingData.couponCode.trim().toUpperCase() === "MEIPRO500"
-      ? 500
-      : 0;
+        ? 500
+        : 0;
 
   const taxableAmount = Math.max(planAmount + seatsCost + addOnCost - discount, 0);
   const gst = Math.round(taxableAmount * 0.18);
@@ -522,10 +528,18 @@ export default function BillingSubscriptionPage({
   const statusTone = getStatusColors(billingData.subscriptionStatus, mode);
 
   const pagePadding = isMobile ? 14 : isTablet ? 18 : 24;
-  const summaryGridColumns = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))";
+  const summaryGridColumns = isMobile
+    ? "1fr"
+    : isTablet
+      ? "repeat(2, minmax(0, 1fr))"
+      : "repeat(3, minmax(0, 1fr))";
   const mainTwoColGrid = isMobile ? "1fr" : isTablet ? "1fr" : "1.6fr 1fr";
   const bottomGrid = isMobile ? "1fr" : isTablet ? "1fr" : "1.55fr 1fr";
-  const planGridColumns = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(4, minmax(0, 1fr))";
+  const planGridColumns = isMobile
+    ? "1fr"
+    : isTablet
+      ? "repeat(2, minmax(0, 1fr))"
+      : "repeat(4, minmax(0, 1fr))";
 
   const cardStyle: React.CSSProperties = {
     background: theme.cardBg,
@@ -548,7 +562,6 @@ export default function BillingSubscriptionPage({
   };
 
   const buttonBase: React.CSSProperties = {
-    border: "none",
     borderRadius: 12,
     padding: isMobile ? "10px 12px" : "10px 16px",
     fontSize: 14,
@@ -562,6 +575,7 @@ export default function BillingSubscriptionPage({
     ...buttonBase,
     background: theme.primary,
     color: theme.inverseText,
+    border: "none",
   };
 
   const secondaryButton: React.CSSProperties = {
@@ -689,7 +703,10 @@ export default function BillingSubscriptionPage({
       invoices: [
         {
           id: `inv_${Date.now()}`,
-          invoiceNo: `MEI-2026-${String(prev.invoices.length + 13).padStart(4, "0")}`,
+          invoiceNo: `MEI-2026-${String(prev.invoices.length + 13).padStart(
+            4,
+            "0"
+          )}`,
           date: new Date().toISOString().slice(0, 10),
           amount:
             prev.billingCycle === "Monthly"
@@ -792,7 +809,9 @@ This is a UI-side GST invoice preview export.
       billingCycle: billingData.billingCycle,
       plan: billingData.currentPlan,
       seats: billingData.teamSeats,
-      addOns: billingData.addOns.filter((item) => item.selected).map((item) => item.key),
+      addOns: billingData.addOns
+        .filter((item) => item.selected)
+        .map((item) => item.key),
       billingEmail: billingData.billingAddress.billingEmail,
       gstin: billingData.billingAddress.gstin,
       description: "MEI CRM subscription renewal",
@@ -949,7 +968,10 @@ This is a UI-side GST invoice preview export.
               width: isMobile ? "100%" : "auto",
             }}
           >
-            <button style={secondaryButton} onClick={() => setSelectedInvoice(failedInvoice)}>
+            <button
+              style={secondaryButton}
+              onClick={() => setSelectedInvoice(failedInvoice)}
+            >
               View Invoice
             </button>
             <button style={primaryButton} onClick={retryFailedPayment}>
@@ -986,7 +1008,8 @@ This is a UI-side GST invoice preview export.
           </div>
           <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
             Your current plan is <strong>{billingData.currentPlan}</strong>. Next
-            renewal is scheduled for <strong>{formatDate(billingData.renewalDate)}</strong>.
+            renewal is scheduled for{" "}
+            <strong>{formatDate(billingData.renewalDate)}</strong>.
           </div>
         </div>
 
@@ -1075,12 +1098,11 @@ This is a UI-side GST invoice preview export.
               letterSpacing: -0.3,
               color: theme.text,
               marginBottom: 10,
-              wordBreak: "break-word",
             }}
           >
             {formatCurrency(total)}
           </div>
-          <div style={{ fontSize: 14, color: theme.subText, marginBottom: 8, lineHeight: 1.6 }}>
+          <div style={{ fontSize: 14, color: theme.subText, marginBottom: 8 }}>
             Includes plan + seats + add-ons + GST
           </div>
           <div style={{ fontSize: 14, color: theme.subText }}>
@@ -1101,8 +1123,6 @@ This is a UI-side GST invoice preview export.
               fontWeight: 800,
               color: theme.text,
               marginBottom: 8,
-              lineHeight: 1.4,
-              wordBreak: "break-word",
             }}
           >
             {billingData.paymentMethodLabel}
@@ -1113,7 +1133,6 @@ This is a UI-side GST invoice preview export.
           <div style={{ fontSize: 14, color: theme.subText, marginBottom: 12 }}>
             Gateway: <strong style={{ color: theme.text }}>{billingData.provider}</strong>
           </div>
-
           <label
             style={{
               display: "flex",
@@ -1205,6 +1224,7 @@ This is a UI-side GST invoice preview export.
                     billingData.billingCycle === "Monthly"
                       ? theme.inverseText
                       : theme.text,
+                  border: "none",
                 }}
               >
                 Monthly
@@ -1223,6 +1243,7 @@ This is a UI-side GST invoice preview export.
                     billingData.billingCycle === "Yearly"
                       ? theme.inverseText
                       : theme.text,
+                  border: "none",
                 }}
               >
                 Yearly
@@ -1256,7 +1277,7 @@ This is a UI-side GST invoice preview export.
                     minWidth: 0,
                   }}
                 >
-                  {plan.recommended && (
+                  {plan.recommended ? (
                     <div
                       style={{
                         position: "absolute",
@@ -1272,7 +1293,7 @@ This is a UI-side GST invoice preview export.
                     >
                       Recommended
                     </div>
-                  )}
+                  ) : null}
 
                   <div
                     style={{
@@ -1307,17 +1328,12 @@ This is a UI-side GST invoice preview export.
                   >
                     {plan.name === "Enterprise"
                       ? "Custom quotation for advanced teams"
-                      : `per ${billingData.billingCycle === "Monthly" ? "month" : "year"}`}
+                      : `per ${
+                          billingData.billingCycle === "Monthly" ? "month" : "year"
+                        }`}
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                      marginBottom: 18,
-                    }}
-                  >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
                     {plan.features.map((feature) => (
                       <div
                         key={feature.label}
@@ -1341,18 +1357,18 @@ This is a UI-side GST invoice preview export.
                       isCurrent
                         ? secondaryButton
                         : plan.name === "Enterprise"
-                        ? secondaryButton
-                        : primaryButton
+                          ? secondaryButton
+                          : primaryButton
                     }
-                    onClick={() =>
-                      isCurrent ? undefined : openUpgradeModal(plan.name)
-                    }
+                    onClick={() => {
+                      if (!isCurrent) openUpgradeModal(plan.name);
+                    }}
                   >
                     {isCurrent
                       ? "Current Plan"
                       : plan.name === "Enterprise"
-                      ? "Contact Sales"
-                      : "Choose Plan"}
+                        ? "Contact Sales"
+                        : "Choose Plan"}
                   </button>
                 </div>
               );
@@ -1476,12 +1492,7 @@ This is a UI-side GST invoice preview export.
                   }}
                 >
                   <button
-                    style={{
-                      ...secondaryButton,
-                      width: 40,
-                      minWidth: 40,
-                      padding: "10px 0",
-                    }}
+                    style={{ ...secondaryButton, width: 40, minWidth: 40, padding: "10px 0" }}
                     onClick={() => adjustSeats("decrement")}
                   >
                     -
@@ -1497,12 +1508,7 @@ This is a UI-side GST invoice preview export.
                     {billingData.teamSeats}
                   </div>
                   <button
-                    style={{
-                      ...secondaryButton,
-                      width: 40,
-                      minWidth: 40,
-                      padding: "10px 0",
-                    }}
+                    style={{ ...secondaryButton, width: 40, minWidth: 40, padding: "10px 0" }}
                     onClick={() => adjustSeats("increment")}
                   >
                     +
@@ -1529,14 +1535,7 @@ This is a UI-side GST invoice preview export.
                     cursor: "pointer",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                      width: "100%",
-                    }}
-                  >
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", width: "100%" }}>
                     <input
                       type="checkbox"
                       checked={item.selected}
@@ -1644,6 +1643,7 @@ This is a UI-side GST invoice preview export.
               ) : (
                 filteredInvoices.map((invoice) => {
                   const invoiceTone = getStatusColors(invoice.status, mode);
+
                   return (
                     <div key={invoice.id} style={subtleCardStyle}>
                       <div
@@ -1693,22 +1693,16 @@ This is a UI-side GST invoice preview export.
                             {formatCurrency(invoice.total)}
                           </span>
                         </div>
-                        <div style={{ fontSize: 12, color: theme.subText, lineHeight: 1.5 }}>
+                        <div style={{ fontSize: 12, color: theme.subText }}>
                           Base {formatCurrency(invoice.amount)} + Tax {formatCurrency(invoice.tax)}
                         </div>
                       </div>
 
                       <div style={{ display: "grid", gap: 8 }}>
-                        <button
-                          style={secondaryButton}
-                          onClick={() => setSelectedInvoice(invoice)}
-                        >
+                        <button style={secondaryButton} onClick={() => setSelectedInvoice(invoice)}>
                           View
                         </button>
-                        <button
-                          style={secondaryButton}
-                          onClick={() => downloadInvoicePdf(invoice)}
-                        >
+                        <button style={secondaryButton} onClick={() => downloadInvoicePdf(invoice)}>
                           Download GST
                         </button>
                       </div>
@@ -1733,11 +1727,7 @@ This is a UI-side GST invoice preview export.
                   background: theme.cardBg,
                 }}
               >
-                <thead
-                  style={{
-                    background: theme.tableHeadBg ?? theme.sectionBg,
-                  }}
-                >
+                <thead style={{ background: theme.tableHeadBg ?? theme.sectionBg }}>
                   <tr>
                     <th style={tableCellStyle}>Invoice No</th>
                     <th style={tableCellStyle}>Date</th>
@@ -1746,7 +1736,6 @@ This is a UI-side GST invoice preview export.
                     <th style={tableCellStyle}>Action</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {filteredInvoices.length === 0 ? (
                     <tr>
@@ -1801,19 +1790,13 @@ This is a UI-side GST invoice preview export.
                           <td style={tableCellStyle}>
                             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                               <button
-                                style={{
-                                  ...secondaryButton,
-                                  width: "auto",
-                                }}
+                                style={{ ...secondaryButton, width: "auto" }}
                                 onClick={() => setSelectedInvoice(invoice)}
                               >
                                 View
                               </button>
                               <button
-                                style={{
-                                  ...secondaryButton,
-                                  width: "auto",
-                                }}
+                                style={{ ...secondaryButton, width: "auto" }}
                                 onClick={() => downloadInvoicePdf(invoice)}
                               >
                                 Download GST
@@ -1845,68 +1828,39 @@ This is a UI-side GST invoice preview export.
             </h2>
 
             <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
-                <span>Plan Amount</span>
-                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(planAmount)}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
-                <span>Extra Seats</span>
-                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(seatsCost)}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
-                <span>Add-ons</span>
-                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(addOnCost)}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
-                <span>Discount</span>
-                <span style={{ color: discount > 0 ? theme.success : theme.text, textAlign: "right" }}>
-                  - {formatCurrency(discount)}
-                </span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14, color: theme.subText }}>
-                <span>GST (18%)</span>
-                <span style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(gst)}</span>
-              </div>
-
-              <div
-                style={{
-                  height: 1,
-                  background: theme.borderSoft ?? theme.border,
-                  margin: "2px 0",
-                }}
+              <SummaryRow label="Plan Amount" value={formatCurrency(planAmount)} theme={theme} />
+              <SummaryRow
+                label={`Extra Seats (${extraSeatCount})`}
+                value={formatCurrency(seatsCost)}
+                theme={theme}
               />
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: theme.text,
-                }}
-              >
-                <span>Total</span>
-                <span style={{ textAlign: "right" }}>{formatCurrency(total)}</span>
-              </div>
+              <SummaryRow label="Add-ons" value={formatCurrency(addOnCost)} theme={theme} />
+              <SummaryRow
+                label="Discount"
+                value={`- ${formatCurrency(discount)}`}
+                theme={theme}
+              />
+              <SummaryRow label="Taxable Amount" value={formatCurrency(taxableAmount)} theme={theme} />
+              <SummaryRow label="GST (18%)" value={formatCurrency(gst)} theme={theme} />
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 13,
-                  color: theme.subText,
-                  marginBottom: 8,
-                  fontWeight: 600,
-                }}
-              >
-                Coupon Code
-              </label>
+            <div
+              style={{
+                ...subtleCardStyle,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+                fontSize: 16,
+                fontWeight: 800,
+                color: theme.text,
+              }}
+            >
+              <span>Total Payable</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <div
                 style={{
                   display: "flex",
@@ -1921,34 +1875,28 @@ This is a UI-side GST invoice preview export.
                   style={inputStyle}
                 />
                 <button
-                  style={{
-                    ...secondaryButton,
-                    width: isMobile ? "100%" : "auto",
-                  }}
+                  style={{ ...secondaryButton, width: isMobile ? "100%" : "auto" }}
                   onClick={applyCoupon}
                 >
                   Apply
                 </button>
               </div>
-            </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: theme.subText,
-                lineHeight: 1.6,
-              }}
-            >
-              Try <strong>MEI100</strong> or <strong>MEIPRO500</strong> for preview.
-            </div>
+              <div style={{ fontSize: 12, color: theme.subText, lineHeight: 1.6 }}>
+                Try <strong>MEI100</strong> or <strong>MEIPRO500</strong> for preview.
+              </div>
 
-            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              <button style={primaryButton} onClick={() => handleProviderCheckout("Razorpay")}>
-                Razorpay Checkout Ready
-              </button>
-              <button style={secondaryButton} onClick={() => handleProviderCheckout("Stripe")}>
-                Stripe Checkout Ready
-              </button>
+              <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
+                <button style={primaryButton} onClick={() => handleProviderCheckout("Razorpay")}>
+                  Razorpay Checkout Ready
+                </button>
+                <button
+                  style={secondaryButton}
+                  onClick={() => handleProviderCheckout("Stripe")}
+                >
+                  Stripe Checkout Ready
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1966,48 +1914,26 @@ This is a UI-side GST invoice preview export.
             </h2>
 
             <div style={{ display: "grid", gap: 12 }}>
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Company
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: theme.text, lineHeight: 1.5 }}>
-                  {billingData.billingAddress.companyName}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Billing Address
-                </div>
-                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.7 }}>
-                  {billingData.billingAddress.addressLine1},
-                  <br />
-                  {billingData.billingAddress.addressLine2},
-                  <br />
-                  {billingData.billingAddress.city}, {billingData.billingAddress.state} -{" "}
-                  {billingData.billingAddress.postalCode},
-                  <br />
-                  {billingData.billingAddress.country}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  GSTIN
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: theme.text, wordBreak: "break-word" }}>
-                  {billingData.billingAddress.gstin}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Billing Email
-                </div>
-                <div style={{ fontSize: 14, color: theme.text, wordBreak: "break-word" }}>
-                  {billingData.billingAddress.billingEmail}
-                </div>
-              </div>
+              <InfoBlock label="Company" value={billingData.billingAddress.companyName} theme={theme} subtleCardStyle={subtleCardStyle} />
+              <InfoBlock
+                label="Billing Address"
+                value={
+                  <>
+                    {billingData.billingAddress.addressLine1},
+                    <br />
+                    {billingData.billingAddress.addressLine2},
+                    <br />
+                    {billingData.billingAddress.city}, {billingData.billingAddress.state} -{" "}
+                    {billingData.billingAddress.postalCode},
+                    <br />
+                    {billingData.billingAddress.country}
+                  </>
+                }
+                theme={theme}
+                subtleCardStyle={subtleCardStyle}
+              />
+              <InfoBlock label="GSTIN" value={billingData.billingAddress.gstin} theme={theme} subtleCardStyle={subtleCardStyle} />
+              <InfoBlock label="Billing Email" value={billingData.billingAddress.billingEmail} theme={theme} subtleCardStyle={subtleCardStyle} />
 
               <button style={secondaryButton}>Edit Billing Details</button>
             </div>
@@ -2054,298 +1980,442 @@ This is a UI-side GST invoice preview export.
         </div>
       </div>
 
+      {selectedInvoice ? (
+        <InvoiceDrawer
+          invoice={selectedInvoice}
+          billingData={billingData}
+          mode={mode}
+          theme={theme}
+          onClose={() => setSelectedInvoice(null)}
+          onDownload={downloadInvoicePdf}
+        />
+      ) : null}
+
       {isUpgradeModalOpen ? (
+        <UpgradeModal
+          mode={mode}
+          theme={theme}
+          isMobile={isMobile}
+          selectedUpgradePlan={selectedUpgradePlan}
+          selectedUpgradePlanData={selectedUpgradePlanData}
+          selectedProvider={selectedProvider}
+          billingCycle={billingData.billingCycle}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          onChangePlan={setSelectedUpgradePlan}
+          onChangeProvider={setSelectedProvider}
+          onConfirm={confirmUpgradePlan}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        fontSize: 14,
+      }}
+    >
+      <span style={{ color: theme.subText }}>{label}</span>
+      <span style={{ color: theme.text, fontWeight: 700 }}>{value}</span>
+    </div>
+  );
+}
+
+function InfoBlock({
+  label,
+  value,
+  theme,
+  subtleCardStyle,
+}: {
+  label: string;
+  value: React.ReactNode;
+  theme: ReturnType<typeof getTheme>;
+  subtleCardStyle: React.CSSProperties;
+}) {
+  return (
+    <div style={subtleCardStyle}>
+      <div
+        style={{
+          fontSize: 12,
+          color: theme.subText,
+          marginBottom: 6,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 14,
+          color: theme.text,
+          lineHeight: 1.7,
+          wordBreak: "break-word",
+          fontWeight: label === "GSTIN" ? 700 : 500,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InvoiceDrawer({
+  invoice,
+  billingData,
+  mode,
+  theme,
+  onClose,
+  onDownload,
+}: {
+  invoice: Invoice;
+  billingData: BillingState;
+  mode: ThemeMode;
+  theme: ReturnType<typeof getTheme>;
+  onClose: () => void;
+  onDownload: (invoice: Invoice) => void;
+}) {
+  const invoiceTone = getStatusColors(invoice.status, mode);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 80,
+        background: "rgba(0,0,0,0.42)",
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: "min(100%, 520px)",
+          height: "100%",
+          background: theme.cardBg,
+          borderLeft: `1px solid ${theme.border}`,
+          padding: 20,
+          overflowY: "auto",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div
           style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.48)",
             display: "flex",
-            justifyContent: "center",
-            alignItems: isMobile ? "flex-end" : "center",
-            zIndex: 70,
-            padding: isMobile ? 0 : 20,
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 20,
           }}
         >
-          <div
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>
+              Invoice Details
+            </div>
+            <div style={{ fontSize: 13, color: theme.subText, marginTop: 4 }}>
+              {invoice.invoiceNo}
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
             style={{
-              width: "100%",
-              maxWidth: isMobile ? "100%" : 620,
-              maxHeight: isMobile ? "92vh" : "calc(100vh - 40px)",
-              overflowY: "auto",
-              background: theme.cardBg,
-              borderRadius: isMobile ? "20px 20px 0 0" : 24,
               border: `1px solid ${theme.border}`,
-              boxShadow:
-                mode === "dark"
-                  ? "0 18px 48px rgba(0,0,0,0.38)"
-                  : "0 18px 48px rgba(15,23,42,0.18)",
-              padding: isMobile ? 16 : 24,
+              background: theme.sectionBg,
+              color: theme.text,
+              borderRadius: 10,
+              padding: "10px 12px",
+              cursor: "pointer",
             }}
           >
-            <div
+            Close
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          <InfoBlock label="Status" value={
+            <span
               style={{
-                display: "flex",
-                flexDirection: isMobile ? "column" : "row",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: isMobile ? "stretch" : "flex-start",
-                marginBottom: 18,
+                display: "inline-flex",
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                background: invoiceTone.bg,
+                color: invoiceTone.text,
+                border: `1px solid ${invoiceTone.border}`,
               }}
             >
-              <div>
-                <h2 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 800, color: theme.text }}>
-                  Upgrade Subscription
-                </h2>
-                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText, lineHeight: 1.6 }}>
-                  Pick plan and payment provider. This modal is backend integration-ready.
-                </p>
-              </div>
-              <button style={secondaryButton} onClick={() => setIsUpgradeModalOpen(false)}>
-                Close
-              </button>
+              {invoice.status}
+            </span>
+          } theme={theme} subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }} />
+          <InfoBlock label="Plan" value={`${invoice.planName} · ${invoice.billingCycle}`} theme={theme} subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }} />
+          <InfoBlock label="Payment Provider" value={invoice.paidVia} theme={theme} subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }} />
+          <InfoBlock label="Date" value={formatDate(invoice.date)} theme={theme} subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }} />
+          <InfoBlock label="Company" value={billingData.billingAddress.companyName} theme={theme} subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }} />
+          <InfoBlock
+            label="Amount Breakdown"
+            value={
+              <>
+                Base: {formatCurrency(invoice.amount)}
+                <br />
+                GST: {formatCurrency(invoice.tax)}
+                <br />
+                Total: <strong>{formatCurrency(invoice.total)}</strong>
+              </>
+            }
+            theme={theme}
+            subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }}
+          />
+          <InfoBlock
+            label="Description"
+            value={invoice.description ?? "Subscription invoice"}
+            theme={theme}
+            subtleCardStyle={{ background: theme.sectionBg, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16 }}
+          />
+        </div>
+
+        <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
+          <button
+            onClick={() => onDownload(invoice)}
+            style={{
+              background: theme.primary,
+              color: theme.inverseText,
+              border: "none",
+              borderRadius: 12,
+              padding: "12px 14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Download GST Invoice
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UpgradeModal({
+  mode,
+  theme,
+  isMobile,
+  selectedUpgradePlan,
+  selectedUpgradePlanData,
+  selectedProvider,
+  billingCycle,
+  onClose,
+  onChangePlan,
+  onChangeProvider,
+  onConfirm,
+}: {
+  mode: ThemeMode;
+  theme: ReturnType<typeof getTheme>;
+  isMobile: boolean;
+  selectedUpgradePlan: PlanName;
+  selectedUpgradePlanData: Plan;
+  selectedProvider: BillingProvider;
+  billingCycle: BillingCycle;
+  onClose: () => void;
+  onChangePlan: (value: PlanName) => void;
+  onChangeProvider: (value: BillingProvider) => void;
+  onConfirm: () => void;
+}) {
+  const previewPrice =
+    billingCycle === "Monthly"
+      ? selectedUpgradePlanData.monthlyPrice
+      : selectedUpgradePlanData.yearlyPrice;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.48)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: isMobile ? "flex-end" : "center",
+        zIndex: 70,
+        padding: isMobile ? 0 : 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: "min(100%, 560px)",
+          background: theme.cardBg,
+          border: `1px solid ${theme.border}`,
+          borderRadius: isMobile ? "20px 20px 0 0" : 20,
+          padding: 20,
+          boxShadow:
+            mode === "dark"
+              ? "0 18px 40px rgba(0,0,0,0.36)"
+              : "0 18px 40px rgba(15,23,42,0.14)",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: theme.text }}>
+              Upgrade Plan
             </div>
+            <div style={{ fontSize: 13, color: theme.subText, marginTop: 4 }}>
+              Select plan and payment provider
+            </div>
+          </div>
 
-            <div style={{ display: "grid", gap: 16 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 13, color: theme.subText, marginBottom: 8 }}>
-                  Select Plan
-                </label>
-                <select
-                  value={selectedUpgradePlan}
-                  onChange={(e) => setSelectedUpgradePlan(e.target.value as PlanName)}
-                  style={inputStyle}
-                >
-                  {PLANS.map((plan) => (
-                    <option key={plan.id} value={plan.name}>
-                      {plan.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <button
+            onClick={onClose}
+            style={{
+              border: `1px solid ${theme.border}`,
+              background: theme.sectionBg,
+              color: theme.text,
+              borderRadius: 10,
+              padding: "10px 12px",
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
+        </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: 13, color: theme.subText, marginBottom: 8 }}>
-                  Payment Provider
-                </label>
-                <div
+        <div style={{ display: "grid", gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 13, color: theme.subText, display: "block", marginBottom: 8 }}>
+              Choose Plan
+            </label>
+            <select
+              value={selectedUpgradePlan}
+              onChange={(e) => onChangePlan(e.target.value as PlanName)}
+              style={{
+                width: "100%",
+                background: theme.inputBg ?? theme.sectionBg,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 12,
+                padding: "12px 14px",
+                outline: "none",
+                fontSize: 14,
+              }}
+            >
+              {PLANS.map((plan) => (
+                <option key={plan.id} value={plan.name}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, color: theme.subText, display: "block", marginBottom: 8 }}>
+              Payment Provider
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {(["Razorpay", "Stripe"] as BillingProvider[]).map((provider) => (
+                <button
+                  key={provider}
+                  onClick={() => onChangeProvider(provider)}
                   style={{
-                    display: "flex",
-                    flexDirection: isMobile ? "column" : "row",
-                    gap: 10,
-                    flexWrap: "wrap",
+                    border: `1px solid ${
+                      selectedProvider === provider ? theme.primary : theme.border
+                    }`,
+                    background:
+                      selectedProvider === provider
+                        ? theme.cardBgSoft
+                        : theme.cardBg,
+                    color: theme.text,
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    fontWeight: 700,
+                    cursor: "pointer",
                   }}
                 >
-                  <button
-                    style={selectedProvider === "Razorpay" ? primaryButton : secondaryButton}
-                    onClick={() => setSelectedProvider("Razorpay")}
-                  >
-                    Razorpay
-                  </button>
-                  <button
-                    style={selectedProvider === "Stripe" ? primaryButton : secondaryButton}
-                    onClick={() => setSelectedProvider("Stripe")}
-                  >
-                    Stripe
-                  </button>
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: theme.text, marginBottom: 8 }}>
-                  Upgrade Summary
-                </div>
-                <div style={{ display: "grid", gap: 8, fontSize: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
-                    <span>Target Plan</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{selectedUpgradePlan}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
-                    <span>Cycle</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{billingData.billingCycle}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
-                    <span>Plan Amount</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>
-                      {selectedUpgradePlan === "Enterprise"
-                        ? "Custom"
-                        : formatCurrency(
-                            billingData.billingCycle === "Monthly"
-                              ? selectedUpgradePlanData.monthlyPrice
-                              : selectedUpgradePlanData.yearlyPrice
-                          )}
-                    </strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: theme.subText }}>
-                    <span>Provider</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{selectedProvider}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: 12,
-                  justifyContent: "flex-end",
-                  flexWrap: "wrap",
-                }}
-              >
-                <button style={secondaryButton} onClick={() => setIsUpgradeModalOpen(false)}>
-                  Cancel
+                  {provider}
                 </button>
-                <button style={primaryButton} onClick={confirmUpgradePlan}>
-                  Confirm Upgrade
-                </button>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      ) : null}
-
-      {selectedInvoice ? (
-        <>
-          <div
-            onClick={() => setSelectedInvoice(null)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.34)",
-              zIndex: 74,
-            }}
-          />
 
           <div
             style={{
-              position: "fixed",
-              top: isMobile ? "auto" : 0,
-              bottom: 0,
-              right: 0,
-              width: isMobile ? "100%" : isTablet ? "78%" : "100%",
-              maxWidth: isMobile ? "100%" : isTablet ? 560 : 440,
-              height: isMobile ? "86vh" : "100vh",
-              background: theme.cardBg,
-              borderLeft: isMobile ? "none" : `1px solid ${theme.border}`,
-              borderTop: isMobile ? `1px solid ${theme.border}` : "none",
-              borderRadius: isMobile ? "20px 20px 0 0" : 0,
-              boxShadow:
-                mode === "dark"
-                  ? "-14px 0 32px rgba(0,0,0,0.36)"
-                  : "-14px 0 32px rgba(15,23,42,0.14)",
-              zIndex: 75,
-              padding: isMobile ? 16 : 24,
-              overflowY: "auto",
-              boxSizing: "border-box",
+              background: theme.sectionBg,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 16,
+              padding: 16,
+              display: "grid",
+              gap: 10,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: isMobile ? "column" : "row",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: isMobile ? "stretch" : "flex-start",
-                marginBottom: 16,
-              }}
-            >
-              <div>
-                <h2 style={{ margin: 0, fontSize: isMobile ? 20 : 22, fontWeight: 800, color: theme.text }}>
-                  Invoice Details
-                </h2>
-                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: theme.subText, lineHeight: 1.6 }}>
-                  Drawer preview for invoice metadata and GST summary.
-                </p>
-              </div>
-              <button style={secondaryButton} onClick={() => setSelectedInvoice(null)}>
-                Close
-              </button>
+            <div style={{ fontSize: 16, fontWeight: 800, color: theme.text }}>
+              {selectedUpgradePlanData.name}
+            </div>
+            <div style={{ fontSize: 14, color: theme.subText }}>
+              {selectedUpgradePlanData.name === "Enterprise"
+                ? "Custom quotation"
+                : `${formatCurrency(previewPrice)} per ${
+                    billingCycle === "Monthly" ? "month" : "year"
+                  }`}
             </div>
 
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Invoice No</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: theme.text, lineHeight: 1.4 }}>
-                  {selectedInvoice.invoiceNo}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Date</div>
-                <div style={{ fontSize: 14, color: theme.text }}>{formatDate(selectedInvoice.date)}</div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Plan</div>
-                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.5 }}>
-                  {selectedInvoice.planName} · {selectedInvoice.billingCycle}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Payment Provider</div>
-                <div style={{ fontSize: 14, color: theme.text }}>{selectedInvoice.paidVia}</div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Description</div>
-                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6 }}>
-                  {selectedInvoice.description ?? "No description"}
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
-                    <span style={{ color: theme.subText }}>Base Amount</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.amount)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
-                    <span style={{ color: theme.subText }}>GST</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.tax)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 15 }}>
-                    <span style={{ color: theme.subText }}>Total</span>
-                    <strong style={{ color: theme.text, textAlign: "right" }}>{formatCurrency(selectedInvoice.total)}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div style={subtleCardStyle}>
-                <div style={{ fontSize: 12, color: theme.subText, marginBottom: 6 }}>Billing Party</div>
-                <div style={{ fontSize: 14, color: theme.text, lineHeight: 1.6, wordBreak: "break-word" }}>
-                  {billingData.billingAddress.companyName}
-                  <br />
-                  GSTIN: {billingData.billingAddress.gstin}
-                  <br />
-                  {billingData.billingAddress.billingEmail}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: isMobile ? "column" : "row",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  style={primaryButton}
-                  onClick={() => downloadInvoicePdf(selectedInvoice)}
+            <div style={{ display: "grid", gap: 8 }}>
+              {selectedUpgradePlanData.features.map((feature) => (
+                <div
+                  key={feature.label}
+                  style={{
+                    fontSize: 13,
+                    color: feature.included ? theme.text : theme.mutedText,
+                    display: "flex",
+                    gap: 8,
+                    lineHeight: 1.5,
+                  }}
                 >
-                  Download GST
-                </button>
-                {selectedInvoice.status === "Failed" || selectedInvoice.status === "Overdue" ? (
-                  <button style={secondaryButton} onClick={retryFailedPayment}>
-                    Retry Payment
-                  </button>
-                ) : null}
-              </div>
+                  <span>{feature.included ? "✓" : "—"}</span>
+                  <span>{feature.label}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </>
-      ) : null}
+
+          <button
+            onClick={onConfirm}
+            style={{
+              background: theme.primary,
+              color: theme.inverseText,
+              border: "none",
+              borderRadius: 12,
+              padding: "12px 14px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Confirm Upgrade
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

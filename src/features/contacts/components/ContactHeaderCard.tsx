@@ -1,6 +1,4 @@
-import React from "react";
-import { getTheme } from "../../theme";
-import type { ThemeMode } from "../../theme";
+type ThemeMode = "light" | "dark";
 
 export type ContactHeaderCardData = {
   id: string;
@@ -10,52 +8,111 @@ export type ContactHeaderCardData = {
   designation?: string;
   email?: string;
   phone?: string;
-  whatsapp?: string;
-  alternatePhone?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  address?: string;
-  leadSource?: string;
-  status?: string;
-  owner?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  source?: string;
+  status?: "active" | "inactive" | "blocked" | "archived" | string;
+  ownerName?: string;
+  location?: string;
   tags?: string[];
+  updatedAt?: string;
 };
 
 type ContactHeaderCardProps = {
-  mode: ThemeMode;
-  contact: ContactHeaderCardData;
+  mode?: ThemeMode;
+  data: ContactHeaderCardData;
+  onBack?: () => void;
   onEdit?: () => void;
   onCall?: () => void;
   onEmail?: () => void;
-  onWhatsapp?: () => void;
-  onAddNote?: () => void;
-  stats?: {
-    totalActivities?: number;
-    totalCalls?: number;
-    totalMeetings?: number;
-    totalTasks?: number;
-  };
+  onWhatsApp?: () => void;
+  onDelete?: () => void;
 };
 
+function getStatusTheme(status: string | undefined, mode: ThemeMode) {
+  const value = (status ?? "").toLowerCase();
+
+  if (value === "active") {
+    return {
+      bg: mode === "dark" ? "rgba(34,197,94,0.16)" : "rgba(34,197,94,0.10)",
+      text: mode === "dark" ? "#86efac" : "#15803d",
+      border:
+        mode === "dark" ? "rgba(34,197,94,0.28)" : "rgba(34,197,94,0.18)",
+    };
+  }
+
+  if (value === "inactive") {
+    return {
+      bg: mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.10)",
+      text: mode === "dark" ? "#cbd5e1" : "#475569",
+      border:
+        mode === "dark"
+          ? "rgba(148,163,184,0.28)"
+          : "rgba(148,163,184,0.18)",
+    };
+  }
+
+  if (value === "blocked") {
+    return {
+      bg: mode === "dark" ? "rgba(239,68,68,0.16)" : "rgba(239,68,68,0.10)",
+      text: mode === "dark" ? "#fca5a5" : "#b91c1c",
+      border:
+        mode === "dark" ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.18)",
+    };
+  }
+
+  if (value === "archived") {
+    return {
+      bg: mode === "dark" ? "rgba(168,85,247,0.16)" : "rgba(168,85,247,0.10)",
+      text: mode === "dark" ? "#d8b4fe" : "#7e22ce",
+      border:
+        mode === "dark" ? "rgba(168,85,247,0.28)" : "rgba(168,85,247,0.18)",
+    };
+  }
+
+  return {
+    bg: mode === "dark" ? "rgba(148,163,184,0.16)" : "rgba(148,163,184,0.10)",
+    text: mode === "dark" ? "#cbd5e1" : "#475569",
+    border:
+      mode === "dark"
+        ? "rgba(148,163,184,0.28)"
+        : "rgba(148,163,184,0.18)",
+  };
+}
+
+function getInitials(firstName: string, lastName?: string) {
+  const first = firstName?.trim()?.[0] ?? "";
+  const last = lastName?.trim()?.[0] ?? "";
+  return `${first}${last}`.toUpperCase() || "C";
+}
+
 export default function ContactHeaderCard({
-  mode,
-  contact,
+  mode = "light",
+  data,
+  onBack,
   onEdit,
   onCall,
   onEmail,
-  onWhatsapp,
-  onAddNote,
-  stats,
+  onWhatsApp,
+  onDelete,
 }: ContactHeaderCardProps) {
-  const theme = getTheme(mode);
+  const isDark = mode === "dark";
 
-  const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim() || "Unnamed Contact";
-  const initials = getInitials(contact.firstName, contact.lastName);
-  const location = [contact.city, contact.state, contact.country].filter(Boolean).join(", ");
-  const lastUpdated = contact.updatedAt || contact.createdAt;
+  const theme = {
+    cardBg: isDark ? "#0f172a" : "#ffffff",
+    cardSoft: isDark ? "#111827" : "#f8fafc",
+    primarySoft: isDark ? "rgba(37,99,235,0.16)" : "rgba(37,99,235,0.10)",
+    text: isDark ? "#e5e7eb" : "#0f172a",
+    subText: isDark ? "#94a3b8" : "#64748b",
+    mutedText: isDark ? "#64748b" : "#94a3b8",
+    border: isDark ? "rgba(148,163,184,0.16)" : "rgba(15,23,42,0.10)",
+    borderStrong: isDark ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.14)",
+    primary: "#2563eb",
+    shadow: isDark
+      ? "0 20px 40px rgba(0,0,0,0.28)"
+      : "0 16px 32px rgba(15,23,42,0.08)",
+  };
+
+  const fullName = `${data.firstName}${data.lastName ? ` ${data.lastName}` : ""}`.trim();
+  const statusTheme = getStatusTheme(data.status, mode);
 
   return (
     <section
@@ -63,118 +120,57 @@ export default function ContactHeaderCard({
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
         borderRadius: 24,
+        boxShadow: theme.shadow,
         overflow: "hidden",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
       }}
     >
       <div
         style={{
-          padding: "22px 24px",
-          borderBottom: `1px solid ${theme.border}`,
-          background:
-            mode === "dark"
-              ? "linear-gradient(135deg, rgba(59,130,246,0.10), rgba(168,85,247,0.08))"
-              : "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(168,85,247,0.05))",
+          padding: 20,
+          display: "grid",
+          gap: 18,
         }}
       >
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "88px 1fr auto",
-            gap: 18,
+            display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
           }}
         >
-          <div
-            style={{
-              width: 88,
-              height: 88,
-              borderRadius: "50%",
-              background: theme.primary,
-              color: "#ffffff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: 0.4,
-              border: `3px solid ${theme.cardBg}`,
-              boxShadow: "0 8px 22px rgba(0,0,0,0.14)",
-            }}
-          >
-            {initials}
-          </div>
-
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
-                marginBottom: 8,
-              }}
-            >
-              <h2
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
                 style={{
-                  margin: 0,
-                  fontSize: 26,
-                  lineHeight: 1.15,
-                  fontWeight: 800,
+                  height: 38,
+                  padding: "0 14px",
+                  borderRadius: 12,
+                  border: `1px solid ${theme.borderStrong}`,
+                  background: theme.cardSoft,
                   color: theme.text,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
                 }}
               >
-                {fullName}
-              </h2>
+                ← Back
+              </button>
+            ) : null}
 
-              {contact.status ? (
-                <Badge
-                  label={contact.status}
-                  tone={getStatusTone(contact.status)}
-                  mode={mode}
-                />
-              ) : null}
-
-              {contact.leadSource ? (
-                <Badge
-                  label={contact.leadSource}
-                  tone="neutral"
-                  mode={mode}
-                />
-              ) : null}
-            </div>
-
-            <p
+            <div
               style={{
-                margin: 0,
-                fontSize: 15,
-                lineHeight: 1.6,
+                fontSize: 12,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
                 color: theme.subText,
               }}
             >
-              {[contact.designation, contact.company].filter(Boolean).join(" at ") || "Contact profile"}
-            </p>
-
-            <div
-              style={{
-                marginTop: 12,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              {contact.owner ? (
-                <MetaPill mode={mode} label={`Owner: ${contact.owner}`} />
-              ) : null}
-
-              {location ? (
-                <MetaPill mode={mode} label={`Location: ${location}`} />
-              ) : null}
-
-              {lastUpdated ? (
-                <MetaPill mode={mode} label={`Updated: ${formatDateTime(lastUpdated)}`} />
-              ) : null}
+              Contact Profile
             </div>
           </div>
 
@@ -183,176 +179,213 @@ export default function ContactHeaderCard({
               display: "flex",
               gap: 10,
               flexWrap: "wrap",
-              justifyContent: "flex-end",
             }}
           >
-            {onEdit ? (
-              <ActionButton
-                label="Edit"
-                icon="✏️"
-                onClick={onEdit}
-                mode={mode}
-                variant="secondary"
-              />
+            {onCall ? (
+              <button
+                type="button"
+                onClick={onCall}
+                style={getActionButtonStyle(theme, "secondary")}
+              >
+                Call
+              </button>
             ) : null}
 
-            {onAddNote ? (
-              <ActionButton
-                label="Add Note"
-                icon="📝"
-                onClick={onAddNote}
-                mode={mode}
-                variant="secondary"
-              />
+            {onEmail ? (
+              <button
+                type="button"
+                onClick={onEmail}
+                style={getActionButtonStyle(theme, "secondary")}
+              >
+                Email
+              </button>
+            ) : null}
+
+            {onWhatsApp ? (
+              <button
+                type="button"
+                onClick={onWhatsApp}
+                style={getActionButtonStyle(theme, "secondary")}
+              >
+                WhatsApp
+              </button>
+            ) : null}
+
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={onEdit}
+                style={getActionButtonStyle(theme, "primary")}
+              >
+                Edit
+              </button>
+            ) : null}
+
+            {onDelete ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                style={{
+                  height: 40,
+                  padding: "0 14px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: isDark
+                    ? "rgba(239,68,68,0.16)"
+                    : "rgba(239,68,68,0.10)",
+                  color: isDark ? "#fca5a5" : "#b91c1c",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
             ) : null}
           </div>
         </div>
-      </div>
 
-      <div
-        style={{
-          padding: 24,
-          display: "grid",
-          gap: 22,
-        }}
-      >
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 1fr",
-            gap: 20,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 18,
+            flexWrap: "wrap",
           }}
         >
           <div
             style={{
-              background: theme.cardBgSoft,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 18,
-              padding: 18,
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+              minWidth: 0,
             }}
           >
-            <SectionTitle mode={mode} title="Contact Information" />
-
-            <div style={{ display: "grid", gap: 12 }}>
-              <InfoRow label="Phone" value={contact.phone} />
-              <InfoRow label="WhatsApp" value={contact.whatsapp} />
-              <InfoRow label="Alternate" value={contact.alternatePhone} />
-              <InfoRow label="Email" value={contact.email} />
-              <InfoRow label="Address" value={contact.address} />
-            </div>
-
             <div
               style={{
+                width: 72,
+                height: 72,
+                borderRadius: 20,
+                background: theme.primarySoft,
+                color: theme.primary,
                 display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                marginTop: 18,
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: 24,
+                flexShrink: 0,
               }}
             >
-              {onCall ? (
-                <ActionButton
-                  label="Call"
-                  icon="📞"
-                  onClick={onCall}
-                  mode={mode}
-                  variant="primary"
-                />
-              ) : null}
-
-              {onWhatsapp ? (
-                <ActionButton
-                  label="WhatsApp"
-                  icon="💬"
-                  onClick={onWhatsapp}
-                  mode={mode}
-                  variant="secondary"
-                />
-              ) : null}
-
-              {onEmail ? (
-                <ActionButton
-                  label="Email"
-                  icon="✉️"
-                  onClick={onEmail}
-                  mode={mode}
-                  variant="secondary"
-                />
-              ) : null}
+              {getInitials(data.firstName, data.lastName)}
             </div>
-          </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 20,
-            }}
-          >
-            <div
-              style={{
-                background: theme.cardBgSoft,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 18,
-                padding: 18,
-              }}
-            >
-              <SectionTitle mode={mode} title="Profile Details" />
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  marginBottom: 6,
+                }}
+              >
+                <h1
+                  style={{
+                    margin: 0,
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: theme.text,
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {fullName}
+                </h1>
 
-              <div style={{ display: "grid", gap: 12 }}>
-                <InfoRow label="Company" value={contact.company} />
-                <InfoRow label="Designation" value={contact.designation} />
-                <InfoRow label="Lead Source" value={contact.leadSource} />
-                <InfoRow label="Status" value={contact.status} />
-                <InfoRow label="Created" value={contact.createdAt ? formatDateTime(contact.createdAt) : "-"} />
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 30,
+                    padding: "0 10px",
+                    borderRadius: 999,
+                    border: `1px solid ${statusTheme.border}`,
+                    background: statusTheme.bg,
+                    color: statusTheme.text,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    textTransform: "capitalize",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {data.status || "unknown"}
+                </span>
               </div>
-            </div>
-
-            <div
-              style={{
-                background: theme.cardBgSoft,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 18,
-                padding: 18,
-              }}
-            >
-              <SectionTitle mode={mode} title="Quick Stats" />
 
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                  display: "flex",
+                  flexWrap: "wrap",
                   gap: 12,
+                  fontSize: 14,
+                  color: theme.subText,
+                  lineHeight: 1.7,
                 }}
               >
-                <StatTile mode={mode} label="Activities" value={stats?.totalActivities ?? 0} />
-                <StatTile mode={mode} label="Calls" value={stats?.totalCalls ?? 0} />
-                <StatTile mode={mode} label="Meetings" value={stats?.totalMeetings ?? 0} />
-                <StatTile mode={mode} label="Tasks" value={stats?.totalTasks ?? 0} />
+                {data.designation ? <span>{data.designation}</span> : null}
+                {data.company ? <span>• {data.company}</span> : null}
+                {data.location ? <span>• {data.location}</span> : null}
+                {data.ownerName ? <span>• Owner: {data.ownerName}</span> : null}
               </div>
             </div>
           </div>
-        </div>
 
-        {contact.tags && contact.tags.length > 0 ? (
           <div
             style={{
-              background: theme.cardBgSoft,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 18,
-              padding: 18,
+              minWidth: 220,
+              display: "grid",
+              gap: 10,
             }}
           >
-            <SectionTitle mode={mode} title="Tags" />
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              {contact.tags.map((tag) => (
-                <MetaPill key={tag} mode={mode} label={tag} />
-              ))}
-            </div>
+            <QuickInfoRow label="Email" value={data.email || "—"} theme={theme} />
+            <QuickInfoRow label="Phone" value={data.phone || "—"} theme={theme} />
+            <QuickInfoRow label="Source" value={data.source || "—"} theme={theme} />
+            <QuickInfoRow
+              label="Last Updated"
+              value={data.updatedAt || "—"}
+              theme={theme}
+            />
+          </div>
+        </div>
+
+        {data.tags?.length ? (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {data.tags.map((tag) => (
+              <span
+                key={tag}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: 30,
+                  padding: "0 10px",
+                  borderRadius: 999,
+                  background: theme.primarySoft,
+                  color: theme.primary,
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {tag}
+              </span>
+            ))}
           </div>
         ) : null}
       </div>
@@ -360,104 +393,49 @@ export default function ContactHeaderCard({
   );
 }
 
-function SectionTitle({
-  mode,
-  title,
-}: {
-  mode: ThemeMode;
-  title: string;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <h3
-      style={{
-        margin: "0 0 14px",
-        fontSize: 15,
-        fontWeight: 800,
-        color: theme.text,
-      }}
-    >
-      {title}
-    </h3>
-  );
-}
-
-function InfoRow({
+function QuickInfoRow({
   label,
   value,
+  theme,
 }: {
   label: string;
-  value?: string;
+  value: string;
+  theme: {
+    cardSoft: string;
+    text: string;
+    subText: string;
+    border: string;
+  };
 }) {
   return (
     <div
       style={{
-        display: "grid",
-        gridTemplateColumns: "110px 1fr",
-        gap: 12,
-        alignItems: "start",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "#64748b",
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: "inherit",
-          wordBreak: "break-word",
-        }}
-      >
-        {value?.trim() ? value : "-"}
-      </span>
-    </div>
-  );
-}
-
-function StatTile({
-  mode,
-  label,
-  value,
-}: {
-  mode: ThemeMode;
-  label: string;
-  value: number;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <div
-      style={{
-        background: theme.cardBg,
+        borderRadius: 14,
         border: `1px solid ${theme.border}`,
-        borderRadius: 16,
-        padding: 14,
+        background: theme.cardSoft,
+        padding: "12px 14px",
       }}
     >
       <div
         style={{
-          fontSize: 12,
-          fontWeight: 700,
+          fontSize: 11,
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
           color: theme.subText,
           marginBottom: 6,
         }}
       >
         {label}
       </div>
+
       <div
         style={{
-          fontSize: 24,
-          fontWeight: 800,
-          color: theme.text,
-          lineHeight: 1,
+          fontSize: 13,
+          fontWeight: 700,
+          color: value === "—" ? theme.subText : theme.text,
+          lineHeight: 1.6,
+          wordBreak: "break-word",
         }}
       >
         {value}
@@ -466,165 +444,38 @@ function StatTile({
   );
 }
 
-function MetaPill({
-  mode,
-  label,
-}: {
-  mode: ThemeMode;
-  label: string;
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "7px 11px",
-        borderRadius: 999,
-        background: theme.cardBgSoft,
-        border: `1px solid ${theme.border}`,
-        color: theme.subText,
-        fontSize: 12,
-        fontWeight: 700,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function Badge({
-  label,
-  tone,
-  mode,
-}: {
-  label: string;
-  tone: "success" | "warning" | "danger" | "neutral";
-  mode: ThemeMode;
-}) {
-  const palette = getBadgePalette(tone, mode);
-
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        color: palette.text,
-        fontSize: 12,
-        fontWeight: 800,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function ActionButton({
-  label,
-  icon,
-  onClick,
-  mode,
-  variant,
-}: {
-  label: string;
-  icon: string;
-  onClick: () => void;
-  mode: ThemeMode;
-  variant: "primary" | "secondary";
-}) {
-  const theme = getTheme(mode);
-
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        height: 40,
-        padding: "0 14px",
-        borderRadius: 12,
-        border: variant === "primary" ? "none" : `1px solid ${theme.border}`,
-        background: variant === "primary" ? theme.primary : theme.cardBgSoft,
-        color: variant === "primary" ? "#ffffff" : theme.text,
-        fontSize: 13,
-        fontWeight: 800,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      <span>{icon}</span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function getInitials(firstName?: string, lastName?: string) {
-  const first = firstName?.trim()?.charAt(0) || "";
-  const last = lastName?.trim()?.charAt(0) || "";
-
-  const value = `${first}${last}`.toUpperCase();
-  return value || "C";
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getStatusTone(status: string): "success" | "warning" | "danger" | "neutral" {
-  const normalized = status.toLowerCase();
-
-  if (["active", "customer", "converted"].includes(normalized)) return "success";
-  if (["prospect", "new", "follow-up"].includes(normalized)) return "warning";
-  if (["inactive", "lost", "closed"].includes(normalized)) return "danger";
-  return "neutral";
-}
-
-function getBadgePalette(
-  tone: "success" | "warning" | "danger" | "neutral",
-  mode: ThemeMode
+function getActionButtonStyle(
+  theme: {
+    primary: string;
+    text: string;
+    borderStrong: string;
+    cardSoft: string;
+  },
+  variant: "primary" | "secondary",
 ) {
-  const isDark = mode === "dark";
-
-  switch (tone) {
-    case "success":
-      return {
-        bg: isDark ? "rgba(34,197,94,0.14)" : "rgba(34,197,94,0.10)",
-        border: isDark ? "rgba(34,197,94,0.28)" : "rgba(34,197,94,0.22)",
-        text: "#16a34a",
-      };
-    case "warning":
-      return {
-        bg: isDark ? "rgba(245,158,11,0.14)" : "rgba(245,158,11,0.10)",
-        border: isDark ? "rgba(245,158,11,0.28)" : "rgba(245,158,11,0.22)",
-        text: "#d97706",
-      };
-    case "danger":
-      return {
-        bg: isDark ? "rgba(239,68,68,0.14)" : "rgba(239,68,68,0.10)",
-        border: isDark ? "rgba(239,68,68,0.28)" : "rgba(239,68,68,0.22)",
-        text: "#dc2626",
-      };
-    case "neutral":
-    default:
-      return {
-        bg: isDark ? "rgba(148,163,184,0.14)" : "rgba(148,163,184,0.10)",
-        border: isDark ? "rgba(148,163,184,0.28)" : "rgba(148,163,184,0.22)",
-        text: "#475569",
-      };
+  if (variant === "primary") {
+    return {
+      height: 40,
+      padding: "0 14px",
+      borderRadius: 12,
+      border: "none",
+      background: theme.primary,
+      color: "#ffffff",
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: "pointer",
+    } as const;
   }
+
+  return {
+    height: 40,
+    padding: "0 14px",
+    borderRadius: 12,
+    border: `1px solid ${theme.borderStrong}`,
+    background: theme.cardSoft,
+    color: theme.text,
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+  } as const;
 }

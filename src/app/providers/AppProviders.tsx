@@ -1,34 +1,50 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { ThemeMode } from "../theme";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { ThemeMode } from "../../theme";
 
 export const THEME_STORAGE_KEY = "mei-crm-theme";
 
-type AppProvidersProps = {
-  children: (props: {
-    mode: ThemeMode;
-    toggleTheme: () => void;
-    setMode: (mode: ThemeMode) => void;
-  }) => ReactNode;
+type AppProvidersRenderProps = {
+  mode: ThemeMode;
+  toggleTheme: () => void;
+  setMode: (mode: ThemeMode) => void;
 };
 
+type AppProvidersProps = {
+  children: (props: AppProvidersRenderProps) => ReactNode;
+};
+
+function getInitialThemeMode(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  const savedMode = window.localStorage.getItem(THEME_STORAGE_KEY);
+
+  if (savedMode === "light" || savedMode === "dark") {
+    return savedMode;
+  }
+
+  const prefersDark =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  return prefersDark ? "dark" : "light";
+}
+
 export default function AppProviders({ children }: AppProvidersProps) {
-  const [mode, setMode] = useState<ThemeMode>(() => {
-    const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
-
-    if (savedMode === "light" || savedMode === "dark") {
-      return savedMode;
-    }
-
-    const prefersDark =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-    return prefersDark ? "dark" : "light";
-  });
+  const [mode, setModeState] = useState<ThemeMode>(getInitialThemeMode);
 
   useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
     document.documentElement.setAttribute("data-theme", mode);
     document.body.setAttribute("data-theme", mode);
     document.body.style.background = mode === "dark" ? "#020617" : "#f8fafc";
@@ -36,43 +52,48 @@ export default function AppProviders({ children }: AppProvidersProps) {
   }, [mode]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const handleSystemThemeChange = (event: MediaQueryListEvent) => {
-      const savedMode = localStorage.getItem(THEME_STORAGE_KEY);
+      const savedMode = window.localStorage.getItem(THEME_STORAGE_KEY);
 
       if (savedMode === "light" || savedMode === "dark") {
         return;
       }
 
-      setMode(event.matches ? "dark" : "light");
+      setModeState(event.matches ? "dark" : "light");
     };
 
-    if (mediaQuery.addEventListener) {
+    if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", handleSystemThemeChange);
-    } else {
+    } else if (typeof mediaQuery.addListener === "function") {
       mediaQuery.addListener(handleSystemThemeChange);
     }
 
     return () => {
-      if (mediaQuery.removeEventListener) {
+      if (typeof mediaQuery.removeEventListener === "function") {
         mediaQuery.removeEventListener("change", handleSystemThemeChange);
-      } else {
+      } else if (typeof mediaQuery.removeListener === "function") {
         mediaQuery.removeListener(handleSystemThemeChange);
       }
     };
   }, []);
 
-  const value = useMemo(
+  const value = useMemo<AppProvidersRenderProps>(
     () => ({
       mode,
-      toggleTheme: () =>
-        setMode((prevMode) => (prevMode === "dark" ? "light" : "dark")),
-      setMode,
+      toggleTheme: () => {
+        setModeState((prevMode) => (prevMode === "dark" ? "light" : "dark"));
+      },
+      setMode: (nextMode: ThemeMode) => {
+        setModeState(nextMode);
+      },
     }),
-    [mode]
+    [mode],
   );
 
   return <>{children(value)}</>;
