@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 
@@ -12,6 +12,9 @@ export type TeamMember = {
   lastActive: string;
 };
 
+type SortField = "name" | "role" | "lastActive";
+type SortDirection = "asc" | "desc";
+
 type TeamRolesCardProps = {
   mode?: ThemeMode;
   members: TeamMember[];
@@ -20,6 +23,8 @@ type TeamRolesCardProps = {
   onEditMember?: (member: TeamMember) => void;
   onDeactivateMember?: (member: TeamMember) => void;
   onResendInvite?: (member: TeamMember) => void;
+  onBulkDeactivateMembers?: (members: TeamMember[]) => void;
+  onBulkResendInvites?: (members: TeamMember[]) => void;
 };
 
 const ALL_STATUSES = "All Statuses";
@@ -33,6 +38,8 @@ export default function TeamRolesCard({
   onEditMember,
   onDeactivateMember,
   onResendInvite,
+  onBulkDeactivateMembers,
+  onBulkResendInvites,
 }: TeamRolesCardProps) {
   const theme = getTheme(mode);
 
@@ -41,6 +48,9 @@ export default function TeamRolesCard({
   const [roleFilter, setRoleFilter] = useState<string>(ALL_ROLES);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const activeCount = members.filter((member) => member.status === "Active").length;
   const invitedCount = members.filter((member) => member.status === "Invited").length;
@@ -72,17 +82,57 @@ export default function TeamRolesCard({
     });
   }, [members, search, statusFilter, roleFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / rowsPerPage));
+  const sortedMembers = useMemo(() => {
+    const sorted = [...filteredMembers];
+
+    sorted.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortField === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortField === "role") {
+        comparison = a.role.localeCompare(b.role);
+      } else if (sortField === "lastActive") {
+        comparison = a.lastActive.localeCompare(b.lastActive);
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [filteredMembers, sortField, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedMembers.length / rowsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedMembers = useMemo(() => {
-    const safePage = Math.min(currentPage, totalPages);
-    const startIndex = (safePage - 1) * rowsPerPage;
-    return filteredMembers.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredMembers, currentPage, rowsPerPage, totalPages]);
+    const startIndex = (safeCurrentPage - 1) * rowsPerPage;
+    return sortedMembers.slice(startIndex, startIndex + rowsPerPage);
+  }, [sortedMembers, safeCurrentPage, rowsPerPage]);
 
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startRow = filteredMembers.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1;
-  const endRow = Math.min(safeCurrentPage * rowsPerPage, filteredMembers.length);
+  const selectedMembers = useMemo(() => {
+    return members.filter((member) => selectedIds.includes(member.id));
+  }, [members, selectedIds]);
+
+  const selectedInvitedMembers = useMemo(() => {
+    return selectedMembers.filter((member) => member.status === "Invited");
+  }, [selectedMembers]);
+
+  const selectedNonInvitedMembers = useMemo(() => {
+    return selectedMembers.filter((member) => member.status !== "Invited");
+  }, [selectedMembers]);
+
+  const currentPageIds = paginatedMembers.map((member) => member.id);
+  const allCurrentPageSelected =
+    currentPageIds.length > 0 &&
+    currentPageIds.every((id) => selectedIds.includes(id));
+
+  const startRow = sortedMembers.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1;
+  const endRow = Math.min(safeCurrentPage * rowsPerPage, sortedMembers.length);
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => members.some((m) => m.id === id)));
+  }, [members]);
 
   const handleClearFilters = () => {
     setSearch("");
@@ -90,6 +140,8 @@ export default function TeamRolesCard({
     setRoleFilter(ALL_ROLES);
     setRowsPerPage(5);
     setCurrentPage(1);
+    setSortField("name");
+    setSortDirection("asc");
   };
 
   const handleSearchChange = (value: string) => {
@@ -110,6 +162,37 @@ export default function TeamRolesCard({
   const handleRowsChange = (value: number) => {
     setRowsPerPage(value);
     setCurrentPage(1);
+  };
+
+  const handleSortChange = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection("asc");
+  };
+
+  const handleToggleSelectMember = (memberId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(memberId)
+        ? prev.filter((id) => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  const handleToggleSelectAllCurrentPage = () => {
+    if (allCurrentPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !currentPageIds.includes(id)));
+      return;
+    }
+
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...currentPageIds])));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds([]);
   };
 
   return (
@@ -140,7 +223,7 @@ export default function TeamRolesCard({
             color: theme.subText,
           }}
         >
-          Manage workspace members, invitations, roles, departments, and access visibility.
+          Manage workspace members, invitations, roles, departments, access visibility, and bulk team actions.
         </div>
       </div>
 
@@ -174,7 +257,7 @@ export default function TeamRolesCard({
               color: theme.subText,
             }}
           >
-            View, filter, and manage all users in your workspace.
+            View, sort, filter, and manage all users in your workspace.
           </div>
         </div>
 
@@ -208,17 +291,7 @@ export default function TeamRolesCard({
       >
         <div style={filtersGridStyle}>
           <div style={{ display: "grid", gap: 8 }}>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: theme.subText,
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
-            >
-              Search
-            </label>
+            <label style={fieldLabelStyle(theme)}>Search</label>
             <input
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
@@ -228,17 +301,7 @@ export default function TeamRolesCard({
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: theme.subText,
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
-            >
-              Status
-            </label>
+            <label style={fieldLabelStyle(theme)}>Status</label>
             <select
               value={statusFilter}
               onChange={(e) => handleStatusChange(e.target.value)}
@@ -253,17 +316,7 @@ export default function TeamRolesCard({
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: theme.subText,
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
-            >
-              Role
-            </label>
+            <label style={fieldLabelStyle(theme)}>Role</label>
             <select
               value={roleFilter}
               onChange={(e) => handleRoleChange(e.target.value)}
@@ -278,17 +331,7 @@ export default function TeamRolesCard({
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
-            <label
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: theme.subText,
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
-            >
-              Rows Per Page
-            </label>
+            <label style={fieldLabelStyle(theme)}>Rows Per Page</label>
             <select
               value={rowsPerPage}
               onChange={(e) => handleRowsChange(Number(e.target.value))}
@@ -310,8 +353,8 @@ export default function TeamRolesCard({
               color: theme.subText,
             }}
           >
-            Showing <strong style={{ color: theme.text }}>{filteredMembers.length}</strong> matching member
-            {filteredMembers.length === 1 ? "" : "s"}.
+            Showing <strong style={{ color: theme.text }}>{sortedMembers.length}</strong> matching member
+            {sortedMembers.length === 1 ? "" : "s"}.
           </div>
 
           <button
@@ -327,6 +370,91 @@ export default function TeamRolesCard({
       <div
         style={{
           marginTop: 18,
+          padding: 16,
+          borderRadius: 16,
+          border: `1px solid ${theme.border}`,
+          background: theme.cardBgSoft,
+        }}
+      >
+        <div style={bulkToolbarStyle}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <label style={fieldLabelStyle(theme)}>Sort By</label>
+            <div style={sortButtonsWrapStyle}>
+              <button
+                type="button"
+                onClick={() => handleSortChange("name")}
+                style={sortButtonStyle(theme, sortField === "name")}
+              >
+                Name {getSortArrow("name", sortField, sortDirection)}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange("role")}
+                style={sortButtonStyle(theme, sortField === "role")}
+              >
+                Role {getSortArrow("role", sortField, sortDirection)}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange("lastActive")}
+                style={sortButtonStyle(theme, sortField === "lastActive")}
+              >
+                Last Active {getSortArrow("lastActive", sortField, sortDirection)}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            <label style={fieldLabelStyle(theme)}>Bulk Actions</label>
+            <div style={bulkActionsWrapStyle}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: theme.text,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${theme.border}`,
+                  background: theme.cardBg,
+                }}
+              >
+                {selectedIds.length} selected
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onBulkDeactivateMembers?.(selectedNonInvitedMembers)}
+                disabled={selectedNonInvitedMembers.length === 0}
+                style={bulkButtonStyle(theme, selectedNonInvitedMembers.length === 0)}
+              >
+                Bulk Deactivate
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onBulkResendInvites?.(selectedInvitedMembers)}
+                disabled={selectedInvitedMembers.length === 0}
+                style={bulkButtonStyle(theme, selectedInvitedMembers.length === 0)}
+              >
+                Bulk Resend Invite
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                disabled={selectedIds.length === 0}
+                style={bulkButtonStyle(theme, selectedIds.length === 0)}
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 18,
           overflowX: "auto",
           border: `1px solid ${theme.border}`,
           borderRadius: 16,
@@ -335,7 +463,7 @@ export default function TeamRolesCard({
         <table
           style={{
             width: "100%",
-            minWidth: 980,
+            minWidth: 1060,
             borderCollapse: "collapse",
           }}
         >
@@ -345,6 +473,28 @@ export default function TeamRolesCard({
             }}
           >
             <tr>
+              <th
+                style={{
+                  textAlign: "left",
+                  padding: "14px 16px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: theme.subText,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                  borderBottom: `1px solid ${theme.border}`,
+                  whiteSpace: "nowrap",
+                  width: 50,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={allCurrentPageSelected}
+                  onChange={handleToggleSelectAllCurrentPage}
+                  style={{ cursor: "pointer" }}
+                />
+              </th>
+
               {[
                 "Name",
                 "Email",
@@ -376,122 +526,135 @@ export default function TeamRolesCard({
 
           <tbody>
             {paginatedMembers.length > 0 ? (
-              paginatedMembers.map((member) => (
-                <tr
-                  key={member.id}
-                  style={{
-                    background: theme.rowBg,
-                  }}
-                >
-                  <td style={cellStyle(theme)}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                      }}
-                    >
+              paginatedMembers.map((member) => {
+                const isSelected = selectedIds.includes(member.id);
+
+                return (
+                  <tr
+                    key={member.id}
+                    style={{
+                      background: isSelected ? theme.cardBgSoft : theme.rowBg,
+                    }}
+                  >
+                    <td style={cellStyle(theme)}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelectMember(member.id)}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </td>
+
+                    <td style={cellStyle(theme)}>
                       <div
                         style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: "50%",
-                          background: theme.cardBgSoft,
-                          border: `1px solid ${theme.border}`,
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 13,
-                          fontWeight: 800,
-                          color: theme.text,
-                          flexShrink: 0,
+                          gap: 12,
                         }}
                       >
-                        {getInitials(member.name)}
-                      </div>
-
-                      <div>
                         <div
                           style={{
-                            fontSize: 14,
-                            fontWeight: 700,
+                            width: 38,
+                            height: 38,
+                            borderRadius: "50%",
+                            background: theme.cardBgSoft,
+                            border: `1px solid ${theme.border}`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 13,
+                            fontWeight: 800,
                             color: theme.text,
+                            flexShrink: 0,
                           }}
                         >
-                          {member.name}
+                          {getInitials(member.name)}
                         </div>
-                        <div
-                          style={{
-                            marginTop: 4,
-                            fontSize: 12,
-                            color: theme.subText,
-                          }}
-                        >
-                          ID: {member.id}
+
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: theme.text,
+                            }}
+                          >
+                            {member.name}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 12,
+                              color: theme.subText,
+                            }}
+                          >
+                            ID: {member.id}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  <td style={cellStyle(theme)}>{member.email}</td>
+                    <td style={cellStyle(theme)}>{member.email}</td>
 
-                  <td style={cellStyle(theme)}>
-                    <RoleBadge role={member.role} theme={theme} />
-                  </td>
+                    <td style={cellStyle(theme)}>
+                      <RoleBadge role={member.role} theme={theme} />
+                    </td>
 
-                  <td style={cellStyle(theme)}>{member.department}</td>
+                    <td style={cellStyle(theme)}>{member.department}</td>
 
-                  <td style={cellStyle(theme)}>
-                    <StatusBadge
-                      label={member.status}
-                      tone={
-                        member.status === "Active"
-                          ? "success"
-                          : member.status === "Invited"
-                          ? "warning"
-                          : "danger"
-                      }
-                      theme={theme}
-                    />
-                  </td>
+                    <td style={cellStyle(theme)}>
+                      <StatusBadge
+                        label={member.status}
+                        tone={
+                          member.status === "Active"
+                            ? "success"
+                            : member.status === "Invited"
+                            ? "warning"
+                            : "danger"
+                        }
+                        theme={theme}
+                      />
+                    </td>
 
-                  <td style={cellStyle(theme)}>{member.lastActive}</td>
+                    <td style={cellStyle(theme)}>{member.lastActive}</td>
 
-                  <td style={cellStyle(theme)}>
-                    <div style={rowActionsStyle}>
-                      <button
-                        type="button"
-                        onClick={() => onEditMember?.(member)}
-                        style={miniButtonStyle(theme)}
-                      >
-                        Edit
-                      </button>
-
-                      {member.status === "Invited" ? (
+                    <td style={cellStyle(theme)}>
+                      <div style={rowActionsStyle}>
                         <button
                           type="button"
-                          onClick={() => onResendInvite?.(member)}
+                          onClick={() => onEditMember?.(member)}
                           style={miniButtonStyle(theme)}
                         >
-                          Resend Invite
+                          Edit
                         </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onDeactivateMember?.(member)}
-                          style={miniDangerButtonStyle()}
-                        >
-                          {member.status === "Inactive" ? "Disabled" : "Deactivate"}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+
+                        {member.status === "Invited" ? (
+                          <button
+                            type="button"
+                            onClick={() => onResendInvite?.(member)}
+                            style={miniButtonStyle(theme)}
+                          >
+                            Resend Invite
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onDeactivateMember?.(member)}
+                            style={miniDangerButtonStyle()}
+                          >
+                            {member.status === "Inactive" ? "Disabled" : "Deactivate"}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   style={{
                     padding: "32px 16px",
                     textAlign: "center",
@@ -517,7 +680,7 @@ export default function TeamRolesCard({
         >
           Showing <strong style={{ color: theme.text }}>{startRow}</strong> to{" "}
           <strong style={{ color: theme.text }}>{endRow}</strong> of{" "}
-          <strong style={{ color: theme.text }}>{filteredMembers.length}</strong> results
+          <strong style={{ color: theme.text }}>{sortedMembers.length}</strong> results
         </div>
 
         <div style={paginationActionsStyle}>
@@ -733,6 +896,24 @@ const filtersFooterStyle: CSSProperties = {
   marginTop: 16,
 };
 
+const bulkToolbarStyle: CSSProperties = {
+  display: "grid",
+  gap: 16,
+};
+
+const bulkActionsWrapStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+  alignItems: "center",
+};
+
+const sortButtonsWrapStyle: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
 const rowActionsStyle: CSSProperties = {
   display: "flex",
   gap: 8,
@@ -754,6 +935,16 @@ const paginationActionsStyle: CSSProperties = {
   gap: 10,
   flexWrap: "wrap",
 };
+
+function fieldLabelStyle(theme: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 700,
+    color: theme.subText,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  };
+}
 
 function cellStyle(theme: ReturnType<typeof getTheme>): CSSProperties {
   return {
@@ -855,6 +1046,41 @@ function miniDangerButtonStyle(): CSSProperties {
   };
 }
 
+function bulkButtonStyle(
+  theme: ReturnType<typeof getTheme>,
+  disabled: boolean
+): CSSProperties {
+  return {
+    border: `1px solid ${theme.border}`,
+    borderRadius: 10,
+    padding: "10px 12px",
+    background: disabled ? theme.cardBgSoft : theme.cardBg,
+    color: disabled ? theme.subText : theme.text,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+    whiteSpace: "nowrap",
+  };
+}
+
+function sortButtonStyle(
+  theme: ReturnType<typeof getTheme>,
+  active: boolean
+): CSSProperties {
+  return {
+    border: `1px solid ${active ? theme.primary : theme.border}`,
+    borderRadius: 10,
+    padding: "10px 12px",
+    background: active ? theme.navActiveBg : theme.cardBg,
+    color: active ? theme.navActiveText : theme.text,
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
 function paginationButtonStyle(
   theme: ReturnType<typeof getTheme>,
   disabled: boolean
@@ -880,4 +1106,13 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function getSortArrow(
+  field: SortField,
+  activeField: SortField,
+  direction: SortDirection
+): string {
+  if (field !== activeField) return "↕";
+  return direction === "asc" ? "↑" : "↓";
 }
