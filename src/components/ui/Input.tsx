@@ -6,209 +6,235 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from "react";
+import { getTheme } from "../../theme";
 
-type InputSize = "sm" | "md" | "lg";
+type ThemeMode = "light" | "dark";
 
-type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
-  label?: ReactNode;
-  hint?: ReactNode;
-  error?: ReactNode;
+export interface InputProps
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
+  label?: string;
+  hint?: string;
+  error?: string;
+  mode?: ThemeMode;
+  inputSize?: "sm" | "md" | "lg";
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
-  inputSize?: InputSize;
-  fullWidth?: boolean;
   containerStyle?: CSSProperties;
-  inputWrapperStyle?: CSSProperties;
   inputStyle?: CSSProperties;
-  labelStyle?: CSSProperties;
-  hintStyle?: CSSProperties;
-};
+  fullWidth?: boolean;
+}
 
-const sizeStyles: Record<
-  InputSize,
-  {
-    minHeight: number;
-    paddingX: number;
-    fontSize: number;
-    radius: number;
-    iconSize: number;
-  }
-> = {
-  sm: {
-    minHeight: 38,
-    paddingX: 12,
-    fontSize: 13,
-    radius: 12,
-    iconSize: 16,
-  },
-  md: {
-    minHeight: 44,
-    paddingX: 14,
-    fontSize: 14,
-    radius: 14,
-    iconSize: 18,
-  },
-  lg: {
-    minHeight: 50,
-    paddingX: 16,
-    fontSize: 15,
-    radius: 16,
-    iconSize: 18,
-  },
-};
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      id,
+      label,
+      hint,
+      error,
+      mode = "light",
+      inputSize = "md",
+      leftIcon,
+      rightIcon,
+      disabled = false,
+      required = false,
+      containerStyle,
+      inputStyle,
+      fullWidth = true,
+      style,
+      ...rest
+    },
+    ref
+  ) => {
+    const theme = useMemo(() => getTheme(mode), [mode]);
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
 
-const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  {
-    id,
-    label,
-    hint,
-    error,
-    leftIcon,
-    rightIcon,
-    inputSize = "md",
-    fullWidth = true,
-    disabled,
-    containerStyle,
-    inputWrapperStyle,
-    inputStyle,
-    labelStyle,
-    hintStyle,
-    style,
-    ...props
-  },
-  ref
-) {
-  const autoId = useId();
-  const inputId = id || autoId;
-  const hasError = Boolean(error);
-  const sizes = sizeStyles[inputSize];
-
-  const wrapperStyles = useMemo<CSSProperties>(
-    () => ({
-      width: fullWidth ? "100%" : undefined,
-      ...containerStyle,
-    }),
-    [fullWidth, containerStyle]
-  );
-
-  return (
-    <div style={wrapperStyles}>
-      {label && (
-        <label
-          htmlFor={inputId}
-          style={{
-            display: "inline-block",
-            marginBottom: 8,
+    const sizing = useMemo(() => {
+      switch (inputSize) {
+        case "sm":
+          return {
+            height: 38,
+            fontSize: 13,
+            px: 12,
+            iconSize: 16,
+          };
+        case "lg":
+          return {
+            height: 50,
+            fontSize: 15,
+            px: 16,
+            iconSize: 18,
+          };
+        case "md":
+        default:
+          return {
+            height: 44,
             fontSize: 14,
-            fontWeight: 600,
-            color: "#0f172a",
-            lineHeight: 1.4,
-            ...labelStyle,
-          }}
-        >
-          {label}
-        </label>
-      )}
+            px: 14,
+            iconSize: 17,
+          };
+      }
+    }, [inputSize]);
 
+    const hasError = Boolean(error);
+
+    return (
       <div
         style={{
-          position: "relative",
+          width: fullWidth ? "100%" : undefined,
           display: "flex",
-          alignItems: "center",
-          minHeight: sizes.minHeight,
-          borderRadius: sizes.radius,
-          border: hasError ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
-          background: disabled ? "#f8fafc" : "#ffffff",
-          boxShadow: hasError
-            ? "0 0 0 3px rgba(239, 68, 68, 0.10)"
-            : "0 1px 2px rgba(15, 23, 42, 0.04)",
-          transition: "all 0.2s ease",
-          overflow: "hidden",
-          ...inputWrapperStyle,
+          flexDirection: "column",
+          gap: 8,
+          ...containerStyle,
         }}
       >
-        {leftIcon && (
-          <span
+        {label ? (
+          <label
+            htmlFor={inputId}
             style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: theme.text,
               display: "inline-flex",
               alignItems: "center",
-              justifyContent: "center",
-              width: sizes.minHeight,
-              minWidth: sizes.minHeight,
-              height: sizes.minHeight,
-              color: hasError ? "#ef4444" : "#64748b",
-              fontSize: sizes.iconSize,
-              pointerEvents: "none",
+              gap: 4,
             }}
           >
-            {leftIcon}
-          </span>
-        )}
+            <span>{label}</span>
+            {required ? (
+              <span style={{ color: "#dc2626" }} aria-hidden="true">
+                *
+              </span>
+            ) : null}
+          </label>
+        ) : null}
 
-        <input
-          {...props}
-          {...(style ? { style: undefined } : {})}
-          id={inputId}
-          ref={ref}
-          disabled={disabled}
-          aria-invalid={hasError || undefined}
-          aria-describedby={
-            hint || error ? `${inputId}-description` : undefined
-          }
-          style={{
-            flex: 1,
-            width: "100%",
-            minWidth: 0,
-            minHeight: sizes.minHeight,
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            color: "#0f172a",
-            fontSize: sizes.fontSize,
-            fontWeight: 500,
-            paddingLeft: leftIcon ? 0 : sizes.paddingX,
-            paddingRight: rightIcon ? 0 : sizes.paddingX,
-            ...(leftIcon || rightIcon ? { paddingTop: 0, paddingBottom: 0 } : {}),
-            "::placeholder": undefined as never,
-            ...inputStyle,
-            ...style,
-          }}
-        />
-
-        {rightIcon && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: sizes.minHeight,
-              minWidth: sizes.minHeight,
-              height: sizes.minHeight,
-              color: hasError ? "#ef4444" : "#64748b",
-              fontSize: sizes.iconSize,
-            }}
-          >
-            {rightIcon}
-          </span>
-        )}
-      </div>
-
-      {(hint || error) && (
         <div
-          id={`${inputId}-description`}
           style={{
-            marginTop: 8,
-            fontSize: 12,
-            lineHeight: 1.5,
-            color: hasError ? "#dc2626" : "#64748b",
-            ...hintStyle,
+            position: "relative",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          {error || hint}
+          {leftIcon ? (
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: 14,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: sizing.iconSize,
+                color: disabled ? theme.mutedText : theme.subText,
+                pointerEvents: "none",
+              }}
+            >
+              {leftIcon}
+            </span>
+          ) : null}
+
+          <input
+            {...rest}
+            id={inputId}
+            ref={ref}
+            disabled={disabled}
+            aria-invalid={hasError}
+            style={{
+              ...style,
+              width: "100%",
+              height: sizing.height,
+              borderRadius: 14,
+              border: `1px solid ${hasError ? "#dc2626" : theme.border}`,
+              background: disabled
+                ? mode === "dark"
+                  ? "rgba(255,255,255,0.04)"
+                  : "#f8fafc"
+                : theme.inputBg ?? theme.cardBg,
+              color: theme.text,
+              fontSize: sizing.fontSize,
+              fontWeight: 500,
+              outline: "none",
+              transition: "all 0.2s ease",
+              paddingLeft: leftIcon ? 42 : sizing.px,
+              paddingRight: rightIcon ? 42 : sizing.px,
+              boxSizing: "border-box",
+              boxShadow:
+                mode === "dark"
+                  ? "0 6px 16px rgba(0,0,0,0.18)"
+                  : "0 6px 16px rgba(15,23,42,0.06)",
+              opacity: disabled ? 0.7 : 1,
+              ...inputStyle,
+            }}
+            onFocus={(event) => {
+              event.currentTarget.style.borderColor = hasError
+                ? "#dc2626"
+                : theme.primary;
+              event.currentTarget.style.boxShadow =
+                mode === "dark"
+                  ? "0 0 0 3px rgba(59,130,246,0.22)"
+                  : "0 0 0 3px rgba(37,99,235,0.14)";
+
+              rest.onFocus?.(event);
+            }}
+            onBlur={(event) => {
+              event.currentTarget.style.borderColor = hasError
+                ? "#dc2626"
+                : theme.border;
+              event.currentTarget.style.boxShadow =
+                mode === "dark"
+                  ? "0 6px 16px rgba(0,0,0,0.18)"
+                  : "0 6px 16px rgba(15,23,42,0.06)";
+
+              rest.onBlur?.(event);
+            }}
+          />
+
+          {rightIcon ? (
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                right: 14,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: sizing.iconSize,
+                color: disabled ? theme.mutedText : theme.subText,
+              }}
+            >
+              {rightIcon}
+            </span>
+          ) : null}
         </div>
-      )}
-    </div>
-  );
-});
+
+        {error ? (
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#dc2626",
+            }}
+          >
+            {error}
+          </span>
+        ) : hint ? (
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: theme.subText,
+            }}
+          >
+            {hint}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+);
+
+Input.displayName = "Input";
 
 export default Input;

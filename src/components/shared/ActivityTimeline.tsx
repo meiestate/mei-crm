@@ -1,532 +1,288 @@
-import type { ReactNode } from "react";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
-import NoDataState from "./NoDataState";
+import React from "react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  FileText,
+  Mail,
+  MessageSquareText,
+  Phone,
+  Sparkles,
+  UserPlus,
+} from "lucide-react";
 
-export type ActivityTimelineItem = {
+export interface ActivityTimelineItem {
   id: string | number;
-  type:
-    | "created"
-    | "updated"
-    | "note"
-    | "call"
-    | "email"
-    | "meeting"
-    | "task"
-    | "status"
-    | "payment"
-    | "document"
-    | "custom";
   title: string;
   description?: string;
   timestamp: string;
+  category?: "message" | "call" | "meeting" | "note" | "system" | "task";
+  status?: "completed" | "pending" | "scheduled" | "info";
   actor?: string;
-  metadata?: string[];
-  actionLabel?: string;
-  onAction?: () => void;
-  icon?: ReactNode;
-};
+  highlighted?: boolean;
+  onClick?: () => void;
+}
 
-type ActivityTimelineProps = {
-  mode: ThemeMode;
-  items: ActivityTimelineItem[];
+export interface ActivityTimelineProps {
+  className?: string;
   title?: string;
   subtitle?: string;
-  emptyTitle?: string;
-  emptyMessage?: string;
+  items?: ActivityTimelineItem[];
   compact?: boolean;
+  showHeader?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+}
+
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
+
+const getCategoryIcon = (category: ActivityTimelineItem["category"]) => {
+  switch (category) {
+    case "message":
+      return MessageSquareText;
+    case "call":
+      return Phone;
+    case "meeting":
+      return CalendarDays;
+    case "note":
+      return FileText;
+    case "task":
+      return CheckCircle2;
+    case "system":
+    default:
+      return Sparkles;
+  }
 };
 
-function formatTimelineDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return {
-      dateLabel: value,
-      timeLabel: "",
-    };
-  }
-
-  return {
-    dateLabel: date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }),
-    timeLabel: date.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
-}
-
-function getTypeConfig(
-  type: ActivityTimelineItem["type"],
-  mode: ThemeMode,
-  theme: ReturnType<typeof getTheme>
-) {
-  switch (type) {
-    case "created":
+const getStatusStyles = (status: ActivityTimelineItem["status"]) => {
+  switch (status) {
+    case "completed":
       return {
-        label: "Created",
-        icon: "+",
-        color: theme.success ?? "#22c55e",
-        bg:
-          mode === "dark"
-            ? "rgba(34,197,94,0.14)"
-            : "rgba(34,197,94,0.10)",
+        dot: "bg-emerald-500",
+        badge:
+          "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300",
+        label: "Completed",
       };
-
-    case "updated":
+    case "pending":
       return {
-        label: "Updated",
-        icon: "↻",
-        color: theme.primary,
-        bg:
-          mode === "dark"
-            ? "rgba(59,130,246,0.14)"
-            : "rgba(37,99,235,0.10)",
+        dot: "bg-amber-500",
+        badge:
+          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300",
+        label: "Pending",
       };
-
-    case "note":
+    case "scheduled":
       return {
-        label: "Note",
-        icon: "✎",
-        color: "#a855f7",
-        bg:
-          mode === "dark"
-            ? "rgba(168,85,247,0.14)"
-            : "rgba(168,85,247,0.10)",
+        dot: "bg-sky-500",
+        badge:
+          "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/20 dark:text-sky-300",
+        label: "Scheduled",
       };
-
-    case "call":
-      return {
-        label: "Call",
-        icon: "☎",
-        color: "#06b6d4",
-        bg:
-          mode === "dark"
-            ? "rgba(6,182,212,0.14)"
-            : "rgba(6,182,212,0.10)",
-      };
-
-    case "email":
-      return {
-        label: "Email",
-        icon: "✉",
-        color: "#f59e0b",
-        bg:
-          mode === "dark"
-            ? "rgba(245,158,11,0.14)"
-            : "rgba(245,158,11,0.10)",
-      };
-
-    case "meeting":
-      return {
-        label: "Meeting",
-        icon: "◫",
-        color: "#14b8a6",
-        bg:
-          mode === "dark"
-            ? "rgba(20,184,166,0.14)"
-            : "rgba(20,184,166,0.10)",
-      };
-
-    case "task":
-      return {
-        label: "Task",
-        icon: "✓",
-        color: "#6366f1",
-        bg:
-          mode === "dark"
-            ? "rgba(99,102,241,0.14)"
-            : "rgba(99,102,241,0.10)",
-      };
-
-    case "status":
-      return {
-        label: "Status",
-        icon: "●",
-        color: "#ec4899",
-        bg:
-          mode === "dark"
-            ? "rgba(236,72,153,0.14)"
-            : "rgba(236,72,153,0.10)",
-      };
-
-    case "payment":
-      return {
-        label: "Payment",
-        icon: "₹",
-        color: "#22c55e",
-        bg:
-          mode === "dark"
-            ? "rgba(34,197,94,0.14)"
-            : "rgba(34,197,94,0.10)",
-      };
-
-    case "document":
-      return {
-        label: "Document",
-        icon: "▣",
-        color: "#f97316",
-        bg:
-          mode === "dark"
-            ? "rgba(249,115,22,0.14)"
-            : "rgba(249,115,22,0.10)",
-      };
-
+    case "info":
     default:
       return {
-        label: "Activity",
-        icon: "•",
-        color: theme.text,
-        bg:
-          mode === "dark"
-            ? "rgba(255,255,255,0.08)"
-            : "rgba(15,23,42,0.06)",
+        dot: "bg-slate-400",
+        badge:
+          "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+        label: "Update",
       };
   }
-}
+};
 
-export default function ActivityTimeline({
-  mode,
-  items,
-  title = "Activity Timeline",
-  subtitle = "Track every important update, communication, and movement in one place.",
-  emptyTitle = "No activities yet",
-  emptyMessage = "There are no activity records available right now.",
-  compact = false,
-}: ActivityTimelineProps) {
-  const theme = getTheme(mode);
+const defaultItems: ActivityTimelineItem[] = [
+  {
+    id: 1,
+    title: "Brochure shared on WhatsApp",
+    description: "Sent project brochure, payment plan summary, and 2BHK pricing details.",
+    timestamp: "Today • 10:32 AM",
+    category: "message",
+    status: "completed",
+    actor: "You",
+    highlighted: true,
+  },
+  {
+    id: 2,
+    title: "Follow-up call scheduled",
+    description: "Customer asked for a short call after discussing with family.",
+    timestamp: "Today • 4:00 PM",
+    category: "call",
+    status: "scheduled",
+    actor: "Sales Team",
+  },
+  {
+    id: 3,
+    title: "Internal note added",
+    description: "Lead is interested in east-facing units and prefers a faster possession timeline.",
+    timestamp: "Yesterday • 6:45 PM",
+    category: "note",
+    status: "info",
+    actor: "Meena",
+  },
+  {
+    id: 4,
+    title: "Site visit reminder pending",
+    description: "Need confirmation before blocking the sales manager slot.",
+    timestamp: "Tomorrow • 11:00 AM",
+    category: "task",
+    status: "pending",
+    actor: "System",
+  },
+];
 
-  if (!items.length) {
-    return (
-      <div
-        style={{
-          background: theme.cardBg,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 24,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "22px 24px 18px",
-            borderBottom: `1px solid ${theme.border}`,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              lineHeight: 1.2,
-              color: theme.text,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {title}
-          </div>
-
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: theme.subText,
-            }}
-          >
-            {subtitle}
-          </div>
-        </div>
-
-        <NoDataState
-          mode={mode}
-          compact
-          title={emptyTitle}
-          message={emptyMessage}
-        />
-      </div>
-    );
-  }
+const TimelineItemCard: React.FC<{
+  item: ActivityTimelineItem;
+  compact?: boolean;
+  isLast?: boolean;
+}> = ({ item, compact, isLast }) => {
+  const Icon = getCategoryIcon(item.category);
+  const status = getStatusStyles(item.status);
 
   return (
-    <div
-      style={{
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 24,
-        overflow: "hidden",
-        boxShadow:
-          mode === "dark"
-            ? "0 14px 40px rgba(0,0,0,0.24)"
-            : "0 14px 40px rgba(15,23,42,0.06)",
-      }}
-    >
-      <div
-        style={{
-          padding: "22px 24px 18px",
-          borderBottom: `1px solid ${theme.border}`,
-        }}
-      >
+    <div className="relative flex gap-4">
+      <div className="relative flex w-10 shrink-0 flex-col items-center">
         <div
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            lineHeight: 1.2,
-            color: theme.text,
-            letterSpacing: "-0.02em",
-          }}
+          className={cn(
+            "z-10 flex h-10 w-10 items-center justify-center rounded-2xl border",
+            item.highlighted
+              ? "border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
+              : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+          )}
         >
-          {title}
+          <Icon className="h-4.5 w-4.5" />
         </div>
 
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 14,
-            lineHeight: 1.6,
-            color: theme.subText,
-          }}
-        >
-          {subtitle}
-        </div>
+        {!isLast ? (
+          <div className="absolute top-10 h-[calc(100%+0.5rem)] w-px bg-slate-200 dark:bg-slate-800" />
+        ) : null}
       </div>
 
-      <div
-        style={{
-          padding: compact ? 18 : 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: compact ? 18 : 22,
-        }}
+      <button
+        type="button"
+        onClick={item.onClick}
+        className={cn(
+          "group mb-4 flex-1 rounded-3xl border text-left transition",
+          compact ? "p-4" : "p-5",
+          item.highlighted
+            ? "border-slate-300 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+            : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900/70"
+        )}
       >
-        {items.map((item, index) => {
-          const { dateLabel, timeLabel } = formatTimelineDate(item.timestamp);
-          const typeConfig = getTypeConfig(item.type, mode, theme);
-          const isLast = index === items.length - 1;
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {item.title}
+              </h3>
 
-          return (
-            <div
-              key={item.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: compact ? "56px 1fr" : "72px 1fr",
-                gap: compact ? 12 : 16,
-                alignItems: "start",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  minHeight: 100,
-                }}
-              >
-                <div
-                  style={{
-                    width: compact ? 42 : 48,
-                    height: compact ? 42 : 48,
-                    borderRadius: 16,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: typeConfig.bg,
-                    color: typeConfig.color,
-                    border: `1px solid ${
-                      mode === "dark"
-                        ? "rgba(255,255,255,0.06)"
-                        : "rgba(15,23,42,0.06)"
-                    }`,
-                    fontSize: compact ? 16 : 18,
-                    fontWeight: 800,
-                    flexShrink: 0,
-                  }}
-                >
-                  {item.icon ?? typeConfig.icon}
-                </div>
-
-                {!isLast && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: compact ? 46 : 52,
-                      width: 2,
-                      bottom: -22,
-                      background:
-                        mode === "dark"
-                          ? "rgba(255,255,255,0.08)"
-                          : "rgba(15,23,42,0.08)",
-                      borderRadius: 999,
-                    }}
-                  />
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                  status.badge
                 )}
-              </div>
-
-              <div
-                style={{
-                  background: theme.cardBgSoft ?? theme.cardBg,
-                  border: `1px solid ${theme.borderSoft ?? theme.border}`,
-                  borderRadius: 20,
-                  padding: compact ? "16px 16px" : "18px 18px",
-                }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 14,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: typeConfig.bg,
-                          color: typeConfig.color,
-                          fontSize: 12,
-                          fontWeight: 700,
-                          border: `1px solid ${
-                            mode === "dark"
-                              ? "rgba(255,255,255,0.05)"
-                              : "rgba(15,23,42,0.05)"
-                          }`,
-                        }}
-                      >
-                        {typeConfig.label}
-                      </span>
-
-                      <span
-                        style={{
-                          fontSize: 12.5,
-                          color: theme.mutedText,
-                        }}
-                      >
-                        {dateLabel}
-                        {timeLabel ? ` • ${timeLabel}` : ""}
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: compact ? 15 : 16,
-                        fontWeight: 800,
-                        lineHeight: 1.35,
-                        color: theme.text,
-                      }}
-                    >
-                      {item.title}
-                    </div>
-
-                    {item.description && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: 14,
-                          lineHeight: 1.7,
-                          color: theme.subText,
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {item.description}
-                      </div>
-                    )}
-
-                    {(item.actor || (item.metadata && item.metadata.length > 0)) && (
-                      <div
-                        style={{
-                          marginTop: 14,
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 8,
-                        }}
-                      >
-                        {item.actor && (
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              padding: "7px 10px",
-                              borderRadius: 999,
-                              background:
-                                mode === "dark"
-                                  ? "rgba(255,255,255,0.05)"
-                                  : "rgba(15,23,42,0.05)",
-                              color: theme.text,
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                            }}
-                          >
-                            By {item.actor}
-                          </span>
-                        )}
-
-                        {item.metadata?.map((meta, metaIndex) => (
-                          <span
-                            key={`${item.id}-meta-${metaIndex}`}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              padding: "7px 10px",
-                              borderRadius: 999,
-                              background:
-                                mode === "dark"
-                                  ? "rgba(255,255,255,0.04)"
-                                  : "rgba(15,23,42,0.04)",
-                              color: theme.subText,
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {meta}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {item.onAction && item.actionLabel && (
-                    <button
-                      type="button"
-                      onClick={item.onAction}
-                      style={{
-                        border: `1px solid ${theme.border}`,
-                        background: theme.cardBg,
-                        color: theme.text,
-                        borderRadius: 12,
-                        padding: "10px 14px",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.actionLabel}
-                    </button>
-                  )}
-                </div>
-              </div>
+                <span className={cn("h-2 w-2 rounded-full", status.dot)} />
+                {status.label}
+              </span>
             </div>
-          );
-        })}
-      </div>
+
+            {item.description ? (
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {item.description}
+              </p>
+            ) : null}
+          </div>
+
+          <ChevronRight className="h-4.5 w-4.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 dark:text-slate-500" />
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1.5">
+            <Clock3 className="h-3.5 w-3.5" />
+            {item.timestamp}
+          </span>
+
+          {item.actor ? (
+            <span className="inline-flex items-center gap-1.5">
+              <UserPlus className="h-3.5 w-3.5" />
+              {item.actor}
+            </span>
+          ) : null}
+        </div>
+      </button>
     </div>
   );
-}
+};
+
+const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
+  className,
+  title = "Activity Timeline",
+  subtitle = "A clean view of conversation history, follow-ups, and every meaningful action in motion.",
+  items = defaultItems,
+  compact = false,
+  showHeader = true,
+  emptyTitle = "No activity yet",
+  emptyDescription = "Once messages, calls, notes, and follow-ups start happening, they’ll appear here in a clean chronological flow.",
+}) => {
+  return (
+    <section
+      className={cn(
+        "rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950",
+        className
+      )}
+    >
+      {showHeader ? (
+        <div className="border-b border-slate-200 p-5 sm:p-6 dark:border-slate-800">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              <Mail className="h-6 w-6" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                Timeline
+              </p>
+              <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                {title}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {subtitle}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className={cn("p-5 sm:p-6", compact && "p-4")}>
+        {items.length ? (
+          <div>
+            {items.map((item, index) => (
+              <TimelineItemCard
+                key={item.id}
+                item={item}
+                compact={compact}
+                isLast={index === items.length - 1}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50/70 p-8 text-center dark:border-slate-700 dark:bg-slate-900/30">
+            <div className="max-w-md">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                <Clock3 className="h-7 w-7" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                {emptyTitle}
+              </h3>
+              <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                {emptyDescription}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default ActivityTimeline;

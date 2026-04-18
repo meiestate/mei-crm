@@ -1,33 +1,30 @@
-import type { CSSProperties } from "react";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import React, { useMemo, useState, type CSSProperties } from "react";
+import { getTheme } from "../../theme";
 
-type PhoneLinkProps = {
-  value: string | number | null | undefined;
-  mode: ThemeMode;
+type ThemeMode = "light" | "dark";
+
+export interface PhoneLinkProps {
+  value?: string | number | null;
+  mode?: ThemeMode;
   fallback?: string;
+  className?: string;
+  style?: CSSProperties;
   showIcon?: boolean;
-  icon?: string;
-  muted?: boolean;
-  fontSize?: number | string;
-  fontWeight?: number;
-  underline?: boolean;
+  copyable?: boolean;
+  displayValue?: string;
+  countryCode?: string;
+  onClick?: (phone: string) => void;
+}
+
+const sanitizePhoneNumber = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return "";
+  return String(value).replace(/[^\d+]/g, "");
 };
 
-function normalizePhoneValue(value: string | number | null | undefined): string {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  return String(value).trim();
-}
-
-function sanitizePhoneNumber(phone: string): string {
-  return phone.replace(/[^\d+]/g, "");
-}
-
-function formatPhoneDisplay(phone: string): string {
+const formatPhoneForDisplay = (phone: string): string => {
   const cleaned = phone.replace(/[^\d]/g, "");
+
+  if (!cleaned) return "";
 
   if (cleaned.length === 10) {
     return `${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
@@ -37,84 +34,154 @@ function formatPhoneDisplay(phone: string): string {
     return `+91 ${cleaned.slice(2, 7)} ${cleaned.slice(7)}`;
   }
 
-  if (phone.startsWith("+") && cleaned.length > 0) {
-    return `+${cleaned}`;
+  if (phone.startsWith("+")) {
+    return phone;
   }
 
-  return phone;
-}
+  return cleaned;
+};
 
-export default function PhoneLink({
+const buildDialValue = (phone: string, countryCode?: string): string => {
+  if (!phone) return "";
+
+  if (phone.startsWith("+")) return phone;
+
+  const digitsOnly = phone.replace(/[^\d]/g, "");
+
+  if (!digitsOnly) return "";
+
+  if (countryCode && !digitsOnly.startsWith(countryCode.replace("+", ""))) {
+    return `${countryCode}${digitsOnly}`;
+  }
+
+  return digitsOnly;
+};
+
+const PhoneLink: React.FC<PhoneLinkProps> = ({
   value,
-  mode,
-  fallback = "—",
-  showIcon = false,
-  icon = "☎",
-  muted = false,
-  fontSize = 14,
-  fontWeight = 600,
-  underline = false,
-}: PhoneLinkProps) {
-  const theme = getTheme(mode);
-  const rawValue = normalizePhoneValue(value);
+  mode = "light",
+  fallback = "No phone number",
+  className,
+  style,
+  showIcon = true,
+  copyable = true,
+  displayValue,
+  countryCode = "+91",
+  onClick,
+}) => {
+  const theme = useMemo(() => getTheme(mode), [mode]);
+  const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
-  if (!rawValue) {
-    return (
-      <span
-        style={{
-          fontSize,
-          fontWeight,
-          color: theme.mutedText,
-        }}
-      >
-        {fallback}
-      </span>
-    );
-  }
+  const rawPhone = useMemo(() => sanitizePhoneNumber(value), [value]);
+  const dialValue = useMemo(() => buildDialValue(rawPhone, countryCode), [rawPhone, countryCode]);
+  const prettyValue = useMemo(() => {
+    if (displayValue) return displayValue;
+    return formatPhoneForDisplay(rawPhone);
+  }, [displayValue, rawPhone]);
 
-  const sanitized = sanitizePhoneNumber(rawValue);
+  const hasPhone = Boolean(dialValue);
 
-  if (!sanitized || sanitized === "+") {
-    return (
-      <span
-        style={{
-          fontSize,
-          fontWeight,
-          color: theme.mutedText,
-        }}
-      >
-        {fallback}
-      </span>
-    );
-  }
+  const handleCopy = async () => {
+    if (!copyable || !hasPhone) return;
 
-  const displayText = formatPhoneDisplay(rawValue);
+    try {
+      await navigator.clipboard.writeText(dialValue);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   const linkStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    color: muted ? theme.subText : theme.primary,
-    fontSize,
-    fontWeight,
-    textDecoration: underline ? "underline" : "none",
-    whiteSpace: "nowrap",
+    color: hovered ? theme.primaryHover ?? theme.primary : theme.primary,
+    textDecoration: "none",
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: 1.4,
+    transition: "all 0.2s ease",
     cursor: "pointer",
   };
 
+  const wrapperStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    ...style,
+  };
+
+  const copyButtonStyle: CSSProperties = {
+    border: `1px solid ${theme.border}`,
+    background: mode === "dark" ? "rgba(255,255,255,0.04)" : theme.cardBgSoft ?? "#f8fafc",
+    color: copied ? (theme.success ?? "#16a34a") : theme.subText,
+    borderRadius: 10,
+    padding: "4px 8px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: hasPhone ? "pointer" : "not-allowed",
+    transition: "all 0.2s ease",
+  };
+
+  const fallbackStyle: CSSProperties = {
+    color: theme.subText,
+    fontSize: 14,
+    fontWeight: 500,
+  };
+
+  if (!hasPhone) {
+    return (
+      <span className={className} style={{ ...fallbackStyle, ...style }}>
+        {fallback}
+      </span>
+    );
+  }
+
   return (
-    <a href={`tel:${sanitized}`} style={linkStyle} title={displayText}>
-      {showIcon && (
-        <span
-          style={{
-            fontSize: typeof fontSize === "number" ? fontSize - 1 : fontSize,
-            lineHeight: 1,
-          }}
-        >
-          {icon}
-        </span>
-      )}
-      <span>{displayText}</span>
-    </a>
+    <span className={className} style={wrapperStyle}>
+      <a
+        href={`tel:${dialValue}`}
+        style={linkStyle}
+        onClick={() => onClick?.(dialValue)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        title={`Call ${prettyValue || dialValue}`}
+      >
+        {showIcon ? (
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              background:
+                mode === "dark"
+                  ? "rgba(37,99,235,0.18)"
+                  : "rgba(37,99,235,0.10)",
+              fontSize: 12,
+            }}
+          >
+            📞
+          </span>
+        ) : null}
+
+        <span>{prettyValue || dialValue}</span>
+      </a>
+
+      {copyable ? (
+        <button type="button" onClick={handleCopy} style={copyButtonStyle}>
+          {copied ? "Copied" : "Copy"}
+        </button>
+      ) : null}
+    </span>
   );
-}
+};
+
+export default PhoneLink;

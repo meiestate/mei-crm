@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import React, { useMemo, type ReactNode } from "react";
+import { getTheme } from "../../theme";
 
+type ThemeMode = "light" | "dark";
 type BadgeVariant = "soft" | "solid" | "outline";
 type BadgeTone =
   | "default"
@@ -9,199 +9,175 @@ type BadgeTone =
   | "success"
   | "warning"
   | "danger"
-  | "info"
-  | "neutral";
+  | "info";
 
-type BadgeProps = {
-  mode: ThemeMode;
+export interface BadgeProps {
   children: ReactNode;
-  tone?: BadgeTone;
+  mode?: ThemeMode;
   variant?: BadgeVariant;
-  icon?: ReactNode;
-  showDot?: boolean;
-  compact?: boolean;
+  tone?: BadgeTone;
+  size?: "sm" | "md" | "lg";
   rounded?: boolean;
-};
-
-function getToneStyles(
-  tone: BadgeTone,
-  variant: BadgeVariant,
-  mode: ThemeMode,
-  theme: ReturnType<typeof getTheme>
-) {
-  const tones = {
-    default: {
-      color: theme.text,
-      softBg:
-        mode === "dark"
-          ? "rgba(255,255,255,0.08)"
-          : "rgba(15,23,42,0.06)",
-      solidBg: theme.text,
-      border:
-        mode === "dark"
-          ? "rgba(255,255,255,0.10)"
-          : "rgba(15,23,42,0.10)",
-    },
-    primary: {
-      color: theme.primary,
-      softBg:
-        mode === "dark"
-          ? "rgba(59,130,246,0.14)"
-          : "rgba(37,99,235,0.10)",
-      solidBg: theme.primary,
-      border:
-        mode === "dark"
-          ? "rgba(59,130,246,0.22)"
-          : "rgba(37,99,235,0.18)",
-    },
-    success: {
-      color: theme.success ?? "#22c55e",
-      softBg:
-        mode === "dark"
-          ? "rgba(34,197,94,0.14)"
-          : "rgba(34,197,94,0.10)",
-      solidBg: theme.success ?? "#22c55e",
-      border:
-        mode === "dark"
-          ? "rgba(34,197,94,0.22)"
-          : "rgba(34,197,94,0.18)",
-    },
-    warning: {
-      color: "#f59e0b",
-      softBg:
-        mode === "dark"
-          ? "rgba(245,158,11,0.14)"
-          : "rgba(245,158,11,0.10)",
-      solidBg: "#f59e0b",
-      border:
-        mode === "dark"
-          ? "rgba(245,158,11,0.22)"
-          : "rgba(245,158,11,0.18)",
-    },
-    danger: {
-      color: theme.warning ?? "#ef4444",
-      softBg:
-        mode === "dark"
-          ? "rgba(239,68,68,0.14)"
-          : "rgba(239,68,68,0.10)",
-      solidBg: theme.warning ?? "#ef4444",
-      border:
-        mode === "dark"
-          ? "rgba(239,68,68,0.22)"
-          : "rgba(239,68,68,0.18)",
-    },
-    info: {
-      color: "#06b6d4",
-      softBg:
-        mode === "dark"
-          ? "rgba(6,182,212,0.14)"
-          : "rgba(6,182,212,0.10)",
-      solidBg: "#06b6d4",
-      border:
-        mode === "dark"
-          ? "rgba(6,182,212,0.22)"
-          : "rgba(6,182,212,0.18)",
-    },
-    neutral: {
-      color: theme.subText,
-      softBg:
-        mode === "dark"
-          ? "rgba(148,163,184,0.14)"
-          : "rgba(148,163,184,0.12)",
-      solidBg: "#64748b",
-      border:
-        mode === "dark"
-          ? "rgba(148,163,184,0.22)"
-          : "rgba(148,163,184,0.18)",
-    },
-  };
-
-  const selected = tones[tone];
-
-  if (variant === "solid") {
-    return {
-      background: selected.solidBg,
-      color: "#ffffff",
-      border: `1px solid ${selected.solidBg}`,
-      dotColor: "#ffffff",
-    };
-  }
-
-  if (variant === "outline") {
-    return {
-      background: "transparent",
-      color: selected.color,
-      border: `1px solid ${selected.border}`,
-      dotColor: selected.color,
-    };
-  }
-
-  return {
-    background: selected.softBg,
-    color: selected.color,
-    border: `1px solid ${selected.border}`,
-    dotColor: selected.color,
-  };
+  icon?: ReactNode;
+  className?: string;
 }
 
-export default function Badge({
-  mode,
+const getTonePalette = (tone: BadgeTone, mode: ThemeMode) => {
+  switch (tone) {
+    case "primary":
+      return {
+        base: "#2563eb",
+        softBg: mode === "dark" ? "rgba(37,99,235,0.20)" : "rgba(37,99,235,0.10)",
+        softText: "#2563eb",
+      };
+
+    case "success":
+      return {
+        base: "#16a34a",
+        softBg: mode === "dark" ? "rgba(22,163,74,0.20)" : "rgba(22,163,74,0.10)",
+        softText: "#16a34a",
+      };
+
+    case "warning":
+      return {
+        base: "#d97706",
+        softBg: mode === "dark" ? "rgba(217,119,6,0.20)" : "rgba(217,119,6,0.10)",
+        softText: "#d97706",
+      };
+
+    case "danger":
+      return {
+        base: "#dc2626",
+        softBg: mode === "dark" ? "rgba(220,38,38,0.20)" : "rgba(220,38,38,0.10)",
+        softText: "#dc2626",
+      };
+
+    case "info":
+      return {
+        base: "#0891b2",
+        softBg: mode === "dark" ? "rgba(8,145,178,0.20)" : "rgba(8,145,178,0.10)",
+        softText: "#0891b2",
+      };
+
+    case "default":
+    default:
+      return {
+        base: mode === "dark" ? "#cbd5e1" : "#475569",
+        softBg:
+          mode === "dark"
+            ? "rgba(148,163,184,0.18)"
+            : "rgba(148,163,184,0.10)",
+        softText: mode === "dark" ? "#e2e8f0" : "#475569",
+      };
+  }
+};
+
+const Badge: React.FC<BadgeProps> = ({
   children,
-  tone = "default",
+  mode = "light",
   variant = "soft",
-  icon,
-  showDot = false,
-  compact = false,
+  tone = "default",
+  size = "md",
   rounded = true,
-}: BadgeProps) {
-  const theme = getTheme(mode);
-  const styles = getToneStyles(tone, variant, mode, theme);
+  icon,
+  className,
+}) => {
+  useMemo(() => getTheme(mode), [mode]);
+
+  const palette = useMemo(() => getTonePalette(tone, mode), [tone, mode]);
+
+  const sizeStyle = useMemo(() => {
+    switch (size) {
+      case "sm":
+        return {
+          fontSize: 11,
+          padding: "4px 8px",
+          gap: 5,
+        };
+      case "lg":
+        return {
+          fontSize: 13,
+          padding: "7px 12px",
+          gap: 7,
+        };
+      case "md":
+      default:
+        return {
+          fontSize: 12,
+          padding: "5px 10px",
+          gap: 6,
+        };
+    }
+  }, [size]);
+
+  const colors = useMemo(() => {
+    if (variant === "solid") {
+      return {
+        background: palette.base,
+        color: "#ffffff",
+        border: palette.base,
+      };
+    }
+
+    if (variant === "outline") {
+      return {
+        background: "transparent",
+        color: palette.base,
+        border: palette.base,
+      };
+    }
+
+    return {
+      background: palette.softBg,
+      color: palette.softText,
+      border: "transparent",
+    };
+  }, [palette, variant]);
 
   return (
     <span
+      className={className}
       style={{
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: compact ? 6 : 8,
-        padding: compact ? "5px 9px" : "7px 11px",
+        gap: sizeStyle.gap,
+        padding: sizeStyle.padding,
         borderRadius: rounded ? 999 : 10,
-        background: styles.background,
-        color: styles.color,
-        border: styles.border,
-        fontSize: compact ? 11.5 : 12.5,
+        background: colors.background,
+        color: colors.color,
+        border: `1px solid ${colors.border}`,
+        fontSize: sizeStyle.fontSize,
         fontWeight: 700,
         lineHeight: 1,
         whiteSpace: "nowrap",
+        boxShadow:
+          variant === "solid"
+            ? mode === "dark"
+              ? "0 8px 18px rgba(0,0,0,0.24)"
+              : "0 8px 18px rgba(15,23,42,0.10)"
+            : "none",
       }}
+      title={typeof children === "string" ? children : undefined}
     >
-      {showDot && (
+      {icon ? (
         <span
-          style={{
-            width: compact ? 6 : 7,
-            height: compact ? 6 : 7,
-            borderRadius: "50%",
-            background: styles.dotColor,
-            flexShrink: 0,
-          }}
-        />
-      )}
-
-      {icon && (
-        <span
+          aria-hidden="true"
           style={{
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
+            fontSize: size === "lg" ? 13 : 12,
             lineHeight: 1,
-            flexShrink: 0,
           }}
         >
           {icon}
         </span>
-      )}
+      ) : null}
 
       <span>{children}</span>
     </span>
   );
-}
+};
+
+export default Badge;

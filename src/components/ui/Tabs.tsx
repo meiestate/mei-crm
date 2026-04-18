@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { getTheme } from "../../theme";
+
+type ThemeMode = "light" | "dark";
 
 export type TabItem = {
   key: string;
@@ -8,275 +18,294 @@ export type TabItem = {
   badge?: ReactNode;
 };
 
-type TabsVariant = "line" | "pill" | "segmented";
-type TabsSize = "sm" | "md" | "lg";
-
-type TabsProps = {
+export interface TabsProps {
   items: TabItem[];
+  mode?: ThemeMode;
   activeKey?: string;
   defaultActiveKey?: string;
-  onChange?: (key: string, item: TabItem) => void;
-  variant?: TabsVariant;
-  size?: TabsSize;
+  onChange?: (key: string) => void;
+  variant?: "underline" | "pills" | "segmented";
+  size?: "sm" | "md" | "lg";
   fullWidth?: boolean;
-  centered?: boolean;
-  destroyInactiveTabPane?: boolean;
-  contentStyle?: CSSProperties;
+  className?: string;
+  style?: CSSProperties;
   tabListStyle?: CSSProperties;
-};
-
-const sizeMap: Record<
-  TabsSize,
-  {
-    tabMinHeight: number;
-    tabPaddingX: number;
-    fontSize: number;
-    radius: number;
-    gap: number;
-  }
-> = {
-  sm: {
-    tabMinHeight: 34,
-    tabPaddingX: 12,
-    fontSize: 13,
-    radius: 10,
-    gap: 8,
-  },
-  md: {
-    tabMinHeight: 40,
-    tabPaddingX: 14,
-    fontSize: 14,
-    radius: 12,
-    gap: 10,
-  },
-  lg: {
-    tabMinHeight: 46,
-    tabPaddingX: 16,
-    fontSize: 15,
-    radius: 14,
-    gap: 12,
-  },
-};
-
-function getFirstEnabledKey(items: TabItem[]) {
-  return items.find((item) => !item.disabled)?.key ?? "";
+  tabPanelStyle?: CSSProperties;
 }
 
-export default function Tabs({
+const Tabs = ({
   items,
+  mode = "light",
   activeKey,
   defaultActiveKey,
   onChange,
-  variant = "line",
+  variant = "underline",
   size = "md",
   fullWidth = false,
-  centered = false,
-  destroyInactiveTabPane = false,
-  contentStyle,
+  className,
+  style,
   tabListStyle,
-}: TabsProps) {
+  tabPanelStyle,
+}: TabsProps) => {
+  const theme = useMemo(() => getTheme(mode), [mode]);
+
+  const enabledItems = useMemo(
+    () => items.filter((item) => !item.disabled),
+    [items]
+  );
+
+  const fallbackKey = enabledItems[0]?.key ?? "";
   const initialKey =
-    defaultActiveKey && items.some((item) => item.key === defaultActiveKey && !item.disabled)
+    defaultActiveKey && enabledItems.some((item) => item.key === defaultActiveKey)
       ? defaultActiveKey
-      : getFirstEnabledKey(items);
+      : fallbackKey;
 
   const [internalActiveKey, setInternalActiveKey] = useState(initialKey);
 
+  const currentActiveKey = activeKey ?? internalActiveKey;
+
   useEffect(() => {
-    if (!items.some((item) => item.key === internalActiveKey && !item.disabled)) {
-      setInternalActiveKey(getFirstEnabledKey(items));
+    if (!items.some((item) => item.key === currentActiveKey && !item.disabled)) {
+      const nextKey = enabledItems[0]?.key ?? "";
+      setInternalActiveKey(nextKey);
     }
-  }, [items, internalActiveKey]);
+  }, [currentActiveKey, enabledItems, items]);
 
-  const currentKey = activeKey ?? internalActiveKey;
+  const activeTab =
+    items.find((item) => item.key === currentActiveKey) ??
+    items.find((item) => !item.disabled);
 
-  const activeItem = useMemo(
-    () => items.find((item) => item.key === currentKey && !item.disabled) ?? items.find((item) => !item.disabled),
-    [items, currentKey]
-  );
-
-  const sizes = sizeMap[size];
-
-  const handleChange = (item: TabItem) => {
-    if (item.disabled) return;
-
+  const handleChange = (key: string) => {
     if (activeKey === undefined) {
-      setInternalActiveKey(item.key);
+      setInternalActiveKey(key);
     }
-
-    onChange?.(item.key, item);
+    onChange?.(key);
   };
 
-  const handleKeyDown = (
-    event: React.KeyboardEvent<HTMLDivElement>,
+  const moveFocus = (
+    event: KeyboardEvent<HTMLButtonElement>,
     currentIndex: number
   ) => {
-    if (!items.length) return;
+    if (!enabledItems.length) return;
 
+    const lastIndex = enabledItems.length - 1;
     let nextIndex = currentIndex;
 
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      for (let i = 0; i < items.length; i += 1) {
-        nextIndex = (nextIndex + 1) % items.length;
-        if (!items[nextIndex].disabled) {
-          handleChange(items[nextIndex]);
-          break;
-        }
-      }
+    switch (event.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        event.preventDefault();
+        nextIndex = currentIndex >= lastIndex ? 0 : currentIndex + 1;
+        break;
+
+      case "ArrowLeft":
+      case "ArrowUp":
+        event.preventDefault();
+        nextIndex = currentIndex <= 0 ? lastIndex : currentIndex - 1;
+        break;
+
+      case "Home":
+        event.preventDefault();
+        nextIndex = 0;
+        break;
+
+      case "End":
+        event.preventDefault();
+        nextIndex = lastIndex;
+        break;
+
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        handleChange(enabledItems[currentIndex].key);
+        return;
+
+      default:
+        return;
     }
 
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      for (let i = 0; i < items.length; i += 1) {
-        nextIndex = (nextIndex - 1 + items.length) % items.length;
-        if (!items[nextIndex].disabled) {
-          handleChange(items[nextIndex]);
-          break;
-        }
-      }
-    }
+    const nextTab = enabledItems[nextIndex];
+    handleChange(nextTab.key);
+
+    const nextButton = document.getElementById(`tab-${nextTab.key}`);
+    nextButton?.focus();
   };
 
-  const getTabButtonStyle = (isActive: boolean, isDisabled: boolean): CSSProperties => {
-    const base: CSSProperties = {
-      minHeight: sizes.tabMinHeight,
-      padding: `0 ${sizes.tabPaddingX}px`,
-      borderRadius: variant === "line" ? 0 : sizes.radius,
-      border: "none",
+  const sizeConfig = useMemo(() => {
+    switch (size) {
+      case "sm":
+        return {
+          height: 34,
+          fontSize: 12,
+          px: 12,
+        };
+      case "lg":
+        return {
+          height: 46,
+          fontSize: 15,
+          px: 18,
+        };
+      case "md":
+      default:
+        return {
+          height: 40,
+          fontSize: 13,
+          px: 16,
+        };
+    }
+  }, [size]);
+
+  const getTabStyle = (isActive: boolean, isDisabled: boolean): CSSProperties => {
+    const common: CSSProperties = {
+      position: "relative",
+      height: sizeConfig.height,
+      padding: `0 ${sizeConfig.px}px`,
+      borderRadius: variant === "underline" ? 0 : 12,
+      border:
+        variant === "underline"
+          ? "none"
+          : `1px solid ${isActive ? theme.primary : theme.border}`,
       background:
-        variant === "segmented"
-          ? isActive
-            ? "#ffffff"
-            : "transparent"
-          : variant === "pill"
-          ? isActive
-            ? "#2563eb"
-            : "#f8fafc"
-          : "transparent",
-      color:
-        variant === "pill"
-          ? isActive
-            ? "#ffffff"
-            : "#475569"
+        variant === "underline"
+          ? "transparent"
           : isActive
-          ? "#2563eb"
-          : "#475569",
-      fontSize: sizes.fontSize,
+          ? variant === "segmented"
+            ? theme.primary
+            : mode === "dark"
+            ? "rgba(59,130,246,0.16)"
+            : "rgba(37,99,235,0.08)"
+          : "transparent",
+      color: isDisabled
+        ? theme.mutedText
+        : variant === "segmented" && isActive
+        ? theme.inverseText ?? "#ffffff"
+        : isActive
+        ? theme.primary
+        : theme.text,
+      fontSize: sizeConfig.fontSize,
       fontWeight: isActive ? 700 : 600,
       cursor: isDisabled ? "not-allowed" : "pointer",
-      opacity: isDisabled ? 0.5 : 1,
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
       whiteSpace: "nowrap",
       transition: "all 0.2s ease",
-      boxShadow:
-        variant === "segmented" && isActive
-          ? "0 6px 18px rgba(15, 23, 42, 0.08)"
-          : "none",
+      opacity: isDisabled ? 0.55 : 1,
       borderBottom:
-        variant === "line"
-          ? isActive
-            ? "2px solid #2563eb"
-            : "2px solid transparent"
+        variant === "underline"
+          ? `2px solid ${isActive ? theme.primary : "transparent"}`
           : undefined,
     };
 
-    return base;
+    return common;
   };
 
   return (
-    <div style={{ width: "100%" }}>
+    <div
+      className={className}
+      style={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        ...style,
+      }}
+    >
       <div
         role="tablist"
         aria-orientation="horizontal"
         style={{
+          width: fullWidth ? "100%" : "fit-content",
           display: "flex",
           alignItems: "center",
-          justifyContent: centered ? "center" : "flex-start",
-          gap: sizes.gap,
-          width: fullWidth ? "100%" : "fit-content",
-          padding: variant === "segmented" ? 6 : 0,
-          borderRadius: variant === "segmented" ? sizes.radius + 4 : 0,
-          background: variant === "segmented" ? "#f8fafc" : "transparent",
-          border: variant === "segmented" ? "1px solid #e2e8f0" : "none",
-          borderBottom: variant === "line" ? "1px solid #e2e8f0" : "none",
-          overflowX: "auto",
+          gap: variant === "underline" ? 18 : 8,
+          padding:
+            variant === "segmented"
+              ? 6
+              : variant === "pills"
+              ? 4
+              : 0,
+          borderRadius: 16,
+          background:
+            variant === "segmented"
+              ? mode === "dark"
+                ? "rgba(255,255,255,0.04)"
+                : "#f8fafc"
+              : "transparent",
+          border:
+            variant === "segmented"
+              ? `1px solid ${theme.border}`
+              : "none",
+          boxShadow:
+            variant === "segmented"
+              ? mode === "dark"
+                ? "0 10px 24px rgba(0,0,0,0.18)"
+                : "0 10px 24px rgba(15,23,42,0.06)"
+              : "none",
           ...tabListStyle,
         }}
       >
-        {items.map((item, index) => {
-          const isActive = activeItem?.key === item.key;
+        {items.map((item) => {
+          const isActive = item.key === activeTab?.key;
+          const enabledIndex = enabledItems.findIndex(
+            (enabledItem) => enabledItem.key === item.key
+          );
 
           return (
             <button
               key={item.key}
-              role="tab"
+              id={`tab-${item.key}`}
               type="button"
+              role="tab"
               aria-selected={isActive}
-              aria-disabled={item.disabled || undefined}
+              aria-controls={`panel-${item.key}`}
+              tabIndex={isActive ? 0 : -1}
               disabled={item.disabled}
-              onClick={() => handleChange(item)}
-              onKeyDown={(event) => handleKeyDown(event, index)}
+              onClick={() => {
+                if (item.disabled) return;
+                handleChange(item.key);
+              }}
+              onKeyDown={(event) => {
+                if (item.disabled || enabledIndex === -1) return;
+                moveFocus(event, enabledIndex);
+              }}
               style={{
-                ...getTabButtonStyle(isActive, Boolean(item.disabled)),
+                ...getTabStyle(isActive, Boolean(item.disabled)),
                 flex: fullWidth ? 1 : undefined,
               }}
             >
               <span>{item.label}</span>
-
-              {item.badge && (
+              {item.badge ? (
                 <span
                   style={{
-                    minWidth: 20,
-                    height: 20,
-                    padding: "0 6px",
-                    borderRadius: 999,
-                    background:
-                      variant === "pill" && isActive
-                        ? "rgba(255,255,255,0.18)"
-                        : "#e2e8f0",
-                    color:
-                      variant === "pill" && isActive ? "#ffffff" : "#334155",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    lineHeight: 1,
                   }}
                 >
                   {item.badge}
                 </span>
-              )}
+              ) : null}
             </button>
           );
         })}
       </div>
 
       <div
+        id={`panel-${activeTab?.key ?? "empty"}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab?.key ?? "empty"}`}
         style={{
-          marginTop: 16,
-          ...contentStyle,
+          width: "100%",
+          color: theme.text,
+          ...tabPanelStyle,
         }}
       >
-        {destroyInactiveTabPane
-          ? activeItem?.content
-          : items.map((item) => (
-              <div
-                key={item.key}
-                role="tabpanel"
-                hidden={activeItem?.key !== item.key}
-                style={{
-                  display: activeItem?.key === item.key ? "block" : "none",
-                }}
-              >
-                {item.content}
-              </div>
-            ))}
+        {activeTab?.content ?? null}
       </div>
     </div>
   );
-}
+};
+
+export default Tabs;

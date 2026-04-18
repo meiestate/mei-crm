@@ -1,175 +1,253 @@
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import React, { useMemo } from "react";
+import { getTheme } from "../../theme";
 
-type OverdueIndicatorProps = {
-  mode: ThemeMode;
-  dueDate: string | number | Date | null | undefined;
-  label?: string;
+type ThemeMode = "light" | "dark";
+type IndicatorSize = "sm" | "md" | "lg";
+
+export interface OverdueIndicatorProps {
+  dueDate?: string | Date | null;
+  overdueDays?: number | null;
+  mode?: ThemeMode;
+  size?: IndicatorSize;
+  className?: string;
   showIcon?: boolean;
+  showDot?: boolean;
   compact?: boolean;
-  fallback?: string;
-  fontSize?: number | string;
-  fontWeight?: number;
+  label?: string;
+}
+
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+const parseDate = (value?: string | Date | null): Date | null => {
+  if (!value) return null;
+
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
-function parseDateValue(
-  value: string | number | Date | null | undefined
-): Date | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  const parsed = value instanceof Date ? value : new Date(value);
-
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function getDayDiff(targetDate: Date) {
+const getCalendarDayDiff = (date: Date): number => {
   const now = new Date();
 
-  const today = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  const target = new Date(
-    targetDate.getFullYear(),
-    targetDate.getMonth(),
-    targetDate.getDate()
-  );
+  return Math.floor((today.getTime() - target.getTime()) / DAY_MS);
+};
 
-  const diffMs = target.getTime() - today.getTime();
-  return Math.round(diffMs / (1000 * 60 * 60 * 24));
-}
-
-export default function OverdueIndicator({
-  mode,
+const OverdueIndicator: React.FC<OverdueIndicatorProps> = ({
   dueDate,
-  label,
+  overdueDays,
+  mode = "light",
+  size = "md",
+  className,
   showIcon = true,
+  showDot = true,
   compact = false,
-  fallback = "—",
-  fontSize = 12.5,
-  fontWeight = 700,
-}: OverdueIndicatorProps) {
-  const theme = getTheme(mode);
-  const parsedDate = parseDateValue(dueDate);
+  label,
+}) => {
+  const theme = useMemo(() => getTheme(mode), [mode]);
 
-  if (!parsedDate) {
-    return (
-      <span
-        style={{
-          fontSize,
-          fontWeight,
-          color: theme.mutedText,
-        }}
-      >
-        {fallback}
-      </span>
-    );
-  }
+  const resolvedDate = useMemo(() => parseDate(dueDate), [dueDate]);
 
-  const dayDiff = getDayDiff(parsedDate);
+  const diffDays = useMemo(() => {
+    if (typeof overdueDays === "number") return overdueDays;
+    if (!resolvedDate) return null;
+    return getCalendarDayDiff(resolvedDate);
+  }, [overdueDays, resolvedDate]);
 
-  let text = label ?? "";
-  let color = theme.text;
-  let bg =
-    mode === "dark"
-      ? "rgba(255,255,255,0.06)"
-      : "rgba(15,23,42,0.06)";
-  let border =
-    mode === "dark"
-      ? "rgba(255,255,255,0.08)"
-      : "rgba(15,23,42,0.08)";
-  let icon = "•";
+  const state = useMemo(() => {
+    if (label) {
+      return {
+        text: label,
+        kind: "custom" as const,
+      };
+    }
 
-  if (dayDiff < 0) {
-    const overdueDays = Math.abs(dayDiff);
-    text =
-      label ??
-      (overdueDays === 1 ? "1 day overdue" : `${overdueDays} days overdue`);
-    color = theme.warning ?? "#ef4444";
-    bg =
-      mode === "dark"
-        ? "rgba(239,68,68,0.14)"
-        : "rgba(239,68,68,0.10)";
-    border =
-      mode === "dark"
-        ? "rgba(239,68,68,0.20)"
-        : "rgba(239,68,68,0.18)";
-    icon = "⚠";
-  } else if (dayDiff === 0) {
-    text = label ?? "Due today";
-    color = "#f59e0b";
-    bg =
-      mode === "dark"
-        ? "rgba(245,158,11,0.14)"
-        : "rgba(245,158,11,0.10)";
-    border =
-      mode === "dark"
-        ? "rgba(245,158,11,0.20)"
-        : "rgba(245,158,11,0.18)";
-    icon = "●";
-  } else if (dayDiff === 1) {
-    text = label ?? "Due tomorrow";
-    color = theme.primary;
-    bg =
-      mode === "dark"
-        ? "rgba(59,130,246,0.14)"
-        : "rgba(37,99,235,0.10)";
-    border =
-      mode === "dark"
-        ? "rgba(59,130,246,0.20)"
-        : "rgba(37,99,235,0.18)";
-    icon = "→";
-  } else {
-    text = label ?? `Due in ${dayDiff} days`;
-    color = theme.success ?? "#22c55e";
-    bg =
-      mode === "dark"
-        ? "rgba(34,197,94,0.14)"
-        : "rgba(34,197,94,0.10)";
-    border =
-      mode === "dark"
-        ? "rgba(34,197,94,0.20)"
-        : "rgba(34,197,94,0.18)";
-    icon = "✓";
-  }
+    if (diffDays === null) {
+      return {
+        text: "No due date",
+        kind: "neutral" as const,
+      };
+    }
+
+    if (diffDays < 0) {
+      const daysLeft = Math.abs(diffDays);
+
+      if (daysLeft === 1) {
+        return {
+          text: "Due tomorrow",
+          kind: "upcoming" as const,
+        };
+      }
+
+      return {
+        text: `Due in ${daysLeft} days`,
+        kind: "upcoming" as const,
+      };
+    }
+
+    if (diffDays === 0) {
+      return {
+        text: "Due today",
+        kind: "today" as const,
+      };
+    }
+
+    if (diffDays === 1) {
+      return {
+        text: "1 day overdue",
+        kind: "overdue" as const,
+      };
+    }
+
+    return {
+      text: `${diffDays} days overdue`,
+      kind: "overdue" as const,
+    };
+  }, [diffDays, label]);
+
+  const palette = useMemo(() => {
+    switch (state.kind) {
+      case "overdue":
+        return {
+          text: "#dc2626",
+          bg: mode === "dark" ? "rgba(220,38,38,0.18)" : "rgba(220,38,38,0.10)",
+          border:
+            mode === "dark" ? "rgba(248,113,113,0.32)" : "rgba(220,38,38,0.18)",
+          dot: "#dc2626",
+          icon: "⚠",
+        };
+
+      case "today":
+        return {
+          text: "#d97706",
+          bg: mode === "dark" ? "rgba(217,119,6,0.18)" : "rgba(217,119,6,0.10)",
+          border:
+            mode === "dark" ? "rgba(251,191,36,0.30)" : "rgba(217,119,6,0.18)",
+          dot: "#d97706",
+          icon: "⏰",
+        };
+
+      case "upcoming":
+        return {
+          text: "#2563eb",
+          bg: mode === "dark" ? "rgba(37,99,235,0.18)" : "rgba(37,99,235,0.10)",
+          border:
+            mode === "dark" ? "rgba(96,165,250,0.30)" : "rgba(37,99,235,0.18)",
+          dot: "#2563eb",
+          icon: "📅",
+        };
+
+      case "custom":
+        return {
+          text: theme.text,
+          bg:
+            mode === "dark"
+              ? "rgba(148,163,184,0.14)"
+              : "rgba(148,163,184,0.10)",
+          border:
+            mode === "dark"
+              ? "rgba(148,163,184,0.28)"
+              : "rgba(148,163,184,0.18)",
+          dot: theme.primary,
+          icon: "•",
+        };
+
+      case "neutral":
+      default:
+        return {
+          text: theme.subText,
+          bg:
+            mode === "dark"
+              ? "rgba(148,163,184,0.14)"
+              : "rgba(148,163,184,0.10)",
+          border:
+            mode === "dark"
+              ? "rgba(148,163,184,0.28)"
+              : "rgba(148,163,184,0.18)",
+          dot: theme.subText,
+          icon: "•",
+        };
+    }
+  }, [mode, state.kind, theme]);
+
+  const sizing = useMemo(() => {
+    switch (size) {
+      case "sm":
+        return {
+          fontSize: 11,
+          padding: compact ? "4px 8px" : "5px 9px",
+          gap: 6,
+          dot: 7,
+        };
+      case "lg":
+        return {
+          fontSize: 13,
+          padding: compact ? "7px 11px" : "8px 12px",
+          gap: 8,
+          dot: 9,
+        };
+      case "md":
+      default:
+        return {
+          fontSize: 12,
+          padding: compact ? "6px 10px" : "7px 11px",
+          gap: 7,
+          dot: 8,
+        };
+    }
+  }, [compact, size]);
 
   return (
     <span
+      className={className}
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: compact ? 6 : 8,
-        padding: compact ? "5px 9px" : "7px 11px",
+        gap: sizing.gap,
+        padding: sizing.padding,
         borderRadius: 999,
-        background: bg,
-        color,
-        border: `1px solid ${border}`,
-        fontSize,
-        fontWeight,
-        whiteSpace: "nowrap",
+        border: `1px solid ${palette.border}`,
+        background: palette.bg,
+        color: palette.text,
+        fontSize: sizing.fontSize,
+        fontWeight: 700,
         lineHeight: 1,
+        whiteSpace: "nowrap",
+        userSelect: "none",
       }}
-      title={parsedDate.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })}
+      title={state.text}
     >
-      {showIcon && (
+      {showDot ? (
         <span
+          aria-hidden="true"
           style={{
-            fontSize: compact ? 11 : 12,
+            width: sizing.dot,
+            height: sizing.dot,
+            minWidth: sizing.dot,
+            borderRadius: "50%",
+            background: palette.dot,
+            boxShadow: `0 0 0 3px ${palette.dot}18`,
+          }}
+        />
+      ) : null}
+
+      {showIcon ? (
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: size === "lg" ? 14 : 12,
             lineHeight: 1,
+            transform: "translateY(-0.5px)",
           }}
         >
-          {icon}
+          {palette.icon}
         </span>
-      )}
-      <span>{text}</span>
+      ) : null}
+
+      <span>{state.text}</span>
     </span>
   );
-}
+};
+
+export default OverdueIndicator;

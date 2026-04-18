@@ -1,197 +1,163 @@
-import { useMemo, useState } from "react";
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import React, { useMemo, useState } from "react";
+import { getTheme } from "../../theme";
 
-type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
+type ThemeMode = "light" | "dark";
 
-type AvatarProps = {
-  mode: ThemeMode;
-  name?: string;
-  src?: string;
+export interface AvatarProps {
+  src?: string | null;
   alt?: string;
-  size?: AvatarSize | number;
-  rounded?: boolean;
-  showStatus?: boolean;
+  name?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  mode?: ThemeMode;
+  shape?: "circle" | "rounded";
   status?: "online" | "offline" | "busy" | "away";
-  fontWeight?: number;
-};
+  showStatus?: boolean;
+  className?: string;
+  onClick?: () => void;
+}
 
-function getInitials(name?: string) {
-  if (!name) return "?";
+const getInitials = (name?: string) => {
+  if (!name) return "U";
 
   const parts = name
     .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2);
 
-  if (!parts.length) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  if (parts.length === 0) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
 
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-}
+};
 
-function getAvatarSize(size: AvatarSize | number) {
-  if (typeof size === "number") {
-    return size;
-  }
-
-  switch (size) {
-    case "xs":
-      return 28;
-    case "sm":
-      return 34;
-    case "md":
-      return 42;
-    case "lg":
-      return 52;
-    case "xl":
-      return 68;
-    default:
-      return 42;
-  }
-}
-
-function getStatusColor(status: NonNullable<AvatarProps["status"]>) {
+const getStatusColor = (status: NonNullable<AvatarProps["status"]>) => {
   switch (status) {
     case "online":
-      return "#22c55e";
+      return "#16a34a";
     case "busy":
-      return "#ef4444";
+      return "#dc2626";
     case "away":
-      return "#f59e0b";
+      return "#d97706";
     case "offline":
     default:
-      return "#94a3b8";
+      return "#64748b";
   }
-}
+};
 
-function getSeededColor(name: string, mode: ThemeMode) {
-  const paletteLight = [
-    "#dbeafe",
-    "#ede9fe",
-    "#dcfce7",
-    "#fce7f3",
-    "#fef3c7",
-    "#cffafe",
-  ];
-
-  const paletteDark = [
-    "#1d4ed8",
-    "#6d28d9",
-    "#15803d",
-    "#be185d",
-    "#b45309",
-    "#0f766e",
-  ];
-
-  let hash = 0;
-
-  for (let i = 0; i < name.length; i += 1) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const palette = mode === "dark" ? paletteDark : paletteLight;
-  return palette[Math.abs(hash) % palette.length];
-}
-
-export default function Avatar({
-  mode,
-  name = "",
+const Avatar: React.FC<AvatarProps> = ({
   src,
   alt,
+  name,
   size = "md",
-  rounded = true,
-  showStatus = false,
+  mode = "light",
+  shape = "circle",
   status = "offline",
-  fontWeight = 800,
-}: AvatarProps) {
-  const theme = getTheme(mode);
-  const [imageError, setImageError] = useState(false);
+  showStatus = false,
+  className,
+  onClick,
+}) => {
+  const theme = useMemo(() => getTheme(mode), [mode]);
+  const [hasError, setHasError] = useState(false);
 
-  const resolvedSize = getAvatarSize(size);
+  const sizing = useMemo(() => {
+    switch (size) {
+      case "xs":
+        return { box: 28, font: 11, status: 8 };
+      case "sm":
+        return { box: 36, font: 12, status: 9 };
+      case "lg":
+        return { box: 56, font: 18, status: 12 };
+      case "xl":
+        return { box: 72, font: 22, status: 14 };
+      case "md":
+      default:
+        return { box: 44, font: 14, status: 10 };
+    }
+  }, [size]);
+
   const initials = useMemo(() => getInitials(name), [name]);
-  const fallbackBg = useMemo(
-    () => getSeededColor(name || "User", mode),
-    [name, mode]
-  );
+  const statusColor = getStatusColor(status);
+  const radius = shape === "circle" ? "50%" : 16;
 
-  const hasImage = !!src && !imageError;
-  const statusSize = Math.max(8, Math.round(resolvedSize * 0.24));
-  const borderRadius = rounded ? "50%" : Math.max(10, Math.round(resolvedSize * 0.28));
+  const clickable = Boolean(onClick);
 
   return (
     <div
+      className={className}
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (!clickable) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
       style={{
         position: "relative",
-        width: resolvedSize,
-        height: resolvedSize,
-        flexShrink: 0,
+        width: sizing.box,
+        height: sizing.box,
+        minWidth: sizing.box,
+        borderRadius: radius,
+        overflow: "hidden",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        userSelect: "none",
+        cursor: clickable ? "pointer" : "default",
+        border: `1px solid ${theme.border}`,
+        background:
+          mode === "dark"
+            ? "linear-gradient(135deg, rgba(59,130,246,0.22), rgba(148,163,184,0.12))"
+            : "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(226,232,240,0.9))",
+        color: theme.text,
+        fontSize: sizing.font,
+        fontWeight: 800,
+        letterSpacing: 0.3,
+        boxShadow:
+          mode === "dark"
+            ? "0 8px 20px rgba(0,0,0,0.26)"
+            : "0 8px 20px rgba(15,23,42,0.08)",
+        transition: "all 0.2s ease",
       }}
       title={name || alt || "Avatar"}
     >
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius,
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: hasImage
-            ? theme.cardBg
-            : fallbackBg,
-          color: hasImage
-            ? theme.text
-            : mode === "dark"
-            ? "#ffffff"
-            : "#0f172a",
-          border: `1px solid ${theme.border}`,
-          userSelect: "none",
-        }}
-      >
-        {hasImage ? (
-          <img
-            src={src}
-            alt={alt || name || "Avatar"}
-            onError={() => setImageError(true)}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
-        ) : (
-          <span
-            style={{
-              fontSize: Math.max(11, Math.round(resolvedSize * 0.34)),
-              fontWeight,
-              lineHeight: 1,
-              letterSpacing: "-0.02em",
-              textTransform: "uppercase",
-            }}
-          >
-            {initials}
-          </span>
-        )}
-      </div>
+      {src && !hasError ? (
+        <img
+          src={src}
+          alt={alt ?? name ?? "Avatar"}
+          onError={() => setHasError(true)}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+      ) : (
+        <span aria-hidden="true">{initials}</span>
+      )}
 
-      {showStatus && (
+      {showStatus ? (
         <span
+          aria-hidden="true"
           style={{
             position: "absolute",
             right: 1,
             bottom: 1,
-            width: statusSize,
-            height: statusSize,
+            width: sizing.status,
+            height: sizing.status,
             borderRadius: "50%",
-            background: getStatusColor(status),
+            background: statusColor,
             border: `2px solid ${theme.cardBg}`,
-            boxSizing: "border-box",
+            boxShadow: `0 0 0 2px ${statusColor}22`,
           }}
         />
-      )}
+      ) : null}
     </div>
   );
-}
+};
+
+export default Avatar;

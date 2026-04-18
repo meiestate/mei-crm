@@ -1,100 +1,111 @@
-import { getTheme } from "../theme";
-import type { ThemeMode } from "../theme";
+import React from "react";
 
-type CurrencyTextProps = {
+export interface CurrencyTextProps {
   value: number | string | null | undefined;
-  mode: ThemeMode;
   currency?: string;
   locale?: string;
   minimumFractionDigits?: number;
   maximumFractionDigits?: number;
   compact?: boolean;
-  showSign?: boolean;
-  colorize?: boolean;
-  prefix?: string;
-  suffix?: string;
-  fallback?: string;
-  fontSize?: number | string;
-  fontWeight?: number;
-};
+  showPlusForPositive?: boolean;
+  muted?: boolean;
+  className?: string;
+  fallback?: React.ReactNode;
+  prefix?: React.ReactNode;
+  suffix?: React.ReactNode;
+}
 
-function parseAmount(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ");
 
+const toSafeNumber = (value: CurrencyTextProps["value"]) => {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : null;
   }
 
-  const normalized = value.replace(/,/g, "").trim();
-  const parsed = Number(normalized);
+  if (typeof value === "string" && value.trim() !== "") {
+    const numeric = Number(value.replace(/,/g, ""));
+    return Number.isFinite(numeric) ? numeric : null;
+  }
 
-  return Number.isFinite(parsed) ? parsed : null;
-}
+  return null;
+};
 
-function formatCurrencyValue({
-  amount,
+const formatCurrencyValue = ({
+  value,
   currency,
   locale,
   minimumFractionDigits,
   maximumFractionDigits,
   compact,
 }: {
-  amount: number;
+  value: number;
   currency: string;
   locale: string;
   minimumFractionDigits: number;
   maximumFractionDigits: number;
   compact: boolean;
-}) {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    notation: compact ? "compact" : "standard",
-    minimumFractionDigits,
-    maximumFractionDigits,
-  }).format(amount);
-}
+}) => {
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      notation: compact ? "compact" : "standard",
+      minimumFractionDigits,
+      maximumFractionDigits,
+    }).format(value);
+  } catch {
+    const abs = Math.abs(value);
 
-export default function CurrencyText({
+    if (compact) {
+      if (abs >= 1_000_000_000) {
+        return `${currency} ${(value / 1_000_000_000).toFixed(1)}B`;
+      }
+      if (abs >= 1_000_000) {
+        return `${currency} ${(value / 1_000_000).toFixed(1)}M`;
+      }
+      if (abs >= 1_000) {
+        return `${currency} ${(value / 1_000).toFixed(1)}K`;
+      }
+    }
+
+    return `${currency} ${value.toFixed(maximumFractionDigits)}`;
+  }
+};
+
+const CurrencyText: React.FC<CurrencyTextProps> = ({
   value,
-  mode,
   currency = "INR",
   locale = "en-IN",
   minimumFractionDigits = 0,
   maximumFractionDigits = 0,
   compact = false,
-  showSign = false,
-  colorize = false,
-  prefix = "",
-  suffix = "",
+  showPlusForPositive = false,
+  muted = false,
+  className,
   fallback = "—",
-  fontSize = 14,
-  fontWeight = 700,
-}: CurrencyTextProps) {
-  const theme = getTheme(mode);
-  const amount = parseAmount(value);
+  prefix,
+  suffix,
+}) => {
+  const numericValue = toSafeNumber(value);
 
-  if (amount === null) {
+  if (numericValue === null) {
     return (
       <span
-        style={{
-          fontSize,
-          fontWeight,
-          color: theme.mutedText,
-        }}
+        className={cn(
+          "inline-flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500",
+          className
+        )}
       >
+        {prefix}
         {fallback}
+        {suffix}
       </span>
     );
   }
 
-  const signedAmount =
-    showSign && amount > 0 ? `+${amount}` : String(amount);
-
   const formatted = formatCurrencyValue({
-    amount: Number(signedAmount),
+    value: numericValue,
     currency,
     locale,
     minimumFractionDigits,
@@ -102,27 +113,27 @@ export default function CurrencyText({
     compact,
   });
 
-  const resolvedColor = colorize
-    ? amount > 0
-      ? theme.success ?? "#16a34a"
-      : amount < 0
-      ? theme.warning ?? "#dc2626"
-      : theme.text
-    : theme.text;
+  const shouldShowPlus = showPlusForPositive && numericValue > 0;
+  const isNegative = numericValue < 0;
 
   return (
     <span
-      style={{
-        fontSize,
-        fontWeight,
-        color: resolvedColor,
-        whiteSpace: "nowrap",
-      }}
-      title={`${prefix}${formatted}${suffix}`}
+      className={cn(
+        "inline-flex items-center gap-1 font-medium",
+        muted
+          ? "text-slate-600 dark:text-slate-300"
+          : isNegative
+            ? "text-rose-600 dark:text-rose-400"
+            : "text-slate-900 dark:text-slate-100",
+        className
+      )}
     >
       {prefix}
+      {shouldShowPlus ? "+" : ""}
       {formatted}
       {suffix}
     </span>
   );
-}
+};
+
+export default CurrencyText;
