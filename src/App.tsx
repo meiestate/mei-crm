@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-
+import { OnboardingPage } from "./pages/onboarding/OnboardingPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import LeadsPage from "./pages/leads/LeadsPage";
 import AddLeadPage from "./pages/leads/AddLeadPage";
@@ -291,6 +291,7 @@ export default function App() {
               )
             }
           />
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           <Route
             path="/deals"
@@ -432,3 +433,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

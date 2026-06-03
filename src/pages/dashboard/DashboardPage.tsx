@@ -2,7 +2,7 @@ import AppLayout from "../../layout/AppLayout";
 import { getTheme } from "../../theme";
 import type { ThemeMode } from "../../theme";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type DashboardPageProps = {
@@ -187,34 +187,16 @@ const FALLBACK_DEALS: DealRecord[] = [
   },
 ];
 
-const LEAD_STORAGE_KEYS = [
-  "mei-crm-leads",
-  "mei_crm_leads",
-  "leads",
-  "crm_leads",
-];
+const LEAD_STORAGE_KEYS = ["mei-crm-leads", "mei_crm_leads", "leads", "crm_leads"];
+const TASK_STORAGE_KEYS = ["mei-crm-tasks", "mei_crm_tasks", "tasks", "crm_tasks"];
+const DEAL_STORAGE_KEYS = ["mei-crm-deals", "mei_crm_deals", "deals", "crm_deals"];
 
-const TASK_STORAGE_KEYS = [
-  "mei-crm-tasks",
-  "mei_crm_tasks",
-  "tasks",
-  "crm_tasks",
-];
-
-const DEAL_STORAGE_KEYS = [
-  "mei-crm-deals",
-  "mei_crm_deals",
-  "deals",
-  "crm_deals",
-];
-
-export default function DashboardPage({
-  mode,
-  onToggleTheme,
-}: DashboardPageProps) {
+export default function DashboardPage({ mode, onToggleTheme }: DashboardPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
-
+  const kpiColumns = useResponsiveColumns();
+  const twoColumnLayout = useTwoColumnLayout();
+  
   const leads = useMemo<LeadRecord[]>(() => {
     const stored = readFirstArrayFromStorage<LeadRecord>(LEAD_STORAGE_KEYS);
     return stored.length ? stored : FALLBACK_LEADS;
@@ -232,23 +214,15 @@ export default function DashboardPage({
 
   const totalLeads = leads.length;
 
-  const qualifiedLeads = leads.filter((lead) =>
-    matchesStatus(lead.status, ["qualified"])
-  ).length;
+  const qualifiedLeads = leads.filter((lead) => matchesStatus(lead.status, ["qualified"])).length;
 
   const pendingTasks = tasks.filter(
-    (task) => !matchesStatus(task.status, ["completed", "done", "closed"])
+    (task) => !matchesStatus(task.status, ["completed", "done", "closed"]),
   ).length;
 
   const todayFollowUps = leads
-    .filter((lead) =>
-      isToday(parsePossibleDate(lead.followUpDate || lead.nextFollowUp))
-    )
-    .sort(
-      sortByDateAsc((lead) =>
-        parsePossibleDate(lead.followUpDate || lead.nextFollowUp)
-      )
-    );
+    .filter((lead) => isToday(parsePossibleDate(lead.followUpDate || lead.nextFollowUp)))
+    .sort(sortByDateAsc((lead) => parsePossibleDate(lead.followUpDate || lead.nextFollowUp)));
 
   const overdueFollowUps = leads.filter((lead) => {
     const date = parsePossibleDate(lead.followUpDate || lead.nextFollowUp);
@@ -256,43 +230,20 @@ export default function DashboardPage({
   }).length;
 
   const recentLeads = [...leads]
-    .sort(
-      sortByDateDesc((lead) =>
-        parsePossibleDate(lead.updatedAt || lead.createdAt || lead.followUpDate)
-      )
-    )
+    .sort(sortByDateDesc((lead) => parsePossibleDate(lead.updatedAt || lead.createdAt || lead.followUpDate)))
     .slice(0, 6);
 
   const recentDeals = [...deals]
-    .sort(
-      sortByDateDesc((deal) =>
-        parsePossibleDate(deal.updatedAt || deal.createdAt)
-      )
-    )
+    .sort(sortByDateDesc((deal) => parsePossibleDate(deal.updatedAt || deal.createdAt)))
     .slice(0, 5);
 
-  const unreadCount =
-    todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
+  const unreadCount = todayFollowUps.length > 0 ? Math.min(todayFollowUps.length, 9) : 2;
 
-  const newDeals = deals.filter((deal) =>
-    matchesStatus(deal.stage || deal.status, ["new"])
-  ).length;
-
-  const negotiationDeals = deals.filter((deal) =>
-    matchesStatus(deal.stage || deal.status, ["negotiation"])
-  ).length;
-
-  const proposalDeals = deals.filter((deal) =>
-    matchesStatus(deal.stage || deal.status, ["proposal"])
-  ).length;
-
-  const wonDeals = deals.filter((deal) =>
-    matchesStatus(deal.stage || deal.status, ["won", "closed"])
-  ).length;
-
-  const lostDeals = deals.filter((deal) =>
-    matchesStatus(deal.stage || deal.status, ["lost"])
-  ).length;
+  const newDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["new"])).length;
+  const negotiationDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["negotiation"])).length;
+  const proposalDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["proposal"])).length;
+  const wonDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["won", "closed"])).length;
+  const lostDeals = deals.filter((deal) => matchesStatus(deal.stage || deal.status, ["lost"])).length;
 
   const totalDealValue = deals.reduce((sum, deal) => {
     const numeric = Number(String(deal.value || "").replace(/[^\d.]/g, ""));
@@ -304,40 +255,15 @@ export default function DashboardPage({
     todayFollowUps,
     overdueFollowUps,
     recentLeads,
-    wonDeals
+    wonDeals,
   );
 
   const pipelineData = [
-    {
-      label: "New Deals",
-      value: newDeals,
-      color: colors.info,
-      onClick: () => navigate("/deals?filter=new"),
-    },
-    {
-      label: "Negotiation",
-      value: negotiationDeals,
-      color: colors.warning,
-      onClick: () => navigate("/deals?filter=negotiation"),
-    },
-    {
-      label: "Proposal",
-      value: proposalDeals,
-      color: colors.premium,
-      onClick: () => navigate("/deals?filter=proposal"),
-    },
-    {
-      label: "Won Deals",
-      value: wonDeals,
-      color: colors.success,
-      onClick: () => navigate("/deals?filter=won"),
-    },
-    {
-      label: "Lost Deals",
-      value: lostDeals,
-      color: colors.danger,
-      onClick: () => navigate("/deals?filter=lost"),
-    },
+    { label: "New Deals", value: newDeals, color: colors.info, onClick: () => navigate("/deals?filter=new") },
+    { label: "Negotiation", value: negotiationDeals, color: colors.warning, onClick: () => navigate("/deals?filter=negotiation") },
+    { label: "Proposal", value: proposalDeals, color: colors.premium, onClick: () => navigate("/deals?filter=proposal") },
+    { label: "Won Deals", value: wonDeals, color: colors.success, onClick: () => navigate("/deals?filter=won") },
+    { label: "Lost Deals", value: lostDeals, color: colors.danger, onClick: () => navigate("/deals?filter=lost") },
   ];
 
   const revenueData = [220000, 310000, 420000, 480000, 530000, 610000];
@@ -351,6 +277,7 @@ export default function DashboardPage({
     Math.max(Math.round(totalLeads * 0.18), 5),
     Math.max(Math.round(totalLeads * 0.24), 6),
   ];
+
   const leadsLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const maxPipeline = Math.max(...pipelineData.map((item) => item.value), 1);
@@ -432,7 +359,7 @@ export default function DashboardPage({
 
   return (
     <AppLayout title="Dashboard" mode={mode} onToggleTheme={onToggleTheme}>
-      <div style={{ display: "grid", gap: 20 }}>
+      <div style={pageWrapStyle}>
         <section
           style={{
             ...cardStyle(colors),
@@ -441,9 +368,10 @@ export default function DashboardPage({
             gap: 16,
             flexWrap: "wrap",
             alignItems: "center",
+            minWidth: 0,
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 display: "inline-flex",
@@ -474,31 +402,19 @@ export default function DashboardPage({
               Dashboard
             </h1>
 
-            <p style={subTextStyle(colors)}>
-              Welcome back, here’s your live business snapshot today.
-            </p>
+            <p style={subTextStyle(colors)}>Welcome back, here’s your live business snapshot today.</p>
           </div>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              style={primaryButtonStyle(colors)}
-              onClick={() => navigate("/leads")}
-            >
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
+            <button type="button" style={primaryButtonStyle(colors)} onClick={() => navigate("/leads")}>
               + Add Lead
             </button>
-            <button
-              type="button"
-              style={secondaryButtonStyle(colors)}
-              onClick={() => navigate("/tasks")}
-            >
+
+            <button type="button" style={secondaryButtonStyle(colors)} onClick={() => navigate("/tasks")}>
               Create Task
             </button>
-            <button
-              type="button"
-              style={secondaryButtonStyle(colors)}
-              onClick={() => navigate("/deals")}
-            >
+
+            <button type="button" style={secondaryButtonStyle(colors)} onClick={() => navigate("/deals")}>
               Add Deal
             </button>
           </div>
@@ -507,8 +423,10 @@ export default function DashboardPage({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
+            gridTemplateColumns: `repeat(${kpiColumns}, minmax(0, 1fr))`,
+            gap: 14,
+            width: "100%",
+            minWidth: 0,
           }}
         >
           {kpiData.map((item) => (
@@ -518,13 +436,18 @@ export default function DashboardPage({
               onClick={item.onClick}
               style={{
                 ...cardStyle(colors),
-                padding: 20,
-                display: "grid",
-                gap: 14,
+                padding: 18,
+                minHeight: 165,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                gap: 10,
                 cursor: "pointer",
                 textAlign: "left",
                 transition: "transform 0.18s ease, box-shadow 0.18s ease",
                 background: colors.cardBg,
+                minWidth: 0,
               }}
             >
               <div
@@ -533,13 +456,16 @@ export default function DashboardPage({
                   justifyContent: "space-between",
                   alignItems: "flex-start",
                   gap: 12,
+                  minWidth: 0,
                 }}
               >
                 <div
                   style={{
                     color: colors.subText,
                     fontSize: 14,
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    minWidth: 0,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {item.label}
@@ -547,14 +473,15 @@ export default function DashboardPage({
 
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 14,
+                    width: 38,
+                    height: 38,
+                    borderRadius: 13,
                     display: "grid",
                     placeItems: "center",
                     background: item.bg,
                     color: item.color,
-                    fontSize: 20,
+                    fontSize: 18,
+                    flexShrink: 0,
                   }}
                 >
                   {item.icon}
@@ -563,11 +490,12 @@ export default function DashboardPage({
 
               <div
                 style={{
-                  fontSize: item.label === "Pipeline Value" ? 26 : 34,
+                  fontSize: item.label === "Pipeline Value" ? 24 : 30,
                   fontWeight: 800,
                   color: colors.text,
                   lineHeight: 1,
                   wordBreak: "break-word",
+                  overflowWrap: "anywhere",
                 }}
               >
                 {item.value}
@@ -580,6 +508,7 @@ export default function DashboardPage({
                   gap: 10,
                   alignItems: "center",
                   flexWrap: "wrap",
+                  minWidth: 0,
                 }}
               >
                 <span
@@ -587,6 +516,8 @@ export default function DashboardPage({
                     color: colors.mutedText,
                     fontSize: 13,
                     fontWeight: 600,
+                    minWidth: 0,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {item.note}
@@ -601,6 +532,7 @@ export default function DashboardPage({
                     fontWeight: 700,
                     color: item.color,
                     background: item.bg,
+                    flexShrink: 0,
                   }}
                 >
                   View
@@ -608,29 +540,185 @@ export default function DashboardPage({
               </div>
             </button>
           ))}
+
+          <button
+            type="button"
+            onClick={() => navigate(overdueFollowUps > 0 ? "/tasks?filter=overdue" : "/deals?filter=negotiation")}
+            style={{
+              ...cardStyle(colors),
+              padding: 18,
+              minHeight: 165,
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              gap: 14,
+              cursor: "pointer",
+              textAlign: "left",
+              minWidth: 0,
+              gridColumn: kpiColumns >= 5 ? "span 2" : "span 1",
+              background: `linear-gradient(135deg, ${colors.cardBg} 0%, ${colors.cardBgSoft} 55%, ${colors.infoBg} 100%)`,
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                right: -38,
+                top: -38,
+                width: 130,
+                height: 130,
+                borderRadius: 999,
+                background: colors.primary,
+                opacity: 0.12,
+              }}
+            />
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 14,
+                alignItems: "flex-start",
+                position: "relative",
+                zIndex: 1,
+                minWidth: 0,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 11px",
+                    borderRadius: 999,
+                    background: colors.infoBg,
+                    color: colors.info,
+                    border: `1px solid ${colors.border}`,
+                    fontSize: 12,
+                    fontWeight: 900,
+                    marginBottom: 12,
+                  }}
+                >
+                  ✨ AI Business Insight
+                </div>
+
+                <h3
+                  style={{
+                    margin: 0,
+                    color: colors.text,
+                    fontSize: 22,
+                    fontWeight: 900,
+                    letterSpacing: "-0.02em",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {overdueFollowUps > 0
+                    ? "Follow-up Risk High"
+                    : negotiationDeals > 0
+                      ? "Deal Momentum Active"
+                      : "Business Flow Stable"}
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 14,
+                  display: "grid",
+                  placeItems: "center",
+                  background: colors.premiumBg,
+                  color: colors.premium,
+                  fontSize: 19,
+                  flexShrink: 0,
+                }}
+              >
+                🤖
+              </div>
+            </div>
+
+            <p
+              style={{
+                margin: 0,
+                color: colors.subText,
+                fontSize: 14,
+                lineHeight: 1.6,
+                fontWeight: 600,
+                position: "relative",
+                zIndex: 1,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {overdueFollowUps > 0
+                ? `You have ${overdueFollowUps} overdue follow-up(s). Clear old leads before adding new leads to protect conversion.`
+                : negotiationDeals > 0
+                  ? `${negotiationDeals} negotiation deal(s) are active. Push proposal, site visit, and closure today.`
+                  : "Your CRM flow is stable today. Focus on fresh leads and pipeline quality."}
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              <span
+                style={{
+                  color: colors.mutedText,
+                  fontSize: 13,
+                  fontWeight: 800,
+                }}
+              >
+                Smart next action
+              </span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  background: overdueFollowUps > 0 ? colors.dangerBg || colors.warningBg : colors.infoBg,
+                  color: overdueFollowUps > 0 ? colors.danger : colors.info,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  border: `1px solid ${colors.border}`,
+                }}
+              >
+                {overdueFollowUps > 0 ? "Fix Now" : "View Action"}
+              </span>
+            </div>
+          </button>
         </section>
 
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(320px, 1fr) minmax(320px, 1fr)",
+            gridTemplateColumns: twoColumnLayout ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
             gap: 20,
+            minWidth: 0,
           }}
         >
           <div style={cardStyle(colors)}>
             <div style={chartHeaderWrap}>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2 style={sectionTitle(colors)}>Revenue Overview</h2>
-                <p style={subTextStyle(colors)}>
-                  Monthly revenue trend and growth movement
-                </p>
+                <p style={subTextStyle(colors)}>Monthly revenue trend and growth movement</p>
               </div>
+
               <button
                 type="button"
                 onClick={() => navigate("/deals")}
-                style={unstyledBadgeButton(
-                  inlineBadge(colors, colors.success, colors.successBg)
-                )}
+                style={unstyledBadgeButton(inlineBadge(colors, colors.success, colors.successBg))}
               >
                 Pipeline Value
               </button>
@@ -643,10 +731,7 @@ export default function DashboardPage({
 
                 return (
                   <div key={revenueLabels[index]} style={chartBarWrap}>
-                    <div style={chartLabelTop(colors)}>
-                      ₹{Math.round(value / 1000)}k
-                    </div>
-
+                    <div style={chartLabelTop(colors)}>₹{Math.round(value / 1000)}k</div>
                     <div
                       style={{
                         width: "100%",
@@ -657,10 +742,7 @@ export default function DashboardPage({
                         background: colors.primary,
                       }}
                     />
-
-                    <div style={chartLabelBottom(colors)}>
-                      {revenueLabels[index]}
-                    </div>
+                    <div style={chartLabelBottom(colors)}>{revenueLabels[index]}</div>
                   </div>
                 );
               })}
@@ -669,15 +751,12 @@ export default function DashboardPage({
 
           <div style={cardStyle(colors)}>
             <div style={chartHeaderWrap}>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2 style={sectionTitle(colors)}>Lead Trend</h2>
-                <p style={subTextStyle(colors)}>
-                  Weekly incoming leads performance
-                </p>
+                <p style={subTextStyle(colors)}>Weekly incoming leads performance</p>
               </div>
-              <div style={inlineBadge(colors, colors.info, colors.infoBg)}>
-                Weekly View
-              </div>
+
+              <div style={inlineBadge(colors, colors.info, colors.infoBg)}>Weekly View</div>
             </div>
 
             <div style={chartContainer(colors)}>
@@ -688,7 +767,6 @@ export default function DashboardPage({
                 return (
                   <div key={leadsLabels[index]} style={chartBarWrap}>
                     <div style={chartLabelTop(colors)}>{value}</div>
-
                     <div
                       style={{
                         width: "100%",
@@ -699,10 +777,7 @@ export default function DashboardPage({
                         background: colors.info,
                       }}
                     />
-
-                    <div style={chartLabelBottom(colors)}>
-                      {leadsLabels[index]}
-                    </div>
+                    <div style={chartLabelBottom(colors)}>{leadsLabels[index]}</div>
                   </div>
                 );
               })}
@@ -713,8 +788,9 @@ export default function DashboardPage({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.2fr) minmax(320px, 0.8fr)",
+            gridTemplateColumns: twoColumnLayout ? "minmax(0, 1.2fr) minmax(280px, 0.8fr)" : "minmax(0, 1fr)",
             gap: 20,
+            minWidth: 0,
           }}
         >
           <div style={cardStyle(colors)}>
@@ -726,118 +802,57 @@ export default function DashboardPage({
                 flexWrap: "wrap",
                 alignItems: "center",
                 marginBottom: 18,
+                minWidth: 0,
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2 style={sectionTitle(colors)}>Recent Leads</h2>
-                <p style={subTextStyle(colors)}>
-                  Latest lead updates from localStorage live data
-                </p>
+                <p style={subTextStyle(colors)}>Latest lead updates from localStorage live data</p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => navigate("/leads")}
-                style={secondaryButtonStyle(colors)}
-              >
+              <button type="button" onClick={() => navigate("/leads")} style={secondaryButtonStyle(colors)}>
                 View All Leads
               </button>
             </div>
 
-            <div
-              style={{
-                overflowX: "auto",
-                border: `1px solid ${colors.border}`,
-                borderRadius: 16,
-                background: colors.cardBgSoft,
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  minWidth: 760,
-                }}
-              >
+            <div style={tableWrapStyle(colors)}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
                 <thead>
                   <tr>
-                    {["Lead", "Source", "Status", "Budget", "Follow-up", "Owner"].map(
-                      (head) => (
-                        <th
-                          key={head}
-                          style={{
-                            textAlign: "left",
-                            padding: "14px 16px",
-                            fontSize: 13,
-                            color: colors.subText,
-                            borderBottom: `1px solid ${colors.border}`,
-                            fontWeight: 800,
-                            background: colors.cardBg,
-                          }}
-                        >
-                          {head}
-                        </th>
-                      )
-                    )}
+                    {["Lead", "Source", "Status", "Budget", "Follow-up", "Owner"].map((head) => (
+                      <th key={head} style={tableHeadStyle(colors)}>
+                        {head}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
 
                 <tbody>
                   {recentLeads.map((lead) => {
-                    const followUp = parsePossibleDate(
-                      lead.followUpDate || lead.nextFollowUp
-                    );
+                    const followUp = parsePossibleDate(lead.followUpDate || lead.nextFollowUp);
 
                     return (
                       <tr
                         key={String(lead.id)}
                         onClick={() => navigate(`/leads/${lead.id}`)}
-                        style={{
-                          cursor: "pointer",
-                          borderBottom: `1px solid ${colors.border}`,
-                        }}
+                        style={{ cursor: "pointer", borderBottom: `1px solid ${colors.border}` }}
                       >
                         <td style={tableCellStyle(colors)}>
-                          <div style={{ fontWeight: 700, color: colors.text }}>
-                            {getLeadName(lead)}
-                          </div>
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 12,
-                              color: colors.mutedText,
-                            }}
-                          >
-                            #{lead.id}
-                          </div>
+                          <div style={{ fontWeight: 700, color: colors.text }}>{getLeadName(lead)}</div>
+                          <div style={{ marginTop: 4, fontSize: 12, color: colors.mutedText }}>#{lead.id}</div>
                         </td>
 
                         <td style={tableCellStyle(colors)}>{lead.source || "—"}</td>
 
                         <td style={tableCellStyle(colors)}>
-                          <span
-                            style={{
-                              ...statusPillStyle(
-                                colors,
-                                getLeadStatusColor(colors, lead.status)
-                              ),
-                            }}
-                          >
+                          <span style={statusPillStyle(colors, getLeadStatusColor(colors, lead.status))}>
                             {lead.status || "New"}
                           </span>
                         </td>
 
-                        <td style={tableCellStyle(colors)}>
-                          {formatBudget(lead.budget)}
-                        </td>
-
-                        <td style={tableCellStyle(colors)}>
-                          {followUp ? formatDateShortLocal(followUp) : "—"}
-                        </td>
-
-                        <td style={tableCellStyle(colors)}>
-                          {lead.owner || "Unassigned"}
-                        </td>
+                        <td style={tableCellStyle(colors)}>{formatBudget(lead.budget)}</td>
+                        <td style={tableCellStyle(colors)}>{followUp ? formatDateShortLocal(followUp) : "—"}</td>
+                        <td style={tableCellStyle(colors)}>{lead.owner || "Unassigned"}</td>
                       </tr>
                     );
                   })}
@@ -846,15 +861,11 @@ export default function DashboardPage({
             </div>
           </div>
 
-          <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+          <div style={{ display: "grid", gap: 20, alignContent: "start", minWidth: 0 }}>
             <button
               type="button"
               onClick={() => navigate("/tasks?filter=today")}
-              style={{
-                ...cardStyle(colors),
-                textAlign: "left",
-                cursor: "pointer",
-              }}
+              style={{ ...cardStyle(colors), textAlign: "left", cursor: "pointer" }}
             >
               <div
                 style={{
@@ -866,18 +877,12 @@ export default function DashboardPage({
                   marginBottom: 16,
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <h2 style={sectionTitle(colors)}>Today Follow-up</h2>
-                  <p style={subTextStyle(colors)}>
-                    Leads that need action before the day ends
-                  </p>
+                  <p style={subTextStyle(colors)}>Leads that need action before the day ends</p>
                 </div>
 
-                <span
-                  style={inlineBadge(colors, colors.warning, colors.warningBg)}
-                >
-                  {todayFollowUps.length} Due
-                </span>
+                <span style={inlineBadge(colors, colors.warning, colors.warningBg)}>{todayFollowUps.length} Due</span>
               </div>
 
               <div style={{ display: "grid", gap: 12 }}>
@@ -899,8 +904,8 @@ export default function DashboardPage({
                   todayFollowUps.slice(0, 5).map((lead) => (
                     <div
                       key={`followup-${lead.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={(event) => {
+                        event.stopPropagation();
                         navigate(`/leads/${lead.id}`);
                       }}
                       style={{
@@ -911,6 +916,7 @@ export default function DashboardPage({
                         display: "grid",
                         gap: 8,
                         cursor: "pointer",
+                        minWidth: 0,
                       }}
                     >
                       <div
@@ -922,50 +928,19 @@ export default function DashboardPage({
                           flexWrap: "wrap",
                         }}
                       >
-                        <div
-                          style={{
-                            fontSize: 15,
-                            fontWeight: 800,
-                            color: colors.text,
-                          }}
-                        >
-                          {getLeadName(lead)}
-                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: colors.text }}>{getLeadName(lead)}</div>
 
-                        <span
-                          style={{
-                            ...statusPillStyle(
-                              colors,
-                              getLeadStatusColor(colors, lead.status)
-                            ),
-                          }}
-                        >
+                        <span style={statusPillStyle(colors, getLeadStatusColor(colors, lead.status))}>
                           {lead.status || "New"}
                         </span>
                       </div>
 
-                      <div
-                        style={{
-                          fontSize: 13,
-                          color: colors.subText,
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        Source: {lead.source || "—"} · Budget:{" "}
-                        {formatBudget(lead.budget)}
+                      <div style={{ fontSize: 13, color: colors.subText, lineHeight: 1.6 }}>
+                        Source: {lead.source || "—"} · Budget: {formatBudget(lead.budget)}
                       </div>
 
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: colors.mutedText,
-                          fontWeight: 700,
-                        }}
-                      >
-                        Follow-up:{" "}
-                        {formatDateTimeShort(
-                          parsePossibleDate(lead.followUpDate || lead.nextFollowUp)
-                        )}
+                      <div style={{ fontSize: 12, color: colors.mutedText, fontWeight: 700 }}>
+                        Follow-up: {formatDateTimeShort(parsePossibleDate(lead.followUpDate || lead.nextFollowUp))}
                       </div>
                     </div>
                   ))
@@ -984,11 +959,9 @@ export default function DashboardPage({
                   marginBottom: 16,
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <h2 style={sectionTitle(colors)}>Quick Stats</h2>
-                  <p style={subTextStyle(colors)}>
-                    Fast operational pulse for today
-                  </p>
+                  <p style={subTextStyle(colors)}>Fast operational pulse for today</p>
                 </div>
               </div>
 
@@ -996,42 +969,19 @@ export default function DashboardPage({
                 <MiniStatCard
                   colors={colors}
                   label="Win Rate"
-                  value={`${
-                    deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"
-                  }%`}
+                  value={`${deals.length ? ((wonDeals / deals.length) * 100).toFixed(1) : "0.0"}%`}
                 />
-                <button
-                  type="button"
-                  onClick={() => navigate("/tasks?filter=today")}
-                  style={miniStatButtonStyle()}
-                >
-                  <MiniStatCard
-                    colors={colors}
-                    label="Today Follow-ups"
-                    value={String(todayFollowUps.length)}
-                  />
+
+                <button type="button" onClick={() => navigate("/tasks?filter=today")} style={miniStatButtonStyle()}>
+                  <MiniStatCard colors={colors} label="Today Follow-ups" value={String(todayFollowUps.length)} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/tasks?filter=overdue")}
-                  style={miniStatButtonStyle()}
-                >
-                  <MiniStatCard
-                    colors={colors}
-                    label="Overdue Follow-ups"
-                    value={String(overdueFollowUps)}
-                  />
+
+                <button type="button" onClick={() => navigate("/tasks?filter=overdue")} style={miniStatButtonStyle()}>
+                  <MiniStatCard colors={colors} label="Overdue Follow-ups" value={String(overdueFollowUps)} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/tasks?filter=pending")}
-                  style={miniStatButtonStyle()}
-                >
-                  <MiniStatCard
-                    colors={colors}
-                    label="Pending Tasks"
-                    value={String(pendingTasks)}
-                  />
+
+                <button type="button" onClick={() => navigate("/tasks?filter=pending")} style={miniStatButtonStyle()}>
+                  <MiniStatCard colors={colors} label="Pending Tasks" value={String(pendingTasks)} />
                 </button>
               </div>
             </div>
@@ -1046,26 +996,24 @@ export default function DashboardPage({
               gap: 12,
               alignItems: "center",
               flexWrap: "wrap",
+              minWidth: 0,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2 style={sectionTitle(colors)}>Deal Pipeline Performance</h2>
-              <p style={subTextStyle(colors)}>
-                Track how deals move from entry to won stage
-              </p>
+              <p style={subTextStyle(colors)}>Track how deals move from entry to won stage</p>
             </div>
 
-            <div style={inlineBadge(colors, colors.primary, colors.infoBg)}>
-              Live Snapshot
-            </div>
+            <div style={inlineBadge(colors, colors.primary, colors.infoBg)}>Live Snapshot</div>
           </div>
 
           <div
             style={{
               marginTop: 18,
               display: "grid",
-              gridTemplateColumns: "minmax(320px, 1fr) 320px",
+              gridTemplateColumns: twoColumnLayout ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)",
               gap: 20,
+              minWidth: 0,
             }}
           >
             <div
@@ -1073,15 +1021,13 @@ export default function DashboardPage({
                 borderRadius: 18,
                 background: colors.cardBgSoft,
                 border: `1px solid ${colors.border}`,
-                padding: 20,
+                padding: 18,
+                minWidth: 0,
               }}
             >
               <div style={{ display: "grid", gap: 12 }}>
                 {pipelineData.map((stage, index) => {
-                  const widthPercent = Math.max(
-                    (stage.value / maxPipeline) * 100,
-                    24
-                  );
+                  const widthPercent = Math.max((stage.value / maxPipeline) * 100, 24);
 
                   return (
                     <button
@@ -1105,23 +1051,11 @@ export default function DashboardPage({
                           flexWrap: "wrap",
                         }}
                       >
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            color: colors.text,
-                          }}
-                        >
+                        <div style={{ fontSize: 14, fontWeight: 700, color: colors.text }}>
                           {index + 1}. {stage.label}
                         </div>
 
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: colors.subText,
-                          }}
-                        >
+                        <div style={{ fontSize: 13, fontWeight: 700, color: colors.subText }}>
                           {stage.value} records
                         </div>
                       </div>
@@ -1131,6 +1065,7 @@ export default function DashboardPage({
                           height: 44,
                           width: `${widthPercent}%`,
                           minWidth: 140,
+                          maxWidth: "100%",
                           borderRadius: 14,
                           background: stage.color,
                           display: "flex",
@@ -1139,6 +1074,7 @@ export default function DashboardPage({
                           padding: "0 14px",
                           color: "#ffffff",
                           fontWeight: 800,
+                          boxSizing: "border-box",
                         }}
                       >
                         <span>{stage.label}</span>
@@ -1150,27 +1086,11 @@ export default function DashboardPage({
               </div>
             </div>
 
-            <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <MiniStatCard
-                colors={colors}
-                label="Won Deals"
-                value={String(wonDeals)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Negotiation"
-                value={String(negotiationDeals)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Proposal"
-                value={String(proposalDeals)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Pipeline Value"
-                value={`₹${Math.round(totalDealValue).toLocaleString("en-IN")}`}
-              />
+            <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+              <MiniStatCard colors={colors} label="Won Deals" value={String(wonDeals)} />
+              <MiniStatCard colors={colors} label="Negotiation" value={String(negotiationDeals)} />
+              <MiniStatCard colors={colors} label="Proposal" value={String(proposalDeals)} />
+              <MiniStatCard colors={colors} label="Pipeline Value" value={`₹${Math.round(totalDealValue).toLocaleString("en-IN")}`} />
             </div>
           </div>
         </section>
@@ -1184,59 +1104,28 @@ export default function DashboardPage({
               flexWrap: "wrap",
               alignItems: "center",
               marginBottom: 18,
+              minWidth: 0,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2 style={sectionTitle(colors)}>Recent Deals</h2>
-              <p style={subTextStyle(colors)}>
-                Latest commercial records from live deals data
-              </p>
+              <p style={subTextStyle(colors)}>Latest commercial records from live deals data</p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigate("/deals")}
-              style={secondaryButtonStyle(colors)}
-            >
+            <button type="button" onClick={() => navigate("/deals")} style={secondaryButtonStyle(colors)}>
               View All Deals
             </button>
           </div>
 
-          <div
-            style={{
-              overflowX: "auto",
-              border: `1px solid ${colors.border}`,
-              borderRadius: 16,
-              background: colors.cardBgSoft,
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: 860,
-              }}
-            >
+          <div style={tableWrapStyle(colors)}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
               <thead>
                 <tr>
-                  {["Deal", "Client", "Stage", "Value", "Owner", "Created"].map(
-                    (head) => (
-                      <th
-                        key={head}
-                        style={{
-                          textAlign: "left",
-                          padding: "14px 16px",
-                          fontSize: 13,
-                          color: colors.subText,
-                          borderBottom: `1px solid ${colors.border}`,
-                          fontWeight: 800,
-                          background: colors.cardBg,
-                        }}
-                      >
-                        {head}
-                      </th>
-                    )
-                  )}
+                  {["Deal", "Client", "Stage", "Value", "Owner", "Created"].map((head) => (
+                    <th key={head} style={tableHeadStyle(colors)}>
+                      {head}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -1245,54 +1134,24 @@ export default function DashboardPage({
                   <tr
                     key={String(deal.id)}
                     onClick={() => navigate(`/deals/${deal.id}`)}
-                    style={{
-                      cursor: "pointer",
-                      borderBottom: `1px solid ${colors.border}`,
-                    }}
+                    style={{ cursor: "pointer", borderBottom: `1px solid ${colors.border}` }}
                   >
                     <td style={tableCellStyle(colors)}>
-                      <div style={{ fontWeight: 700, color: colors.text }}>
-                        {deal.title || "Untitled Deal"}
-                      </div>
-                      <div
-                        style={{
-                          marginTop: 4,
-                          fontSize: 12,
-                          color: colors.mutedText,
-                        }}
-                      >
-                        #{deal.id}
-                      </div>
+                      <div style={{ fontWeight: 700, color: colors.text }}>{deal.title || "Untitled Deal"}</div>
+                      <div style={{ marginTop: 4, fontSize: 12, color: colors.mutedText }}>#{deal.id}</div>
                     </td>
 
-                    <td style={tableCellStyle(colors)}>
-                      {deal.client || deal.clientName || deal.customerName || "—"}
-                    </td>
+                    <td style={tableCellStyle(colors)}>{deal.client || deal.clientName || deal.customerName || "—"}</td>
 
                     <td style={tableCellStyle(colors)}>
-                      <span
-                        style={{
-                          ...statusPillStyle(
-                            colors,
-                            getDealStageColor(colors, deal.stage || deal.status)
-                          ),
-                        }}
-                      >
+                      <span style={statusPillStyle(colors, getDealStageColor(colors, deal.stage || deal.status))}>
                         {deal.stage || deal.status || "New"}
                       </span>
                     </td>
 
-                    <td style={tableCellStyle(colors)}>
-                      {formatBudget(deal.value)}
-                    </td>
-
-                    <td style={tableCellStyle(colors)}>
-                      {deal.owner || "Unassigned"}
-                    </td>
-
-                    <td style={tableCellStyle(colors)}>
-                      {formatDateShortLocal(parsePossibleDate(deal.createdAt))}
-                    </td>
+                    <td style={tableCellStyle(colors)}>{formatBudget(deal.value)}</td>
+                    <td style={tableCellStyle(colors)}>{deal.owner || "Unassigned"}</td>
+                    <td style={tableCellStyle(colors)}>{formatDateShortLocal(parsePossibleDate(deal.createdAt))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1309,13 +1168,12 @@ export default function DashboardPage({
               flexWrap: "wrap",
               alignItems: "center",
               marginBottom: 18,
+              minWidth: 0,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h2 style={sectionTitle(colors)}>Notifications</h2>
-              <p style={subTextStyle(colors)}>
-                Stay on top of alerts, reminders, and critical updates
-              </p>
+              <p style={subTextStyle(colors)}>Stay on top of alerts, reminders, and critical updates</p>
             </div>
 
             <div
@@ -1339,11 +1197,12 @@ export default function DashboardPage({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(320px, 1fr) 280px",
+              gridTemplateColumns: twoColumnLayout ? "minmax(0, 1fr) 280px" : "minmax(0, 1fr)",
               gap: 20,
+              minWidth: 0,
             }}
           >
-            <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
               {notifications.map((item, index) => (
                 <div
                   key={`${item.title}-${index}`}
@@ -1355,6 +1214,7 @@ export default function DashboardPage({
                     display: "flex",
                     gap: 14,
                     alignItems: "flex-start",
+                    minWidth: 0,
                   }}
                 >
                   <div
@@ -1368,7 +1228,7 @@ export default function DashboardPage({
                     }}
                   />
 
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         display: "flex",
@@ -1378,15 +1238,7 @@ export default function DashboardPage({
                         alignItems: "center",
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 800,
-                          color: colors.text,
-                        }}
-                      >
-                        {item.title}
-                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: colors.text }}>{item.title}</div>
 
                       <span
                         style={{
@@ -1403,25 +1255,11 @@ export default function DashboardPage({
                       </span>
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: 8,
-                        color: colors.subText,
-                        fontSize: 14,
-                        lineHeight: 1.6,
-                      }}
-                    >
+                    <div style={{ marginTop: 8, color: colors.subText, fontSize: 14, lineHeight: 1.6 }}>
                       {item.message}
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: 10,
-                        color: colors.mutedText,
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
-                    >
+                    <div style={{ marginTop: 10, color: colors.mutedText, fontSize: 12, fontWeight: 700 }}>
                       {item.time}
                     </div>
                   </div>
@@ -1429,27 +1267,11 @@ export default function DashboardPage({
               ))}
             </div>
 
-            <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-              <MiniStatCard
-                colors={colors}
-                label="Unread Alerts"
-                value={String(unreadCount)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Critical Issues"
-                value={String(overdueFollowUps > 0 ? 1 : 0)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Won Deals"
-                value={String(wonDeals)}
-              />
-              <MiniStatCard
-                colors={colors}
-                label="Negotiation"
-                value={String(negotiationDeals)}
-              />
+            <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+              <MiniStatCard colors={colors} label="Unread Alerts" value={String(unreadCount)} />
+              <MiniStatCard colors={colors} label="Critical Issues" value={String(overdueFollowUps > 0 ? 1 : 0)} />
+              <MiniStatCard colors={colors} label="Won Deals" value={String(wonDeals)} />
+              <MiniStatCard colors={colors} label="Negotiation" value={String(negotiationDeals)} />
             </div>
           </div>
         </section>
@@ -1474,17 +1296,10 @@ function MiniStatCard({
         borderRadius: 14,
         padding: "14px 16px",
         background: colors.cardBgSoft,
+        minWidth: 0,
       }}
     >
-      <div
-        style={{
-          color: colors.subText,
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        {label}
-      </div>
+      <div style={{ color: colors.subText, fontSize: 13, fontWeight: 600 }}>{label}</div>
 
       <div
         style={{
@@ -1493,6 +1308,7 @@ function MiniStatCard({
           fontSize: 22,
           fontWeight: 800,
           wordBreak: "break-word",
+          overflowWrap: "anywhere",
         }}
       >
         {value}
@@ -1501,15 +1317,66 @@ function MiniStatCard({
   );
 }
 
-function miniStatButtonStyle(): React.CSSProperties {
+function useResponsiveColumns(): number {
+  const [columns, setColumns] = useState(() => getResponsiveColumns());
+
+  useEffect(() => {
+    const handleResize = () => setColumns(getResponsiveColumns());
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columns;
+}
+
+function getResponsiveColumns(): number {
+  if (typeof window === "undefined") return 5;
+
+  if (window.innerWidth < 640) return 1;
+  if (window.innerWidth < 1024) return 2;
+  if (window.innerWidth < 1536) return 3;
+
+  return 5;
+}
+
+function useTwoColumnLayout(): boolean {
+  const [enabled, setEnabled] = useState(() => (typeof window === "undefined" ? true : window.innerWidth >= 1180));
+
+  useEffect(() => {
+    const handleResize = () => setEnabled(window.innerWidth >= 1180);
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return enabled;
+}
+
+function miniStatButtonStyle(): CSSProperties {
   return {
     border: "none",
     background: "transparent",
     padding: 0,
     textAlign: "left",
     cursor: "pointer",
+    minWidth: 0,
   };
 }
+
+const pageWrapStyle: CSSProperties = {
+  display: "grid",
+  gap: 20,
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  overflowX: "hidden",
+  boxSizing: "border-box",
+};
 
 function cardStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
   return {
@@ -1518,6 +1385,8 @@ function cardStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
     borderRadius: 20,
     padding: 24,
     boxShadow: colors.shadowSoft,
+    minWidth: 0,
+    boxSizing: "border-box",
   };
 }
 
@@ -1527,6 +1396,7 @@ function sectionTitle(colors: ReturnType<typeof getTheme>): CSSProperties {
     fontSize: 22,
     fontWeight: 800,
     color: colors.text,
+    overflowWrap: "anywhere",
   };
 }
 
@@ -1536,12 +1406,11 @@ function subTextStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
     color: colors.subText,
     fontSize: 14,
     lineHeight: 1.6,
+    overflowWrap: "anywhere",
   };
 }
 
-function primaryButtonStyle(
-  colors: ReturnType<typeof getTheme>
-): CSSProperties {
+function primaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
   return {
     border: "none",
     background: colors.primary,
@@ -1550,12 +1419,11 @@ function primaryButtonStyle(
     borderRadius: 12,
     fontWeight: 700,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   };
 }
 
-function secondaryButtonStyle(
-  colors: ReturnType<typeof getTheme>
-): CSSProperties {
+function secondaryButtonStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
   return {
     border: `1px solid ${colors.border}`,
     background: colors.cardBg,
@@ -1564,14 +1432,11 @@ function secondaryButtonStyle(
     borderRadius: 12,
     fontWeight: 700,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   };
 }
 
-function inlineBadge(
-  colors: ReturnType<typeof getTheme>,
-  color: string,
-  background: string
-): CSSProperties {
+function inlineBadge(colors: ReturnType<typeof getTheme>, color: string, background: string): CSSProperties {
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -1587,10 +1452,9 @@ function inlineBadge(
   };
 }
 
-function unstyledBadgeButton(styleObj: CSSProperties): CSSProperties {
+function unstyledBadgeButton(styleObject: CSSProperties): CSSProperties {
   return {
-    ...styleObj,
-    border: styleObj.border,
+    ...styleObject,
     cursor: "pointer",
   };
 }
@@ -1601,6 +1465,7 @@ const chartHeaderWrap: CSSProperties = {
   gap: 12,
   alignItems: "center",
   flexWrap: "wrap",
+  minWidth: 0,
 };
 
 function chartContainer(colors: ReturnType<typeof getTheme>): CSSProperties {
@@ -1615,11 +1480,15 @@ function chartContainer(colors: ReturnType<typeof getTheme>): CSSProperties {
     justifyContent: "space-between",
     gap: 12,
     padding: 18,
+    minWidth: 0,
+    overflowX: "auto",
+    boxSizing: "border-box",
   };
 }
 
 const chartBarWrap: CSSProperties = {
   flex: 1,
+  minWidth: 42,
   height: "100%",
   display: "flex",
   flexDirection: "column",
@@ -1633,6 +1502,7 @@ function chartLabelTop(colors: ReturnType<typeof getTheme>): CSSProperties {
     fontSize: 12,
     fontWeight: 700,
     color: colors.text,
+    whiteSpace: "nowrap",
   };
 }
 
@@ -1641,6 +1511,31 @@ function chartLabelBottom(colors: ReturnType<typeof getTheme>): CSSProperties {
     fontSize: 12,
     fontWeight: 600,
     color: colors.subText,
+    whiteSpace: "nowrap",
+  };
+}
+
+function tableWrapStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    overflowX: "auto",
+    maxWidth: "100%",
+    minWidth: 0,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 16,
+    background: colors.cardBgSoft,
+  };
+}
+
+function tableHeadStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
+  return {
+    textAlign: "left",
+    padding: "14px 16px",
+    fontSize: 13,
+    color: colors.subText,
+    borderBottom: `1px solid ${colors.border}`,
+    fontWeight: 800,
+    background: colors.cardBg,
+    whiteSpace: "nowrap",
   };
 }
 
@@ -1650,13 +1545,11 @@ function tableCellStyle(colors: ReturnType<typeof getTheme>): CSSProperties {
     fontSize: 14,
     color: colors.text,
     verticalAlign: "middle",
+    whiteSpace: "nowrap",
   };
 }
 
-function statusPillStyle(
-  colors: ReturnType<typeof getTheme>,
-  tone: { color: string; bg: string }
-): CSSProperties {
+function statusPillStyle(colors: ReturnType<typeof getTheme>, tone: { color: string; bg: string }): CSSProperties {
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -1672,10 +1565,7 @@ function statusPillStyle(
   };
 }
 
-function getLeadStatusColor(
-  colors: ReturnType<typeof getTheme>,
-  status?: string
-): { color: string; bg: string } {
+function getLeadStatusColor(colors: ReturnType<typeof getTheme>, status?: string): { color: string; bg: string } {
   const normalized = (status || "").toLowerCase();
 
   if (normalized.includes("closed") || normalized.includes("won")) {
@@ -1697,10 +1587,7 @@ function getLeadStatusColor(
   return { color: colors.info, bg: colors.infoBg };
 }
 
-function getDealStageColor(
-  colors: ReturnType<typeof getTheme>,
-  stage?: string
-): { color: string; bg: string } {
+function getDealStageColor(colors: ReturnType<typeof getTheme>, stage?: string): { color: string; bg: string } {
   const normalized = (stage || "").toLowerCase();
 
   if (normalized.includes("won") || normalized.includes("closed")) {
@@ -1729,6 +1616,7 @@ function readFirstArrayFromStorage<T>(keys: string[]): T[] {
       if (!raw) continue;
 
       const parsed = JSON.parse(raw);
+
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -1747,7 +1635,9 @@ function matchesStatus(status: string | undefined, allowed: string[]): boolean {
 
 function parsePossibleDate(value?: string): Date | null {
   if (!value) return null;
+
   const parsed = new Date(value);
+
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -1755,6 +1645,7 @@ function isToday(date: Date | null): boolean {
   if (!date) return false;
 
   const now = new Date();
+
   return (
     date.getDate() === now.getDate() &&
     date.getMonth() === now.getMonth() &&
@@ -1764,6 +1655,7 @@ function isToday(date: Date | null): boolean {
 
 function isPastDate(date: Date | null): boolean {
   if (!date) return false;
+
   return date.getTime() < Date.now();
 }
 
@@ -1771,6 +1663,7 @@ function sortByDateDesc<T>(selector: (item: T) => Date | null) {
   return (a: T, b: T) => {
     const aTime = selector(a)?.getTime() ?? 0;
     const bTime = selector(b)?.getTime() ?? 0;
+
     return bTime - aTime;
   };
 }
@@ -1779,18 +1672,13 @@ function sortByDateAsc<T>(selector: (item: T) => Date | null) {
   return (a: T, b: T) => {
     const aTime = selector(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
     const bTime = selector(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+
     return aTime - bTime;
   };
 }
 
 function getLeadName(lead: LeadRecord): string {
-  return (
-    lead.name ||
-    lead.fullName ||
-    lead.customerName ||
-    lead.company ||
-    "Untitled Lead"
-  );
+  return lead.name || lead.fullName || lead.customerName || lead.company || "Untitled Lead";
 }
 
 function formatBudget(value?: string | number): string {
@@ -1831,7 +1719,7 @@ function buildNotifications(
   todayFollowUps: LeadRecord[],
   overdueFollowUps: number,
   recentLeads: LeadRecord[],
-  wonDeals: number
+  wonDeals: number,
 ): NotificationItem[] {
   const items: NotificationItem[] = [];
 

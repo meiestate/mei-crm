@@ -25,6 +25,8 @@ export default function Topbar({
     "/": "Dashboard",
     "/dashboard": "Dashboard",
     "/leads": "Leads",
+    "/leads/add": "Add Lead",
+    "/leads/new": "Add Lead",
     "/contacts": "Contacts",
     "/deals": "Deals",
     "/tasks": "Tasks",
@@ -43,13 +45,13 @@ export default function Topbar({
       .find(
         (path) =>
           location.pathname === path ||
-          location.pathname.startsWith(path + "/")
+          location.pathname.startsWith(path + "/"),
       ) || "/dashboard";
 
   const pageTitle = title || pageTitles[matchedPath] || "Dashboard";
 
   function handleAddLeadClick() {
-    navigate("/leads", { state: { openAddLeadForm: true } });
+    navigate("/leads/add");
   }
 
   function handleHelpSupportClick() {

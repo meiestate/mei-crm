@@ -18,6 +18,7 @@ type LeadStatus =
   | "Closed";
 
 type LeadPriority = "Low" | "Medium" | "High";
+
 type SourceType =
   | "WhatsApp"
   | "Facebook"
@@ -124,174 +125,32 @@ const initialLeads: Lead[] = [
   },
 ];
 
-function getStatusColor(status: LeadStatus, mode: ThemeMode) {
-  const colors = getTheme(mode);
-
-  switch (status) {
-    case "New":
-      return colors.info;
-    case "Contacted":
-      return colors.warning;
-    case "Qualified":
-      return colors.premium;
-    case "Follow-up":
-      return colors.warning;
-    case "Negotiation":
-      return colors.primary;
-    case "Closed":
-      return colors.success;
-    default:
-      return colors.subText;
-  }
-}
-
-function getPriorityColor(priority: LeadPriority, mode: ThemeMode) {
-  const colors = getTheme(mode);
-
-  switch (priority) {
-    case "High":
-      return colors.danger;
-    case "Medium":
-      return colors.warning;
-    case "Low":
-      return colors.success;
-    default:
-      return colors.subText;
-  }
-}
-
-function normalizeStatus(value: string | null): FilterType {
-  if (!value) return "All";
-
-  const normalized = value.trim().toLowerCase();
-
-  if (normalized === "new") return "New";
-  if (normalized === "contacted") return "Contacted";
-  if (normalized === "qualified") return "Qualified";
-  if (normalized === "follow-up" || normalized === "followup") return "Follow-up";
-  if (normalized === "negotiation") return "Negotiation";
-  if (normalized === "closed" || normalized === "won") return "Closed";
-
-  return "All";
-}
-
-function safelyReadStoredLeads(): Lead[] {
-  for (const key of LEAD_STORAGE_KEYS) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) continue;
-
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) continue;
-
-      const mapped = parsed
-        .map((item: any, index: number) => mapUnknownLead(item, index))
-        .filter(Boolean) as Lead[];
-
-      if (mapped.length > 0) {
-        return mapped;
-      }
-    } catch (error) {
-      console.error(`Failed to parse localStorage key: ${key}`, error);
-    }
-  }
-
-  return [];
-}
-
-function mapUnknownLead(item: any, index: number): Lead | null {
-  if (!item || typeof item !== "object") return null;
-
-  const rawStatus = String(item.status || "New");
-  const normalizedStatus = normalizeStatus(rawStatus);
-
-  const status: LeadStatus = normalizedStatus === "All" ? "New" : normalizedStatus;
-
-  const priorityRaw = String(item.priority || "Medium").toLowerCase();
-  const priority: LeadPriority =
-    priorityRaw === "high"
-      ? "High"
-      : priorityRaw === "low"
-      ? "Low"
-      : "Medium";
-
-  const sourceRaw = String(item.source || item.leadSource || "Manual");
-  const allowedSources: SourceType[] = [
-    "WhatsApp",
-    "Facebook",
-    "Website",
-    "Referral",
-    "Walk-in",
-    "Manual",
-  ];
-
-  const source = allowedSources.includes(sourceRaw as SourceType)
-    ? (sourceRaw as SourceType)
-    : "Manual";
-
-  return {
-    id: Number(item.id ?? Date.now() + index),
-    name: String(
-      item.name ||
-        item.fullName ||
-        item.customerName ||
-        item.company ||
-        `Lead ${index + 1}`
-    ),
-    phone: String(item.phone || item.mobile || item.whatsapp || "-"),
-    source,
-    city: String(
-      item.city ||
-        item.preferredLocation ||
-        item.location ||
-        item.area ||
-        item.subLocation ||
-        "Unknown"
-    ),
-    status,
-    priority,
-    owner: String(item.owner || item.assignedTo || item.leadOwner || "Unassigned"),
-    followUpDate: String(
-      item.followUpDate || item.nextFollowUpDate || item.nextFollowUp || "-"
-    ),
-    budget:
-      item.minBudget || item.maxBudget
-        ? `₹${item.minBudget || "0"} - ₹${item.maxBudget || "0"}`
-        : typeof item.budget === "number"
-        ? `₹${item.budget.toLocaleString("en-IN")}`
-        : String(item.budget || "-"),
-    lastContact: String(item.lastContact || "Recent"),
-    updatedAt: item.updatedAt,
-    createdAt: item.createdAt,
-  };
-}
-
-function saveLeadsToStorage(leads: Lead[]) {
-  try {
-    localStorage.setItem("mei-crm-leads", JSON.stringify(leads));
-  } catch (error) {
-    console.error("Failed to save leads to localStorage:", error);
-  }
-}
-
-export default function LeadsPage({
-  mode,
-  onToggleTheme,
-}: LeadsPageProps) {
+export default function LeadsPage({ mode, onToggleTheme }: LeadsPageProps) {
   const colors = getTheme(mode);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const kpiColumns = useKpiColumns();
+  const miniColumns = useMiniColumns();
+  const filterColumns = useFilterColumns();
 
   const [leads, setLeads] = useState<Lead[]>(() => {
     const stored = safelyReadStoredLeads();
     return stored.length > 0 ? stored : initialLeads;
   });
 
-  const [searchTerm, setSearchTerm] = useState(() => searchParams.get("search") || "");
-  const [activeFilter, setActiveFilter] = useState<FilterType>(() =>
-    normalizeStatus(searchParams.get("filter"))
+  const [searchTerm, setSearchTerm] = useState(
+    () => searchParams.get("search") || "",
   );
-  const [cityFilter, setCityFilter] = useState(() => searchParams.get("city") || "All");
+
+  const [activeFilter, setActiveFilter] = useState<FilterType>(() =>
+    normalizeStatus(searchParams.get("filter")),
+  );
+
+  const [cityFilter, setCityFilter] = useState(
+    () => searchParams.get("city") || "All",
+  );
+
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -340,8 +199,9 @@ export default function LeadsPage({
 
   const cityOptions = useMemo(() => {
     const cities = Array.from(
-      new Set(leads.map((lead) => lead.city).filter(Boolean))
+      new Set(leads.map((lead) => lead.city).filter(Boolean)),
     ).sort();
+
     return ["All", ...cities];
   }, [leads]);
 
@@ -353,6 +213,7 @@ export default function LeadsPage({
       const matchesCity = cityFilter === "All" ? true : lead.city === cityFilter;
 
       const q = searchTerm.trim().toLowerCase();
+
       const matchesSearch =
         q === "" ||
         lead.name.toLowerCase().includes(q) ||
@@ -367,26 +228,70 @@ export default function LeadsPage({
   }, [leads, activeFilter, cityFilter, searchTerm]);
 
   const totalLeads = leads.length;
-  const newLeads = leads.filter((l) => l.status === "New").length;
-  const contactedLeads = leads.filter((l) => l.status === "Contacted").length;
-  const qualifiedLeads = leads.filter((l) => l.status === "Qualified").length;
-  const negotiationLeads = leads.filter((l) => l.status === "Negotiation").length;
-  const closedLeads = leads.filter((l) => l.status === "Closed").length;
+  const newLeads = leads.filter((lead) => lead.status === "New").length;
+  const contactedLeads = leads.filter((lead) => lead.status === "Contacted").length;
+  const qualifiedLeads = leads.filter((lead) => lead.status === "Qualified").length;
+  const negotiationLeads = leads.filter((lead) => lead.status === "Negotiation").length;
+  const closedLeads = leads.filter((lead) => lead.status === "Closed").length;
 
-  const today = new Date();
-  const todayIso = today.toISOString().slice(0, 10);
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   const todayFollowUps = leads.filter(
     (lead) =>
       lead.followUpDate &&
       lead.followUpDate !== "-" &&
-      lead.followUpDate.slice(0, 10) === todayIso
+      lead.followUpDate.slice(0, 10) === todayIso,
   ).length;
 
   const overdueLeads = leads.filter((lead) => {
     if (!lead.followUpDate || lead.followUpDate === "-") return false;
     return lead.followUpDate.slice(0, 10) < todayIso && lead.status !== "Closed";
   }).length;
+
+  const kpiCards = [
+    {
+      label: "Total Leads",
+      value: totalLeads,
+      note: "All active records",
+      filter: "All" as FilterType,
+      active: activeFilter === "All",
+    },
+    {
+      label: "New Leads",
+      value: newLeads,
+      note: "Fresh opportunities",
+      filter: "New" as FilterType,
+      active: activeFilter === "New",
+    },
+    {
+      label: "Contacted",
+      value: contactedLeads,
+      note: "Already reached out",
+      filter: "Contacted" as FilterType,
+      active: activeFilter === "Contacted",
+    },
+    {
+      label: "Qualified",
+      value: qualifiedLeads,
+      note: "Sales-ready leads",
+      filter: "Qualified" as FilterType,
+      active: activeFilter === "Qualified",
+    },
+    {
+      label: "Negotiation",
+      value: negotiationLeads,
+      note: "Hot deals in progress",
+      filter: "Negotiation" as FilterType,
+      active: activeFilter === "Negotiation",
+    },
+    {
+      label: "Closed",
+      value: closedLeads,
+      note: "Successfully converted",
+      filter: "Closed" as FilterType,
+      active: activeFilter === "Closed",
+    },
+  ];
 
   const openLeadDetail = (leadId: number) => {
     navigate(`/leads/${leadId}`);
@@ -404,7 +309,17 @@ export default function LeadsPage({
 
   return (
     <AppLayout title="Leads" mode={mode} onToggleTheme={onToggleTheme}>
-      <div style={{ display: "grid", gap: 20 }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 20,
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          overflowX: "hidden",
+          boxSizing: "border-box",
+        }}
+      >
         <section
           style={{
             background: colors.cardBg,
@@ -417,9 +332,11 @@ export default function LeadsPage({
             gap: 16,
             flexWrap: "wrap",
             alignItems: "center",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div
               style={{
                 display: "inline-flex",
@@ -444,6 +361,7 @@ export default function LeadsPage({
                 fontSize: 30,
                 color: colors.text,
                 fontWeight: 800,
+                letterSpacing: "-0.02em",
               }}
             >
               Lead Management
@@ -454,57 +372,41 @@ export default function LeadsPage({
                 margin: "8px 0 0",
                 color: colors.subText,
                 lineHeight: 1.6,
+                overflowWrap: "anywhere",
               }}
             >
               Dashboard KPI filters, localStorage live data, and pipeline view all in sync.
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
             <button
+              type="button"
               onClick={() => navigate("/dashboard")}
-              style={{
-                border: `1px solid ${colors.border}`,
-                background: colors.cardBgSoft,
-                color: colors.text,
-                padding: "12px 16px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              style={secondaryButtonStyle(colors)}
             >
               ← Back to Dashboard
             </button>
 
             <button
+              type="button"
               onClick={() => navigate("/leads/calendar")}
-              style={{
-                border: `1px solid ${colors.border}`,
-                background: colors.cardBgSoft,
-                color: colors.text,
-                padding: "12px 16px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
+              style={secondaryButtonStyle(colors)}
             >
               Calendar View
             </button>
 
             <button
+              type="button"
               onClick={() => navigate("/leads/new")}
-              style={{
-                border: "none",
-                background: colors.primary,
-                color: "#ffffff",
-                padding: "12px 18px",
-                borderRadius: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                boxShadow: colors.shadowSoft,
-              }}
+              style={primaryButtonStyle(colors)}
             >
               + Add Lead
             </button>
@@ -514,54 +416,13 @@ export default function LeadsPage({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: `repeat(${kpiColumns}, minmax(0, 1fr))`,
             gap: 16,
+            width: "100%",
+            minWidth: 0,
           }}
         >
-          {[
-            {
-              label: "Total Leads",
-              value: totalLeads,
-              note: "All active records",
-              filter: "All" as FilterType,
-              active: activeFilter === "All",
-            },
-            {
-              label: "New Leads",
-              value: newLeads,
-              note: "Fresh opportunities",
-              filter: "New" as FilterType,
-              active: activeFilter === "New",
-            },
-            {
-              label: "Contacted",
-              value: contactedLeads,
-              note: "Already reached out",
-              filter: "Contacted" as FilterType,
-              active: activeFilter === "Contacted",
-            },
-            {
-              label: "Qualified",
-              value: qualifiedLeads,
-              note: "Sales-ready leads",
-              filter: "Qualified" as FilterType,
-              active: activeFilter === "Qualified",
-            },
-            {
-              label: "Negotiation",
-              value: negotiationLeads,
-              note: "Hot deals in progress",
-              filter: "Negotiation" as FilterType,
-              active: activeFilter === "Negotiation",
-            },
-            {
-              label: "Closed",
-              value: closedLeads,
-              note: "Successfully converted",
-              filter: "Closed" as FilterType,
-              active: activeFilter === "Closed",
-            },
-          ].map((item) => (
+          {kpiCards.map((item) => (
             <button
               key={item.label}
               type="button"
@@ -571,17 +432,25 @@ export default function LeadsPage({
                 border: `1px solid ${item.active ? colors.primary : colors.border}`,
                 borderRadius: 18,
                 padding: 20,
+                minHeight: 150,
                 boxShadow: colors.shadowSoft,
                 cursor: "pointer",
                 textAlign: "left",
                 color: item.active ? "#ffffff" : colors.text,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                gap: 10,
+                minWidth: 0,
+                boxSizing: "border-box",
               }}
             >
               <div
                 style={{
                   fontSize: 14,
                   color: item.active ? "rgba(255,255,255,0.82)" : colors.subText,
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  overflowWrap: "anywhere",
                 }}
               >
                 {item.label}
@@ -589,10 +458,11 @@ export default function LeadsPage({
 
               <div
                 style={{
-                  marginTop: 8,
                   fontSize: 32,
                   fontWeight: 800,
                   color: item.active ? "#ffffff" : colors.text,
+                  lineHeight: 1,
+                  overflowWrap: "anywhere",
                 }}
               >
                 {item.value}
@@ -600,10 +470,10 @@ export default function LeadsPage({
 
               <div
                 style={{
-                  marginTop: 8,
                   fontSize: 13,
                   color: item.active ? "rgba(255,255,255,0.78)" : colors.mutedText,
                   fontWeight: 600,
+                  overflowWrap: "anywhere",
                 }}
               >
                 {item.note}
@@ -615,18 +485,22 @@ export default function LeadsPage({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: `repeat(${miniColumns}, minmax(0, 1fr))`,
             gap: 16,
+            minWidth: 0,
           }}
         >
           <MiniInfoCard title="Today Follow-ups" value={todayFollowUps} colors={colors} />
+
           <MiniInfoCard
             title="Overdue Leads"
             value={overdueLeads}
             colors={colors}
             valueColor={overdueLeads > 0 ? colors.danger : colors.text}
           />
+
           <MiniInfoCard title="Active City Filter" value={cityFilter} colors={colors} />
+
           <MiniInfoCard title="Filtered Results" value={filteredLeads.length} colors={colors} />
         </section>
 
@@ -637,14 +511,22 @@ export default function LeadsPage({
             borderRadius: 18,
             padding: 20,
             boxShadow: colors.shadowSoft,
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(220px, 1fr) 180px 180px",
+              gridTemplateColumns:
+                filterColumns === 3
+                  ? "minmax(220px, 1fr) 180px 180px"
+                  : filterColumns === 2
+                    ? "minmax(220px, 1fr) minmax(160px, 180px)"
+                    : "minmax(0, 1fr)",
               gap: 12,
               alignItems: "center",
+              minWidth: 0,
             }}
           >
             <input
@@ -662,6 +544,7 @@ export default function LeadsPage({
                 outline: "none",
                 fontSize: 14,
                 boxSizing: "border-box",
+                minWidth: 0,
               }}
             />
 
@@ -708,6 +591,7 @@ export default function LeadsPage({
               return (
                 <button
                   key={item}
+                  type="button"
                   onClick={() => setActiveFilter(item)}
                   style={{
                     border: `1px solid ${active ? colors.primary : colors.border}`,
@@ -715,8 +599,9 @@ export default function LeadsPage({
                     color: active ? "#ffffff" : colors.text,
                     padding: "10px 14px",
                     borderRadius: 999,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {item}
@@ -725,6 +610,7 @@ export default function LeadsPage({
             })}
 
             <button
+              type="button"
               onClick={clearAllFilters}
               style={{
                 border: `1px solid ${colors.border}`,
@@ -732,8 +618,9 @@ export default function LeadsPage({
                 color: colors.subText,
                 padding: "10px 14px",
                 borderRadius: 999,
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: "pointer",
+                whiteSpace: "nowrap",
               }}
             >
               Clear Filters
@@ -781,6 +668,7 @@ export default function LeadsPage({
             borderRadius: 18,
             overflow: "hidden",
             boxShadow: colors.shadowSoft,
+            minWidth: 0,
           }}
         >
           <div
@@ -804,6 +692,7 @@ export default function LeadsPage({
               >
                 Leads Table
               </div>
+
               <div
                 style={{
                   fontSize: 14,
@@ -816,7 +705,14 @@ export default function LeadsPage({
             </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
+          <div
+            style={{
+              overflowX: "auto",
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+            }}
+          >
             <table
               style={{
                 width: "100%",
@@ -849,6 +745,7 @@ export default function LeadsPage({
                 {filteredLeads.length > 0 ? (
                   filteredLeads.map((lead) => {
                     const isHovered = hoveredRowId === lead.id;
+
                     const isOverdue =
                       lead.followUpDate !== "-" &&
                       lead.followUpDate.slice(0, 10) < todayIso &&
@@ -867,8 +764,8 @@ export default function LeadsPage({
                               ? "rgba(239,68,68,0.08)"
                               : "rgba(239,68,68,0.05)"
                             : isHovered
-                            ? colors.rowHover
-                            : colors.rowBg,
+                              ? colors.rowHover
+                              : colors.rowBg,
                           cursor: "pointer",
                           transition: "background 0.2s ease",
                         }}
@@ -929,6 +826,7 @@ export default function LeadsPage({
 
                         <td style={tdStyle(colors.text)}>
                           <div>{lead.followUpDate}</div>
+
                           {isOverdue && (
                             <div
                               style={{
@@ -992,17 +890,21 @@ function MiniInfoCard({
         borderRadius: 18,
         padding: 18,
         boxShadow: colors.shadowSoft,
+        minWidth: 0,
+        boxSizing: "border-box",
       }}
     >
       <div style={{ fontSize: 13, color: colors.subText, fontWeight: 700 }}>
         {title}
       </div>
+
       <div
         style={{
           marginTop: 10,
           fontSize: 28,
           fontWeight: 800,
           color: valueColor || colors.text,
+          overflowWrap: "anywhere",
         }}
       >
         {value}
@@ -1036,6 +938,7 @@ function FilterChip({
       }}
     >
       <span>{label}</span>
+
       <button
         type="button"
         onClick={onRemove}
@@ -1054,6 +957,250 @@ function FilterChip({
   );
 }
 
+function useKpiColumns(): number {
+  const [columns, setColumns] = useState(() => getKpiColumns());
+
+  useEffect(() => {
+    const handleResize = () => setColumns(getKpiColumns());
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columns;
+}
+
+function getKpiColumns(): number {
+  if (typeof window === "undefined") return 6;
+  if (window.innerWidth < 640) return 1;
+  if (window.innerWidth < 1024) return 2;
+  if (window.innerWidth < 1440) return 3;
+  return 6;
+}
+
+function useMiniColumns(): number {
+  const [columns, setColumns] = useState(() => getMiniColumns());
+
+  useEffect(() => {
+    const handleResize = () => setColumns(getMiniColumns());
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columns;
+}
+
+function getMiniColumns(): number {
+  if (typeof window === "undefined") return 4;
+  if (window.innerWidth < 640) return 1;
+  if (window.innerWidth < 1024) return 2;
+  return 4;
+}
+
+function useFilterColumns(): number {
+  const [columns, setColumns] = useState(() => getFilterColumns());
+
+  useEffect(() => {
+    const handleResize = () => setColumns(getFilterColumns());
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columns;
+}
+
+function getFilterColumns(): number {
+  if (typeof window === "undefined") return 3;
+  if (window.innerWidth < 768) return 1;
+  if (window.innerWidth < 1180) return 2;
+  return 3;
+}
+
+function getStatusColor(status: LeadStatus, mode: ThemeMode) {
+  const colors = getTheme(mode);
+
+  switch (status) {
+    case "New":
+      return colors.info;
+    case "Contacted":
+      return colors.warning;
+    case "Qualified":
+      return colors.premium;
+    case "Follow-up":
+      return colors.warning;
+    case "Negotiation":
+      return colors.primary;
+    case "Closed":
+      return colors.success;
+    default:
+      return colors.subText;
+  }
+}
+
+function getPriorityColor(priority: LeadPriority, mode: ThemeMode) {
+  const colors = getTheme(mode);
+
+  switch (priority) {
+    case "High":
+      return colors.danger;
+    case "Medium":
+      return colors.warning;
+    case "Low":
+      return colors.success;
+    default:
+      return colors.subText;
+  }
+}
+
+function normalizeStatus(value: string | null): FilterType {
+  if (!value) return "All";
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "new") return "New";
+  if (normalized === "contacted") return "Contacted";
+  if (normalized === "qualified") return "Qualified";
+  if (normalized === "follow-up" || normalized === "followup") return "Follow-up";
+  if (normalized === "negotiation") return "Negotiation";
+  if (normalized === "closed" || normalized === "won") return "Closed";
+
+  return "All";
+}
+
+function safelyReadStoredLeads(): Lead[] {
+  for (const key of LEAD_STORAGE_KEYS) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) continue;
+
+      const mapped = parsed
+        .map((item: unknown, index: number) => mapUnknownLead(item, index))
+        .filter(Boolean) as Lead[];
+
+      if (mapped.length > 0) {
+        return mapped;
+      }
+    } catch (error) {
+      console.error(`Failed to parse localStorage key: ${key}`, error);
+    }
+  }
+
+  return [];
+}
+
+function mapUnknownLead(item: unknown, index: number): Lead | null {
+  if (!item || typeof item !== "object") return null;
+
+  const data = item as Record<string, unknown>;
+
+  const rawStatus = String(data.status || "New");
+  const normalizedStatus = normalizeStatus(rawStatus);
+  const status: LeadStatus = normalizedStatus === "All" ? "New" : normalizedStatus;
+
+  const priorityRaw = String(data.priority || "Medium").toLowerCase();
+
+  const priority: LeadPriority =
+    priorityRaw === "high"
+      ? "High"
+      : priorityRaw === "low"
+        ? "Low"
+        : "Medium";
+
+  const sourceRaw = String(data.source || data.leadSource || "Manual");
+
+  const allowedSources: SourceType[] = [
+    "WhatsApp",
+    "Facebook",
+    "Website",
+    "Referral",
+    "Walk-in",
+    "Manual",
+  ];
+
+  const source = allowedSources.includes(sourceRaw as SourceType)
+    ? (sourceRaw as SourceType)
+    : "Manual";
+
+  return {
+    id: Number(data.id ?? Date.now() + index),
+    name: String(
+      data.name ||
+        data.fullName ||
+        data.customerName ||
+        data.company ||
+        `Lead ${index + 1}`,
+    ),
+    phone: String(data.phone || data.mobile || data.whatsapp || "-"),
+    source,
+    city: String(
+      data.city ||
+        data.preferredLocation ||
+        data.location ||
+        data.area ||
+        data.subLocation ||
+        "Unknown",
+    ),
+    status,
+    priority,
+    owner: String(data.owner || data.assignedTo || data.leadOwner || "Unassigned"),
+    followUpDate: String(
+      data.followUpDate || data.nextFollowUpDate || data.nextFollowUp || "-",
+    ),
+    budget:
+      data.minBudget || data.maxBudget
+        ? `₹${String(data.minBudget || "0")} - ₹${String(data.maxBudget || "0")}`
+        : typeof data.budget === "number"
+          ? `₹${data.budget.toLocaleString("en-IN")}`
+          : String(data.budget || "-"),
+    lastContact: String(data.lastContact || "Recent"),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : undefined,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
+  };
+}
+
+function saveLeadsToStorage(leads: Lead[]) {
+  try {
+    localStorage.setItem("mei-crm-leads", JSON.stringify(leads));
+  } catch (error) {
+    console.error("Failed to save leads to localStorage:", error);
+  }
+}
+
+function primaryButtonStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: "none",
+    background: colors.primary,
+    color: "#ffffff",
+    padding: "12px 18px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    boxShadow: colors.shadowSoft,
+  };
+}
+
+function secondaryButtonStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
+  return {
+    border: `1px solid ${colors.border}`,
+    background: colors.cardBgSoft,
+    color: colors.text,
+    padding: "12px 16px",
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+}
+
 function selectStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
   return {
     width: "100%",
@@ -1065,6 +1212,7 @@ function selectStyle(colors: ReturnType<typeof getTheme>): React.CSSProperties {
     outline: "none",
     fontSize: 14,
     boxSizing: "border-box",
+    minWidth: 0,
   };
 }
 
