@@ -406,11 +406,12 @@ export default function DashboardPage({ mode, onToggleTheme }: DashboardPageProp
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", minWidth: 0 }}>
-            <button type="button" style={primaryButtonStyle(colors)} onClick={() => navigate("/leads")}>
+            <button type="button" style={primaryButtonStyle(colors)} onClick={() => navigate("/leads/add")}>
               + Add Lead
             </button>
+            
 
-            <button type="button" style={secondaryButtonStyle(colors)} onClick={() => navigate("/tasks")}>
+            <button type="button" style={secondaryButtonStyle(colors)} onClick={() => navigate("/tasks/add")}>
               Create Task
             </button>
 

@@ -18,6 +18,7 @@ import CallLogPage from "./pages/calls/CallLogPage";
 import PipelinesPage from "./pages/pipelines/PipelinesPage";
 import RolesPage from "./pages/settings/RolesPage";
 import UsersPage from "./pages/settings/UsersPage";
+import AddTaskPage from "./pages/tasks/AddTaskPage";
 
 import LoginPage from "./pages/auth/LoginPage";
 import SignupPage from "./pages/auth/SignupPage";
@@ -72,8 +73,9 @@ function isOnboardingCompleted() {
 export default function App() {
   const [mode, setMode] = useState<ThemeMode>(getInitialTheme);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() =>
-    isUserAuthenticated()
+    isUserAuthenticated(),
   );
+
   const [hasCompletedOnboarding, setHasCompletedOnboarding] =
     useState<boolean>(() => isOnboardingCompleted());
 
@@ -249,6 +251,17 @@ export default function App() {
           />
 
           <Route
+            path="/leads/add"
+            element={
+              hasCompletedOnboarding ? (
+                <AddLeadPage mode={mode} />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            }
+          />
+
+          <Route
             path="/leads/new"
             element={
               hasCompletedOnboarding ? (
@@ -291,6 +304,7 @@ export default function App() {
               )
             }
           />
+
           <Route path="/onboarding" element={<OnboardingPage />} />
 
           <Route
@@ -336,6 +350,17 @@ export default function App() {
               )
             }
           />
+          
+          <Route
+            path="/tasks/add"
+            element={
+              hasCompletedOnboarding ? (
+                <AddTaskPage mode={mode} onToggleTheme={toggleTheme} />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            }
+           />
 
           <Route
             path="/tasks/:id"
@@ -433,4 +458,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

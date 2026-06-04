@@ -53,10 +53,7 @@ const menuSections: MenuSection[] = [
   },
 ];
 
-export default function Sidebar({
-  mode = "light",
-  onNavigate,
-}: SidebarProps) {
+export default function Sidebar({ mode = "light", onNavigate }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = getTheme(mode);
@@ -85,38 +82,12 @@ export default function Sidebar({
         color: theme.text,
       }}
     >
-      <div style={{ padding: "6px 8px 2px" }}>
-        <div
-          style={{
-            fontSize: 24,
-            fontWeight: 900,
-            letterSpacing: 0.4,
-            color: theme.text,
-            marginBottom: 6,
-            lineHeight: 1.1,
-          }}
-        >
-          MEI CRM
-        </div>
-
-        <div
-          style={{
-            fontSize: 13,
-            color: theme.subText ?? theme.mutedText,
-            fontWeight: 500,
-            lineHeight: 1.5,
-          }}
-        >
-          Business OS
-        </div>
-      </div>
-
       <div
         style={{
           background: theme.cardBg,
           border: `1px solid ${theme.border}`,
-          borderRadius: 18,
-          padding: 14,
+          borderRadius: 20,
+          padding: 16,
           boxShadow:
             mode === "dark"
               ? "0 10px 24px rgba(0,0,0,0.22)"
@@ -125,12 +96,72 @@ export default function Sidebar({
       >
         <div
           style={{
-            fontSize: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 14,
+              display: "grid",
+              placeItems: "center",
+              background: theme.primary,
+              color: "#ffffff",
+              fontSize: 18,
+              fontWeight: 900,
+              flexShrink: 0,
+            }}
+          >
+            ⚡
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 23,
+                fontWeight: 900,
+                letterSpacing: 0.3,
+                color: theme.text,
+                lineHeight: 1.1,
+              }}
+            >
+              MEI CRM
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: theme.subText ?? theme.mutedText,
+                fontWeight: 600,
+                lineHeight: 1.5,
+                marginTop: 3,
+              }}
+            >
+              Business OS
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            height: 1,
+            background: theme.border,
+            margin: "12px 0",
+          }}
+        />
+
+        <div
+          style={{
+            fontSize: 11,
             color: theme.mutedText,
             marginBottom: 6,
-            fontWeight: 700,
+            fontWeight: 800,
             textTransform: "uppercase",
-            letterSpacing: 0.8,
+            letterSpacing: 0.9,
           }}
         >
           Workspace
@@ -139,9 +170,9 @@ export default function Sidebar({
         <div
           style={{
             fontSize: 15,
-            fontWeight: 800,
+            fontWeight: 900,
             color: theme.text,
-            marginBottom: 4,
+            marginBottom: 6,
             lineHeight: 1.35,
           }}
         >
@@ -152,7 +183,7 @@ export default function Sidebar({
           style={{
             fontSize: 12,
             color: theme.subText,
-            lineHeight: 1.55,
+            lineHeight: 1.6,
           }}
         >
           Manage leads, teams, pipelines, roles, and growth from one clean
@@ -231,8 +262,8 @@ export default function Sidebar({
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 16,
                         flexShrink: 0,
+                        fontSize: 16,
                       }}
                     >
                       {item.icon}
@@ -255,31 +286,20 @@ export default function Sidebar({
                         style={{
                           minWidth: 22,
                           height: 22,
-                          padding: "0 6px",
                           borderRadius: 999,
-                          background: active ? theme.primary : "#ef4444",
+                          background: "#ef4444",
                           color: "#ffffff",
-                          fontSize: 11,
-                          fontWeight: 800,
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          padding: "0 6px",
                           flexShrink: 0,
-                          lineHeight: 1,
                         }}
                       >
                         {item.badge}
                       </span>
-                    ) : active ? (
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: theme.primary,
-                          flexShrink: 0,
-                        }}
-                      />
                     ) : null}
                   </button>
                 );
@@ -291,20 +311,22 @@ export default function Sidebar({
 
       <div
         style={{
-          marginTop: "auto",
           background: theme.cardBg,
           border: `1px solid ${theme.border}`,
           borderRadius: 18,
-          padding: 16,
+          padding: 14,
+          boxShadow:
+            mode === "dark"
+              ? "0 10px 24px rgba(0,0,0,0.18)"
+              : "0 10px 24px rgba(15,23,42,0.05)",
         }}
       >
         <div
           style={{
             fontSize: 13,
-            fontWeight: 800,
+            fontWeight: 900,
             color: theme.text,
             marginBottom: 6,
-            lineHeight: 1.4,
           }}
         >
           Enterprise Mode
@@ -321,23 +343,22 @@ export default function Sidebar({
           Structured access, cleaner workflows, sharper control.
         </div>
 
-        <div
+        <button
+          type="button"
+          onClick={() => handleNavigate("/settings")}
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 10px",
-            borderRadius: 999,
-            background: theme.cardBgSoft,
             border: `1px solid ${theme.border}`,
-            fontSize: 12,
-            fontWeight: 700,
+            background: theme.cardBgSoft ?? theme.pageBg,
             color: theme.text,
+            borderRadius: 999,
+            padding: "8px 12px",
+            fontSize: 12,
+            fontWeight: 800,
+            cursor: "pointer",
           }}
         >
-          <span>●</span>
-          <span>{mode === "dark" ? "Dark Theme" : "Light Theme"}</span>
-        </div>
+          ⚙ Manage CRM
+        </button>
       </div>
     </aside>
   );
